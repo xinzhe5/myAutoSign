@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>每日自动打开网页与 new-api 签到</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="panel">
+    <h1>每日自动打开网页与 new-api 签到</h1>
+    <p class="lead">设置一个本地时间，让 Chrome 每天在该时间后的 30 分钟内随机打开 Linux.do 英文页面和 AnyRouter 控制台页面，并可自动执行 new-api 签到。</p>
+
+    <form id="settings-form">
+      <label for="schedule-time">每天打开时间</label>
+      <div class="row">
+        <input id="schedule-time" name="schedule-time" type="time" required>
+        <button type="submit">保存</button>
+      </div>
+    </form>
+
+    <p id="status" class="status" aria-live="polite"></p>
+
+    <form id="new-api-form" class="stacked-form">
+      <h2>new-api 签到配置</h2>
+      <label class="checkbox-row">
+        <input id="new-api-enabled" name="new-api-enabled" type="checkbox">
+        <span>启用每日 new-api 签到</span>
+      </label>
+
+      <div id="new-api-site-list" class="site-list"></div>
+
+      <div class="row">
+        <button id="add-new-api-site" type="button" class="secondary-button">添加站点</button>
+        <button type="submit">保存签到配置</button>
+        <button id="run-checkin" type="button" class="secondary-button">立即签到</button>
+      </div>
+    </form>
+
+    <p id="new-api-status" class="status" aria-live="polite"></p>
+
+    <section class="feedback" aria-live="polite">
+      <h2>最近自动打开反馈</h2>
+      <p><strong>最近打开时间：</strong><span id="last-open-time">暂无记录</span></p>
+      <p><strong>执行状态：</strong><span id="last-open-status" class="feedback-status">暂无记录</span></p>
+      <p id="last-open-detail" class="feedback-detail">扩展执行过自动打开后会显示结果。</p>
+    </section>
+
+    <section class="feedback" aria-live="polite">
+      <h2>最近 new-api 签到反馈</h2>
+      <p><strong>最近签到时间：</strong><span id="last-checkin-time">暂无记录</span></p>
+      <p><strong>执行状态：</strong><span id="last-checkin-status" class="feedback-status">暂无记录</span></p>
+      <p id="last-checkin-detail" class="feedback-detail">扩展执行过 new-api 签到后会显示结果。</p>
+    </section>
+
+    <section class="notes">
+      <h2>说明</h2>
+      <p>建议允许 Chrome 在后台运行扩展，否则定时任务可能会延迟到浏览器启动后才执行。</p>
+      <p>如果 Chrome 正在运行，扩展会在设定时间后的 30 分钟内随机打开一次页面（Linux.do 和 AnyRouter 控制台），并执行一次 new-api 签到；如果当时 Chrome 没开，会在当天稍后启动浏览器时补执行一次。</p>
+      <p>可添加多个 new-api 站点，扩展会按列表顺序逐个签到。Cookie 会尽量写入浏览器 Cookie 存储后随请求发送；如果站点要求实时 Cloudflare/Turnstile 校验，仍可能需要更新 Cookie 或 Turnstile Token。</p>
+    </section>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>
