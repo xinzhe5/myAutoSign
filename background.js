@@ -10,6 +10,9 @@ const TARGET_URLS = [
   "https://linux.do/?tl=en",
   "https://anyrouter.top/console"
 ];
+const PROTECTED_TARGET_HOSTS = new Set(
+  TARGET_URLS.map((url) => new URL(url).hostname)
+);
 const DEFAULT_TIME = "09:00";
 const RANDOM_WINDOW_MINUTES = 30;
 const STARTUP_CATCH_UP_DELAY_MS = 3000;
@@ -212,6 +215,24 @@ async function configureNewApiHeaderRule(baseUrl) {
   });
 }
 
+async function clearNewApiHeaderRule() {
+  if (!chrome.declarativeNetRequest?.updateDynamicRules) {
+    return;
+  }
+
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: [NEW_API_HEADER_RULE_ID]
+  });
+}
+
+function isProtectedTargetHost(baseUrl) {
+  try {
+    return PROTECTED_TARGET_HOSTS.has(new URL(baseUrl).hostname);
+  } catch (error) {
+    return false;
+  }
+}
+
 function formatNonJsonError(body) {
   const snippet = body.trim().replace(/\s+/g, " ").slice(0, 300);
   const lowered = body.toLowerCase();
@@ -333,6 +354,18 @@ async function runSingleNewApiCheckin(site, trigger) {
     });
   }
 
+  if (isProtectedTargetHost(site.baseUrl)) {
+    return buildJsonResult(
+      "CONFIG_ERROR",
+      "该地址是自动打开目标，不应作为 new-api 签到站点；为避免覆盖站点登录 Cookie 已跳过",
+      {
+        trigger,
+        siteName: site.name,
+        baseUrl: site.baseUrl
+      }
+    );
+  }
+
   const headers = buildNewApiHeaders(site);
 
   try {
@@ -416,6 +449,8 @@ async function runSingleNewApiCheckin(site, trigger) {
       siteName: site.name,
       baseUrl: site.baseUrl
     });
+  } finally {
+    await clearNewApiHeaderRule();
   }
 }
 
@@ -436,6 +471,8 @@ function getAggregateCheckinStatus(results) {
 }
 
 async function runNewApiCheckin(trigger = "schedule") {
+  await clearNewApiHeaderRule();
+
   const config = await getNewApiConfig();
 
   if (!config.enabled) {
@@ -705,6 +742,7 @@ async function ensureDefaults() {
 
 chrome.runtime.onInstalled.addListener(async () => {
   await ensureDefaults();
+  await clearNewApiHeaderRule();
 
   await scheduleAlarm();
   await maybeCatchUpOpen();
@@ -712,6 +750,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(async () => {
   await ensureDefaults();
+  await clearNewApiHeaderRule();
   await scheduleAlarm();
   await delay(STARTUP_CATCH_UP_DELAY_MS);
   await maybeCatchUpOpen();
