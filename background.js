@@ -1057,11 +1057,50 @@ function extractUser(data) {
   return {
     userId: user.id ?? user.user_id ?? user.userId ?? user.uid ?? value.userId ?? "",
     username: user.username || user.name || user.display_name || user.email || value.username || "",
-    accessToken: user.access_token || user.accessToken || user.token || value.access_token || value.accessToken || ""
+    accessToken: user.auth_token || user.access_token || user.accessToken || user.token || value.auth_token || value.access_token || value.accessToken || ""
   };
 }
 
-async function detectViaDirectApi(baseUrl, accessToken) {
+function extractAccessToken(data) {
+  if (typeof data === "string") {
+    return data.trim();
+  }
+  const value = data?.data !== undefined ? data.data : data;
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+  return String(
+    value.auth_token ||
+    value.access_token ||
+    value.accessToken ||
+    value.token ||
+    value.key ||
+    ""
+  ).trim();
+}
+
+async function fetchNewApiAccessToken(baseUrl, accessToken) {
+  const headers = { Accept: "application/json" };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  try {
+    const { statusCode, data } = await requestJson("GET", `${baseUrl}/api/user/token`, headers);
+    if (statusCode >= 200 && statusCode < 300) {
+      return extractAccessToken(data);
+    }
+  } catch (error) {
+    return "";
+  }
+
+  return "";
+}
+
+async function detectViaDirectApi(baseUrl, accessToken, siteType) {
   const headers = { Accept: "application/json" };
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
@@ -1070,7 +1109,11 @@ async function detectViaDirectApi(baseUrl, accessToken) {
   try {
     const { statusCode, data } = await requestJson("GET", `${baseUrl}/api/user/self`, headers);
     if (statusCode >= 200 && statusCode < 300) {
-      return extractUser(data);
+      const user = extractUser(data);
+      if (!user.accessToken && siteType === SITE_TYPES.NEW_API) {
+        user.accessToken = await fetchNewApiAccessToken(baseUrl, accessToken);
+      }
+      return user;
     }
   } catch (error) {
     return {};
@@ -1156,16 +1199,24 @@ async function detectAccount(input = {}) {
     ? input.siteType
     : detectSiteType(baseUrl, SITE_TYPES.NEW_API);
   const contentResult = await detectFromContentScript(baseUrl);
-  const directUser = await detectViaDirectApi(baseUrl, contentResult.data.accessToken);
+  const directUser = await detectViaDirectApi(baseUrl, contentResult.data.accessToken, siteType);
   const cookie = await getCookieHeader(baseUrl);
   const merged = {
-    ...contentResult.data,
-    ...directUser
+    userId: directUser.userId !== undefined && directUser.userId !== null && String(directUser.userId) !== ""
+      ? directUser.userId
+      : contentResult.data.userId,
+    username: directUser.username || contentResult.data.username || "",
+    accessToken: directUser.accessToken || contentResult.data.accessToken || ""
   };
+  const accessToken = String(merged.accessToken || "");
   const resolvedAuthType = isKnownAuthType(input.authType)
-    ? input.authType
+    ? accessToken
+      ? AUTH_TYPES.ACCESS_TOKEN
+      : input.authType
     : siteType === SITE_TYPES.ANYROUTER
-      ? AUTH_TYPES.COOKIE
+      ? accessToken
+        ? AUTH_TYPES.ACCESS_TOKEN
+        : AUTH_TYPES.COOKIE
       : merged.accessToken
         ? AUTH_TYPES.ACCESS_TOKEN
         : getDefaultAuthType(siteType, baseUrl);
@@ -1184,7 +1235,7 @@ async function detectAccount(input = {}) {
     name: input.name || new URL(baseUrl).hostname,
     username: String(merged.username || ""),
     userId: merged.userId === undefined || merged.userId === null ? "" : String(merged.userId),
-    accessToken: siteType === SITE_TYPES.ANYROUTER ? "" : String(merged.accessToken || ""),
+    accessToken,
     cookie
   };
 }

@@ -17,6 +17,7 @@
   - 新增站点类型下拉选择，第一版支持 New API 和 AnyRouter
   - 新增账号自动识别能力，可从目标站点读取用户 ID、用户名、访问令牌和 Cookie
   - 新增侧边栏识别入口，点击扩展图标即可在当前目标站点旁边识别并保存账号
+  - 优化访问令牌识别，兼容 `auth_token` / `auth_user` 登录态、短期 JWT 刷新和 New API `/api/user/token` 兜底获取
   - new-api 签到改为账号 provider 执行，并保存逐账号结果
   - 新增 AnyRouter 真实签到 provider，按参考实现使用 Cookie 认证请求 `/api/user/sign_in`
   - 新增自动签到状态卡片、结果表格、单账号重试和失败重试队列
@@ -57,8 +58,8 @@
 
 - `manifest.json`：Chrome Manifest V3 配置文件
 - `shared.js`：站点类型、认证方式、状态枚举、账号归一化和时间工具
-- `content.js`：在目标站点内执行自动识别，读取登录态、用户信息和候选访问令牌
-- `background.js`：负责账号迁移、自动打开、自动签到调度、失败重试和 provider 请求
+- `content.js`：在目标站点内执行自动识别，读取登录态、用户信息、候选访问令牌和 Sub2API/AnyRouter 类 JWT 登录态
+- `background.js`：负责账号迁移、自动打开、自动签到调度、失败重试、provider 请求和访问令牌兜底获取
 - `sidepanel.html`、`sidepanel.css`、`sidepanel.js`：侧边栏账号自动识别入口
 - `options.html`、`options.css`、`options.js`：设置页面，包含账号管理、自动签到和基础设置三个视图
 - `DEVELOPMENT_PLAN.md`：本轮升级计划、实现进度和验证记录
@@ -106,6 +107,13 @@
 - 用户 ID
 - Access Token
 - Cookie
+
+访问令牌识别会按以下路径尝试：
+
+- 从目标站点页面存储读取常见字段，如 `auth_token`、`access_token`、`accessToken`、`token`、`jwt_token`。
+- 对 AnyRouter / Sub2API 类控制台，读取 `auth_user` 和 `auth_token`；如果存在 `refresh_token` 和 `token_expires_at`，会在令牌临近过期时尝试刷新。
+- 对 New API 类站点，先调用 `/api/user/self` 读取用户信息；如果响应里没有访问令牌，会再尝试调用 `/api/user/token` 获取。
+- 后台合并识别结果时不会用空访问令牌覆盖页面存储中已经识别到的有效令牌。
 
 不同 new-api 魔改站点的字段可能不完全一致，如果自动识别失败，可以手动填写后保存。
 
