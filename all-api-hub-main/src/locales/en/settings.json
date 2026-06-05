@@ -1,0 +1,691 @@
+{
+  "accountManagement": {
+    "description": "Manage accounts, balances, API keys, and configure sorting priorities in the dedicated management console.",
+    "openPage": "Open Account Management Page",
+    "title": "Account Management"
+  },
+  "actionClick": {
+    "actionIconClickDesc": "Choose open behavior when extension icon is clicked",
+    "actionIconClickTitle": "Opens when extension icon is clicked",
+    "description": "Choose what happens when you click the extension icon.",
+    "popupLabel": "Popup",
+    "popupTitle": "Open popup",
+    "sidepanelFallbackToast": "Side panel preference saved. This device will fall back to opening the popup.",
+    "sidepanelLabel": "Side panel",
+    "sidepanelTitle": "Open side panel",
+    "sidepanelUnsupportedHelper": "Side panel is not supported on this device. Toolbar icon clicks will fall back to opening the popup.",
+    "title": "Toolbar icon behavior"
+  },
+  "appearanceLanguage": {
+    "language": "Language",
+    "languageDesc": "Choose your preferred language",
+    "onboardingHelper": "Update the onboarding text immediately and keep this language for later settings pages.",
+    "onboardingLabel": "Choose your language",
+    "switcher": {
+      "currentLanguage": "Current interface language: {{language}}",
+      "groupLabel": "Interface language selector",
+      "options": {
+        "en": {
+          "label": "EN",
+          "name": "English"
+        },
+        "ja": {
+          "label": "JA",
+          "name": "Japanese"
+        },
+        "vi": {
+          "label": "VI",
+          "name": "Vietnamese"
+        },
+        "zh-CN": {
+          "label": "SC",
+          "name": "Simplified Chinese"
+        },
+        "zh-TW": {
+          "label": "TC",
+          "name": "Traditional Chinese"
+        }
+      },
+      "switchToLanguage": "Switch interface language to {{language}}"
+    }
+  },
+  "autoFillCurrentSiteUrlOnAccountAdd": {
+    "description": "Control whether Add Account starts with the current site's URL already filled in.",
+    "title": "Accounts",
+    "toggleDesc": "When enabled, opening Add Account prefills the URL field with the current browser tab's site origin. Detection still uses the existing next step.",
+    "toggleLabel": "Prefill URL from current site when adding accounts"
+  },
+  "autoProvisionKeyOnAccountAdd": {
+    "description": "Control whether All API Hub automatically provisions a default API key after you add an account.",
+    "title": "API keys",
+    "toggleDesc": "When enabled, All API Hub checks your token inventory after saving an account and creates a default token if none exist.",
+    "toggleLabel": "Auto-create a default key on account add"
+  },
+  "axonHub": {
+    "cors": {
+      "description": "New AxonHub instances usually require a server-side CORS update before the browser extension can access AxonHub. Prefer allowing only the trusted browser / extension origin in AXONHUB_SERVER_CORS_ALLOWED_ORIGINS, and use \"*\" only as a short-lived local development fallback.",
+      "title": "Required CORS setup"
+    },
+    "description": "Configure integration settings for connecting to an AxonHub admin site.",
+    "fields": {
+      "baseUrlDesc": "Set the AxonHub site base URL",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "https://axonhub.example.com",
+      "emailDesc": "AxonHub admin email used for /admin/auth/signin",
+      "emailLabel": "Admin email",
+      "emailPlaceholder": "admin@example.com",
+      "hidePassword": "Hide password",
+      "passwordDesc": "AxonHub admin password used to obtain an admin GraphQL session token",
+      "passwordLabel": "Admin password",
+      "passwordPlaceholder": "Enter password",
+      "showPassword": "Show password"
+    },
+    "title": "AxonHub Integration Settings",
+    "validation": {
+      "corsFailed": "AxonHub validation failed: {{error}}. This usually means the AxonHub instance has not allowed the extension's browser origin yet. Update AXONHUB_SERVER_CORS_ALLOWED_ORIGINS to allow the trusted browser / extension origin, and use \"*\" only as a short-lived local development fallback, then retry.",
+      "description": "Test whether the email and password can sign in to AxonHub admin GraphQL",
+      "failed": "AxonHub validation failed: {{error}}",
+      "missingFields": "Please fill in all required fields",
+      "success": "AxonHub configuration validated successfully",
+      "title": "Validate Configuration",
+      "validate": "Validate",
+      "validating": "Validating..."
+    }
+  },
+  "changelogOnUpdate": {
+    "description": "Control whether All API Hub shows a What's New dialog the first time you open the extension UI after updates.",
+    "title": "Changelog",
+    "toggleDesc": "When enabled, the update log is shown inline on first UI open after an update (once per version). You can still open the full docs changelog manually.",
+    "toggleLabel": "Show What's New after updates"
+  },
+  "claudeCodeHub": {
+    "description": "Configure connection settings for a Claude Code Hub admin site.",
+    "fields": {
+      "adminTokenDesc": "Admin token or API key accepted by Claude Code Hub's action API",
+      "adminTokenLabel": "Admin token",
+      "adminTokenPlaceholder": "Enter admin token",
+      "baseUrlDesc": "Set the Claude Code Hub site base URL",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "https://claude-code-hub.example.com",
+      "hideAdminToken": "Hide admin token",
+      "showAdminToken": "Show admin token"
+    },
+    "title": "Claude Code Hub Integration Settings",
+    "unsupported": {
+      "description": "Model sync and model redirect are not available for Claude Code Hub in this version.",
+      "title": "Unsupported channel actions"
+    },
+    "validation": {
+      "description": "Test whether the token can read Claude Code Hub providers through the action API",
+      "failed": "Claude Code Hub validation failed: {{error}}",
+      "missingFields": "Please fill in all required fields",
+      "success": "Claude Code Hub configuration validated successfully",
+      "title": "Validate Configuration",
+      "validate": "Validate",
+      "validating": "Validating..."
+    }
+  },
+  "claudeCodeRouter": {
+    "apiKeyLabel": "API key",
+    "apiKeyPlaceholder": "sk-123456",
+    "baseUrlLabel": "Base URL",
+    "baseUrlPlaceholder": "http://localhost:3000",
+    "description": "Configure connection to Claude Code Router admin API",
+    "keyDesc": "Optional API key for /api/config (APIKEY)",
+    "title": "Claude Code Router",
+    "urlDesc": "Claude Code Router server base URL, e.g. http://localhost:3000"
+  },
+  "cliProxy": {
+    "baseUrlLabel": "Management API Base URL",
+    "checkConnectionAction": "Check Connection",
+    "checkConnectionDesc": "After saving, verify that the current URL and management key can reach the CLIProxyAPI Management API.",
+    "checkConnectionLabel": "Connection Check",
+    "description": "Configure connection to CLIProxyAPI Management API",
+    "hideKey": "Hide key",
+    "keyDesc": "Management key for interface access authentication",
+    "managementDocsLinkLabel": "Open Management API docs",
+    "managementKeyLabel": "Management Key",
+    "showKey": "Show key",
+    "title": "CLIProxyAPI Settings",
+    "urlDesc": "Set the Management API base URL, e.g. http://localhost:8317/v0/management"
+  },
+  "danger": {
+    "resetAllSettings": "Reset All Settings",
+    "resetDesc": "Reset all configurations to default values, this operation cannot be undone",
+    "resetFailed": "Failed to reset settings",
+    "resetSettings": "Reset Settings",
+    "title": "Danger Zone"
+  },
+  "dataBackup": {
+    "importExport": {
+      "description": "Access the dedicated page for importing and exporting data.",
+      "info": "The Import/Export page provides full access to data import, exporting to different formats, and backup management.",
+      "openPage": "Open Import / Export Page",
+      "title": "Import & Export"
+    }
+  },
+  "description": "Manage the basic configuration options of the plugin",
+  "display": {
+    "cny": "CNY (¥)",
+    "currencyDesc": "Set the default currency unit for balance and cashflow display",
+    "currencyUnit": "Currency Unit",
+    "defaultTab": "Default Tab",
+    "defaultTabDesc": "Set the default tab displayed when the plugin starts",
+    "description": "Customize the appearance and display preferences of the plugin",
+    "title": "Display Settings",
+    "todayCashflow": "Today's Cashflow",
+    "todayCashflowEnabled": "Show Today's Cashflow",
+    "todayCashflowEnabledDesc": "Controls whether today's consumption/income stats are displayed and fetched. When disabled, today stats are hidden and refresh skips the data requests used to compute them.",
+    "totalBalance": "Total Balance",
+    "usd": "USD ($)"
+  },
+  "doneHub": {
+    "adminCredentialsLink": {
+      "description": "Open the profile page to find the system access token and user ID.",
+      "open": "Open page",
+      "title": "Quick access"
+    },
+    "description": "Configure integration settings for connecting to Done Hub compatible services.",
+    "fields": {
+      "adminTokenLabel": "Administrator's system access token",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "https://api.example.com",
+      "hideToken": "Hide system access token",
+      "showToken": "Show system access token",
+      "userIdLabel": "Administrator user ID"
+    },
+    "title": "Done Hub Integration Settings",
+    "tokenDesc": "System access token for the administrator user. Find it in Done Hub dashboard → Personal settings → Token.",
+    "urlDesc": "Set the base URL for Done Hub integration",
+    "userIdDesc": "Administrator user ID (numeric only). Root admin is usually 1."
+  },
+  "duplicateAccountWarningOnAdd": {
+    "description": "Control whether All API Hub asks for confirmation when you add an account for a site that already exists.",
+    "title": "Accounts",
+    "toggleDesc": "When enabled, All API Hub shows a confirmation dialog if you try to add another account for the same site URL.",
+    "toggleLabel": "Warn before adding duplicates"
+  },
+  "logging": {
+    "consoleEnabled": "Enable console logging",
+    "consoleEnabledDesc": "When disabled, All API Hub will not emit any console output at any level (including errors).",
+    "description": "Control console logging for troubleshooting and diagnostics.",
+    "levels": {
+      "debug": "Debug",
+      "error": "Error",
+      "info": "Info",
+      "warn": "Warn"
+    },
+    "minLevel": "Minimum log level",
+    "minLevelDesc": "When console logging is enabled, logs below this level are suppressed.",
+    "title": "Logging"
+  },
+  "managedSite": {
+    "axonHub": "AxonHub",
+    "claudeCodeHub": "Claude Code Hub",
+    "description": "Select which API aggregator platform you want to manage. This determines which configuration will be used for channel management and model syncing.",
+    "doneHub": "Done Hub",
+    "newApi": "New API",
+    "octopus": "Octopus",
+    "siteTypeDesc": "Choose the platform used for channel management and model sync",
+    "siteTypeLabel": "Managed Site Type",
+    "title": "Managed Site Configuration",
+    "veloera": "Veloera"
+  },
+  "messages": {
+    "confirmReset": "Confirm Reset",
+    "preferencesChangedExternally": "Preferences changed externally. Refresh and try again.",
+    "resetConfirmDesc": "Are you sure you want to reset {{name}} to default settings? This operation cannot be undone.",
+    "resetFailed": "Failed to reset {{name}}",
+    "resetSuccess": "{{name}} has been reset to default settings",
+    "saveSettingsFailed": "Failed to save settings",
+    "updateFailed": "{{name}} Update failed",
+    "updateSuccess": "{{name}} Update successful"
+  },
+  "newApi": {
+    "adminCredentialsLink": {
+      "description": "Open the admin personal settings page to find the system access token and user ID.",
+      "open": "Open page",
+      "title": "Quick access"
+    },
+    "description": "Configure integration settings for connecting to New API compatible services.",
+    "fields": {
+      "adminTokenLabel": "Administrator's system access token",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "https://api.example.com",
+      "hidePassword": "Hide login password",
+      "hideToken": "Hide system access token",
+      "hideTotpSecret": "Hide TOTP secret",
+      "passwordDesc": "Optional. Used together with the login username to sign in to the New API admin console and establish a login session when viewing a channel key or running full key comparison.",
+      "passwordLabel": "Login password",
+      "passwordPlaceholder": "Enter password",
+      "showPassword": "Show login password",
+      "showToken": "Show system access token",
+      "showTotpSecret": "Show TOTP secret",
+      "totpSecretDesc": "Optional. When provided, All API Hub can automatically generate TOTP codes for login 2FA and the secure verification required to view channel keys.",
+      "totpSecretLabel": "TOTP secret",
+      "totpSecretPlaceholder": "Paste Base32 TOTP secret",
+      "userIdLabel": "Administrator user ID",
+      "usernameDesc": "Optional. Used to sign in to the New API admin console and complete 2FA when needed. This is mainly used for viewing the real channel key in Channel Management and for checking whether a key is already used by a channel in Key Management.",
+      "usernameLabel": "Login username",
+      "usernamePlaceholder": "admin"
+    },
+    "sessionTest": {
+      "action": "Test config",
+      "description": "Test whether the entered login username, password, and TOTP secret are correct and usable. After a successful check, you can continue with actions that require login and 2FA.",
+      "testing": "Testing config...",
+      "title": "Test login & 2FA config"
+    },
+    "title": "New API Integration Settings",
+    "tokenDesc": "System access token for the administrator user",
+    "urlDesc": "Set the base URL for New API integration",
+    "userIdDesc": "Administrator user ID (numeric only)"
+  },
+  "octopus": {
+    "description": "Configure integration settings for connecting to Octopus self-hosted sites. The system will automatically log in using your credentials and manage the JWT Token.",
+    "fields": {
+      "baseUrlDesc": "Set the base URL for Octopus site",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "https://octopus.example.com",
+      "hidePassword": "Hide password",
+      "passwordDesc": "Octopus admin password for automatic login",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter password",
+      "showPassword": "Show password",
+      "usernameDesc": "Octopus admin username for automatic login",
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "admin"
+    },
+    "title": "Octopus Integration Settings",
+    "validation": {
+      "description": "Test if username and password are correct",
+      "error": "An error occurred during validation",
+      "failed": "Configuration validation failed, please check username and password",
+      "missingFields": "Please fill in all required fields",
+      "success": "Configuration validated successfully, connection is working",
+      "title": "Validate Configuration",
+      "validate": "Validate",
+      "validating": "Validating..."
+    }
+  },
+  "permissions": {
+    "actions": {
+      "allow": "Allow (recommended)",
+      "refresh": "Refresh status",
+      "remove": "Revoke"
+    },
+    "description": "Only grant these optional capabilities when you need All API Hub to handle cookies, headers, or temp-window bypass flows for you.",
+    "helper": "Once enabled, the extension simply attaches your existing session cookies and headers in the background. You can disable any permission later without affecting core features.",
+    "items": {
+      "clipboardRead": {
+        "description": "Allow the redemption assistant to detect copied redemption codes, thereby prompting automatic redemption of the codes.",
+        "title": "Clipboard Read"
+      },
+      "cookies": {
+        "description": "Allows All API Hub to read the necessary cookies for your connected accounts so authentication headers can be added when required.",
+        "title": "Cookies"
+      },
+      "declarativeNetRequestWithHostAccess": {
+        "description": "Allow applying request header rules by pressing Tab during the temporary window shield, attaching the correct cookies for different accounts, and avoiding data anomalies under multiple accounts.",
+        "title": "Declarative Net Request"
+      },
+      "notifications": {
+        "description": "Allow background scheduled tasks to send system notifications after they finish.",
+        "title": "System Notifications"
+      },
+      "webRequest": {
+        "description": "Lets the extension observe outgoing requests only when temp-window bypass or auto-refresh needs to add required headers.",
+        "title": "Web Request"
+      },
+      "webRequestBlocking": {
+        "description": "Allows synchronous modification so cookies can be attached before a request leaves the browser, keeping firewall-bypass flows reliable.",
+        "title": "Web Request Blocking"
+      }
+    },
+    "messages": {
+      "granted": "{{name}} enabled. Related workflows will now run as expected.",
+      "grantFailed": "Couldn’t enable {{name}}. Please retry later if you still need it.",
+      "revoked": "{{name}} permission revoked",
+      "revokeFailed": "Failed to revoke {{name}} permission"
+    },
+    "status": {
+      "checking": "Checking…",
+      "denied": "Not granted",
+      "granted": "Granted"
+    },
+    "statusCaption": "Permission status is synced with the browser. Click refresh if you changed permissions outside this page.",
+    "title": "Permissions"
+  },
+  "permissionsOnboarding": {
+    "actions": {
+      "allowAll": "Allow recommended permissions",
+      "maybeLater": "Maybe later"
+    },
+    "analyticsDisclosure": "The extension includes optional anonymous product analytics that help us prioritize fixes for common issues, improve core workflows and compatibility, and reduce unnecessary friction. It does not collect API keys, cookies, account URLs, balances, request content, or user input.",
+    "intro": "As an open-source project, we only ask for the minimal optional permissions needed to enable advanced workflows. You stay in full control.",
+    "openSourceBadge": "Open-source & community-driven",
+    "permissionListDescription": "These permissions are required for firewall-bypass flows so data refresh jobs keep working on protected sites.",
+    "permissionListTitle": "What these permissions do",
+    "project": {
+      "cta": "Go to the repository to follow versions, submit issues, or participate in development.",
+      "label": "Project",
+      "starCta": "Star us on GitHub to support the project!"
+    },
+    "reason": {
+      "newPermissions": "We added new optional permissions to support recent features. Please review and confirm to keep everything working."
+    },
+    "subtitle": "This open-source extension needs a few optional permissions to enable features like the temp-window bypass and other advanced workflows.",
+    "title": "Welcome to All API Hub",
+    "toasts": {
+      "error": "Permission request was dismissed",
+      "success": "All recommended permissions granted"
+    }
+  },
+  "productAnalytics": {
+    "description": "Anonymous statistics that help us spot common issues sooner, improve everyday workflows, and strengthen compatibility. We do not collect API keys, cookies, account URLs, balances, request content, or user input.",
+    "enableDescription": "Allow limited feature usage, error category, and coarse site-type statistics so we can focus on the parts that affect your experience most.",
+    "enableLabel": "Enable anonymous product analytics",
+    "title": "Anonymous product analytics"
+  },
+  "refresh": {
+    "autoRefresh": "Auto Refresh",
+    "autoRefreshDesc": "Regularly auto-refresh account data",
+    "description": "Configure auto-refresh related settings, such as refresh interval and behavior at startup",
+    "minRefreshInterval": "Minimum Refresh Interval",
+    "minRefreshIntervalDesc": "Minimum time interval between refreshes to avoid frequent requests (at least {{minSeconds}} seconds)",
+    "minRefreshIntervalInvalid": "Please enter a valid minimum refresh interval (at least {{minSeconds}} seconds).",
+    "refreshInterval": "Refresh Interval",
+    "refreshIntervalDesc": "Set the time interval for auto-refresh (default {{defaultInterval}} seconds, it is recommended not to set too small to avoid frequent requests)",
+    "refreshIntervalInvalid": "Please enter a valid refresh interval (at least {{minSeconds}} seconds).",
+    "refreshOnOpen": "Auto-refresh when opening plugin",
+    "refreshOnOpenDesc": "Auto-refresh account data when opening the plugin popup",
+    "shieldAutoRefresh": "Use for automatic refresh",
+    "shieldContextsDesc": "Choose where the temp-window protection bypass is allowed. Individual options are ignored when the main switch is disabled.",
+    "shieldContextsTitle": "Use protection bypass in these contexts",
+    "shieldDescriptionTempWindowOnly": "When enabled, a temporary popup window may open briefly to bypass website protection pages (e.g., Cloudflare's 5-second shield) before the extension retrieves data.",
+    "shieldDescriptionWithCookieInterceptor": "On Firefox, a temporary popup window may open briefly to pass protection pages and obtain cookies. The Cookie Interceptor then attaches those cookies to requests.",
+    "shieldEnabled": "Enable protection bypass (temp window)",
+    "shieldEnabledDescTempWindowOnly": "When disabled, the extension will not open the temporary popup window to bypass website protection pages.",
+    "shieldEnabledDescWithCookieInterceptor": "When disabled, Firefox will not open the temporary popup window to obtain cookies for Cookie Interceptor based requests.",
+    "shieldManualRefresh": "Use for manual refresh",
+    "shieldMethodComposite": "Shared window (tabs)",
+    "shieldMethodDesc": "Choose which temporary context to use when running the protection bypass.",
+    "shieldMethodHintComposite": "Uses a shared window and opens each bypass run as a tab inside it.",
+    "shieldMethodHintTab": "Use the background tab of the current window to complete the shield, with less interface interference.",
+    "shieldMethodHintWindow": "Use multiple new windows to complete the shield; a new window will pop up each time the shield is completed.",
+    "shieldMethodTab": "Temp tab",
+    "shieldMethodTitle": "Bypass method",
+    "shieldMethodWindow": "Popup window",
+    "shieldOptions": "Use on options page",
+    "shieldPermissionAction": "Open Permissions Tab",
+    "shieldPermissionWarningDesc": "Grant the Cookies/Web Request permissions so the temporary window bypass can attach authenticated cookies before sending requests.",
+    "shieldPermissionWarningTitle": "Cookie interceptor permissions required",
+    "shieldPopup": "Use in popup",
+    "shieldPopupFirefoxNote": "In Firefox popup, shielded data requests are always disabled to avoid closing the popup. This setting is still saved for other browsers.",
+    "shieldSidepanel": "Use in side panel",
+    "shieldTitle": "Temp-window protection bypass",
+    "title": "Refresh Settings"
+  },
+  "releaseUpdate": {
+    "checkNow": "Check now",
+    "downloadUpdate": "Download update",
+    "helpers": {
+      "checkFailed": "Try again later, or open the release page to verify the latest version manually.",
+      "manualUpdate": "This install is updated manually. Open the release page to get the new version.",
+      "manualUpdateGeneric": "Update through your current install channel, or open the release page if you need to update manually.",
+      "notChecked": "Run “Check now” to confirm whether your current version needs an update.",
+      "openLatest": "Open the release page to review the latest stable release and release notes.",
+      "storeUpdate": "This install usually updates automatically. You can also check the store or release page for the newest version.",
+      "unavailable": "Try again later, or open the release page to review the latest stable release directly.",
+      "upToDate": "Open the release page if you want to review what changed in this version."
+    },
+    "lastChecked": "Last checked: {{time}}",
+    "latestVersionPending": "Latest stable: not checked yet",
+    "latestVersionUnavailable": "Latest stable: unavailable",
+    "openLatest": "Open latest release",
+    "reasons": {
+      "api-unavailable": "This browser environment does not support automatic detection. You can still check the latest stable release manually",
+      "chromium-development": "This install channel can check the latest stable release. Run a manual check to compare versions",
+      "firefox-ambiguous": "Firefox cannot reliably determine the install channel right now. Manually check the latest stable release when needed",
+      "safari-unsupported": "Safari does not support automatic detection yet. Open the release page to review the latest stable release",
+      "store-build": "This install channel does not support automatic detection, but you can still check the latest stable release manually",
+      "unknown": "This install channel does not currently support automatic detection. You can still check the latest stable release manually"
+    },
+    "states": {
+      "checkFailed": "Check failed, so the latest stable release could not be retrieved",
+      "notChecked": "The latest stable release has not been checked yet. Run a manual check to compare versions",
+      "unavailable": "Update status is currently unavailable",
+      "updateAvailable": "A newer version is available to upgrade",
+      "upToDate": "Check complete. Your current version is already the latest stable release"
+    },
+    "versionBadge": {
+      "changelogAriaLabel": "Version {{version}} changelog",
+      "updateAvailableAriaLabel": "Version {{version}} update available"
+    }
+  },
+  "siteAnnouncementNotifications": {
+    "description": "Controls whether enabled account sites are checked for site announcements in the background.",
+    "page": {
+      "description": "Checks in the background every {{intervalMinutes}} minutes. You can also run a manual check.",
+      "open": "View announcements",
+      "title": "Announcement page"
+    },
+    "polling": {
+      "enable": "Enable site announcement polling",
+      "enableDesc": "When disabled, scheduled background polling stops. Existing local records are kept, and the announcement page can still run a manual check.",
+      "interval": "Polling interval",
+      "intervalDesc": "Set the background site announcement polling interval in minutes, from 15 to 1440."
+    },
+    "title": "Site announcements"
+  },
+  "sorting": {
+    "checkInDesc": "Place sites that need check-in at the front",
+    "checkInRequirement": "Check-in Requirement",
+    "currentSiteDesc": "Place the account currently logged in within the browser at the top of the list",
+    "currentSitePriority": "Prioritize Current Logged-in Account",
+    "customCheckInDesc": "Place sites using external check-in links at the front",
+    "customCheckInUrl": "External check-in URL",
+    "customRedeemDesc": "Place sites using custom redeem links at the front",
+    "customRedeemUrl": "Custom Redeem URL",
+    "customSortDesc": "Sort according to the field (such as balance) selected by the user in the list view",
+    "description": "Define the sorting priority of accounts in the list to organize the display of accounts",
+    "disabledAccount": "Move Disabled Accounts to Bottom",
+    "disabledAccountDesc": "Disabled accounts will be uniformly moved to the bottom of the list",
+    "healthDesc": "Sort by site health status (Error > Warning > Unknown > Healthy)",
+    "healthStatus": "Health Status",
+    "manualOrder": "Manual order",
+    "manualOrderDesc": "Sort accounts according to your manually defined list order",
+    "matchedOpenTabs": "Matched Open Tabs",
+    "matchedOpenTabsDesc": "Place related accounts that match the current open tabs (by title or URL) at the front",
+    "pinnedDesc": "Place pinned accounts at the top of the list in the order they were pinned",
+    "pinnedPriority": "Pinned Priority",
+    "priority": "Priority",
+    "title": "Sorting Priority Settings",
+    "unknownSortRule": "Unknown sorting rule",
+    "userCustomSort": "User Custom Sort"
+  },
+  "tabs": {
+    "accountManagement": "Account Management",
+    "accountUsage": "Account usage",
+    "balanceHistory": "Balance History",
+    "checkinRedeem": "Check-in & Redeem",
+    "claudeCodeRouter": "Claude Code Router",
+    "cliProxy": "CLIProxyAPI",
+    "dataBackup": "Data & Backup",
+    "general": "General",
+    "managedSite": "Managed site",
+    "notifications": "Notifications",
+    "permissions": "Permissions",
+    "refresh": "Data Refresh",
+    "select": "Select a tab",
+    "webAiApiCheck": "AI API Test"
+  },
+  "taskNotifications": {
+    "channels": {
+      "browser": {
+        "description": "Send through browser system notifications. Requires the notifications permission.",
+        "title": "Browser system notifications"
+      },
+      "dingtalk": {
+        "description": "Send task notifications through a DingTalk group custom bot. Pasting the full webhook URL from DingTalk is recommended, and the access_token value is still supported.",
+        "docsLink": "View setup docs",
+        "secret": "Signing secret (optional)",
+        "secretPlaceholder": "SECxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "title": "DingTalk Bot",
+        "webhookKey": "Webhook URL or access_token",
+        "webhookKeyDescription": "Copy the webhook URL from the DingTalk custom bot settings page and paste it here. If you enter only the value after `access_token=`, All API Hub will complete the URL automatically. If signed security is enabled, enter the secret as well.",
+        "webhookKeyPlaceholder": "https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "feishu": {
+        "description": "Send task notifications through a Feishu custom bot. Pasting the full webhook URL from Feishu is recommended, and the final key segment is still supported.",
+        "docsLink": "View setup docs",
+        "title": "Feishu Bot",
+        "webhookKey": "Webhook URL or key",
+        "webhookKeyDescription": "Copy the webhook URL from the Feishu custom bot settings page and paste it here. If you enter only the key after `/hook/`, All API Hub will complete the URL automatically.",
+        "webhookKeyPlaceholder": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      },
+      "ntfy": {
+        "accessToken": "Access token (optional)",
+        "accessTokenPlaceholder": "tk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "description": "Send task notifications through an ntfy topic, using ntfy.sh or a self-hosted ntfy server.",
+        "docsLink": "View setup docs",
+        "title": "ntfy",
+        "topicUrl": "Topic URL or topic name",
+        "topicUrlDescription": "Enter a full topic URL such as `https://ntfy.sh/mytopic`, or enter only an ntfy.sh topic name. Add an access token when your self-hosted server or private topic requires one.",
+        "topicUrlPlaceholder": "https://ntfy.sh/mytopic"
+      },
+      "telegram": {
+        "botToken": "Bot token",
+        "botTokenPlaceholder": "123456:ABC-DEF...",
+        "chatId": "Chat ID",
+        "chatIdPlaceholder": "123456789 or -1001234567890",
+        "description": "Send task notifications through a Telegram Bot.",
+        "title": "Telegram Bot"
+      },
+      "webhook": {
+        "description": "Send JSON notifications to a custom HTTP(S) webhook. The URL supports template variables for services such as Bark that put notification text in the path.",
+        "title": "Generic webhook",
+        "url": "Webhook URL",
+        "urlDescription": "Use {title}, {message}, {task}, {status}, {total}, {success}, {failed}, or {skipped} in the URL. Values are URL-encoded before sending. For Bark, use https://api.day.app/your-key/{title}/{message}.",
+        "urlPlaceholder": "https://api.day.app/your-key/{title}/{message}"
+      },
+      "wecom": {
+        "description": "Send task notifications through WeCom group message push. Pasting the full webhook URL from WeCom is recommended, and the key value is still supported.",
+        "docsLink": "View setup docs",
+        "title": "WeCom Bot",
+        "webhookKey": "Webhook URL or key",
+        "webhookKeyDescription": "Copy the webhook URL from the WeCom group's message push settings and paste it here. If you enter only the key after `key=`, All API Hub will complete the URL automatically.",
+        "webhookKeyPlaceholder": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      }
+    },
+    "enable": "Enable task notifications",
+    "enableDesc": "When enabled, selected tasks send success, partial success, or failure notifications after scheduled runs finish.",
+    "groups": {
+      "channels": {
+        "description": "Choose where notifications are delivered. Browser notifications need permission, while Telegram, Feishu, DingTalk, WeCom, ntfy, and webhook channels can be configured and tested separately.",
+        "title": "Notification channels"
+      },
+      "setup": {
+        "description": "Turn scheduled task notifications on or off before choosing channels and event types.",
+        "title": "Basic settings"
+      },
+      "tasks": {
+        "description": "Select which scheduled task completions or site announcement updates should notify you.",
+        "title": "Notification events"
+      }
+    },
+    "notification": {
+      "body": {
+        "failure": "{{task}} failed.",
+        "partialSuccess": "{{task}} partially completed.",
+        "success": "{{task}} completed successfully."
+      },
+      "counts": "Total {{total}}, success {{success}}, failed {{failed}}, skipped {{skipped}}.",
+      "title": {
+        "failure": "{{task}} failed",
+        "partialSuccess": "{{task}} partially succeeded",
+        "success": "{{task}} completed"
+      }
+    },
+    "permission": {
+      "description": "System notifications require the browser's optional notifications permission. You can also revoke it from Permissions.",
+      "request": "Grant notification permission",
+      "requestFailed": "Notification permission was not granted",
+      "requestSuccess": "Notification permission granted",
+      "title": "Notification permission"
+    },
+    "siteAnnouncements": {
+      "enable": "Site announcement notifications",
+      "enableDesc": "When enabled, newly fetched site announcements send task notifications. Local announcement records are still saved when disabled."
+    },
+    "taskDescriptions": {
+      "autoCheckin": "Notify after daily automatic check-in and automatic retry runs finish.",
+      "balanceHistoryCapture": "Notify after the end-of-day balance history capture finishes.",
+      "managedSiteModelSync": "Notify after scheduled managed-site model sync finishes.",
+      "usageHistorySync": "Notify after scheduled usage history sync finishes.",
+      "webdavAutoSync": "Notify after scheduled WebDAV automatic sync finishes."
+    },
+    "tasks": {
+      "autoCheckin": "Auto check-in",
+      "balanceHistoryCapture": "End-of-day balance capture",
+      "managedSiteModelSync": "Model sync",
+      "usageHistorySync": "Usage history sync",
+      "webdavAutoSync": "WebDAV auto sync"
+    },
+    "tasksLabel": "Task notifications",
+    "test": {
+      "action": "Send test notification",
+      "browserFailed": "Browser notification test failed. Make sure the browser notification channel is enabled and notification permission is granted.",
+      "channelDisabled": "Failed to send the test notification. Enable and configure this notification channel first.",
+      "dingtalkMissingConfig": "DingTalk Bot webhook URL or access_token is not configured.",
+      "failed": "Failed to send the test notification. Check this notification channel configuration.",
+      "feishuMissingConfig": "Feishu Bot webhook URL or key is not configured.",
+      "httpError": "{{label}} returned HTTP {{status}}.",
+      "httpErrorWithDetail": "{{label}} returned HTTP {{status}}: {{detail}}",
+      "message": "This is an All API Hub task notification test.",
+      "ntfyInvalidUrl": "The ntfy topic must be an http:// or https:// URL, or a valid ntfy.sh topic name.",
+      "ntfyMissingConfig": "The ntfy topic URL or topic name is not configured.",
+      "sent": "Test notification sent",
+      "telegramMissingConfig": "Telegram Bot token or Chat ID is not configured.",
+      "title": "All API Hub test notification",
+      "webhookInvalidUrl": "Webhook URL must use http:// or https://.",
+      "webhookMissingConfig": "Webhook URL is not configured.",
+      "wecomMissingConfig": "WeCom Bot webhook URL or key is not configured."
+    }
+  },
+  "theme": {
+    "appearance": "Appearance",
+    "clickSwitch": "Click to switch to {{nextMode}} mode",
+    "current": "Current: {{theme}} ({{resolvedTheme}})",
+    "currentTheme": "Current: Follow system ({{theme}})",
+    "dark": "Dark",
+    "followSystem": "Follow system",
+    "followSystemTheme": "Follow system theme settings",
+    "light": "Light",
+    "selectTheme": "Select an appearance theme",
+    "switchTo": "Switch to {{theme}} theme: {{description}}",
+    "toggle": "Theme toggle, current {{currentMode}} mode, click to switch to {{nextMode}} mode",
+    "useDarkTheme": "Use dark theme",
+    "useLightTheme": "Use light theme"
+  },
+  "title": "Settings",
+  "veloera": {
+    "adminCredentialsLink": {
+      "description": "Open the admin personal settings page to find the system access token and user ID.",
+      "open": "Open page",
+      "title": "Quick access"
+    },
+    "description": "Configure integration settings for connecting to Veloera compatible services.",
+    "fields": {
+      "adminTokenLabel": "Administrator's system access token",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "https://api.example.com",
+      "hideToken": "Hide system access token",
+      "showToken": "Show system access token",
+      "userIdLabel": "Administrator user ID"
+    },
+    "title": "Veloera Integration Settings",
+    "tokenDesc": "System access token for the administrator user",
+    "urlDesc": "Set the base URL for Veloera integration",
+    "userIdDesc": "Administrator user ID (numeric only)"
+  }
+}

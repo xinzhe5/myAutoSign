@@ -1,0 +1,220 @@
+import type { ReactNode } from "react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+import { SITE_TYPES } from "~/constants/siteType"
+import ManagedSiteTab from "~/features/BasicSettings/components/tabs/ManagedSite/ManagedSiteTab"
+import { render, screen } from "~~/tests/test-utils/render"
+
+const { mockedUseUserPreferencesContext } = vi.hoisted(() => ({
+  mockedUseUserPreferencesContext: vi.fn(),
+}))
+
+vi.mock("~/contexts/UserPreferencesContext", async (importOriginal) => {
+  const actual =
+    (await importOriginal()) as typeof import("~/contexts/UserPreferencesContext")
+
+  return {
+    ...actual,
+    UserPreferencesProvider: ({ children }: { children: ReactNode }) =>
+      children,
+    useUserPreferencesContext: () => mockedUseUserPreferencesContext(),
+  }
+})
+
+vi.mock(
+  "~/features/BasicSettings/components/tabs/ManagedSite/managedSiteModelSyncSettings",
+  () => ({
+    default: () => <div data-testid="managed-site-model-sync-settings" />,
+  }),
+)
+
+vi.mock(
+  "~/features/BasicSettings/components/tabs/ManagedSite/ModelRedirectSettings",
+  () => ({
+    default: () => <div data-testid="model-redirect-settings" />,
+  }),
+)
+
+const createContextValue = (overrides: Record<string, unknown> = {}) => ({
+  preferences: { lastUpdated: 1 },
+  managedSiteType: "new-api",
+  updateManagedSiteType: vi.fn().mockResolvedValue(true),
+  newApiBaseUrl: "https://managed.example",
+  newApiAdminToken: "managed-admin-token",
+  newApiUserId: "1",
+  newApiUsername: "admin",
+  newApiPassword: "secret-password",
+  newApiTotpSecret: "JBSWY3DPEHPK3PXP",
+  updateNewApiBaseUrl: vi.fn().mockResolvedValue(true),
+  updateNewApiAdminToken: vi.fn().mockResolvedValue(true),
+  updateNewApiUserId: vi.fn().mockResolvedValue(true),
+  updateNewApiUsername: vi.fn().mockResolvedValue(true),
+  updateNewApiPassword: vi.fn().mockResolvedValue(true),
+  updateNewApiTotpSecret: vi.fn().mockResolvedValue(true),
+  resetNewApiConfig: vi.fn().mockResolvedValue(true),
+  claudeCodeHubBaseUrl: "https://cch.example",
+  claudeCodeHubAdminToken: "admin-token",
+  updateClaudeCodeHubBaseUrl: vi.fn().mockResolvedValue(true),
+  updateClaudeCodeHubAdminToken: vi.fn().mockResolvedValue(true),
+  updateClaudeCodeHubConfig: vi.fn().mockResolvedValue(true),
+  resetClaudeCodeHubConfig: vi.fn().mockResolvedValue(true),
+  ...overrides,
+})
+
+describe("ManagedSiteTab", () => {
+  beforeEach(() => {
+    mockedUseUserPreferencesContext.mockReset()
+    mockedUseUserPreferencesContext.mockReturnValue(createContextValue())
+  })
+
+  it("renders the New API login-assist fields when new-api is the active managed site", () => {
+    render(<ManagedSiteTab />)
+
+    expect(
+      screen.getByPlaceholderText("settings:newApi.fields.usernamePlaceholder"),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText("settings:newApi.fields.passwordPlaceholder"),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText(
+        "settings:newApi.fields.totpSecretPlaceholder",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("does not render the New API login-assist fields when the managed site is not new-api", () => {
+    mockedUseUserPreferencesContext.mockReturnValue(
+      createContextValue({
+        managedSiteType: SITE_TYPES.VELOERA,
+        veloeraBaseUrl: "",
+        veloeraAdminToken: "",
+        veloeraUserId: "",
+        updateVeloeraBaseUrl: vi.fn().mockResolvedValue(true),
+        updateVeloeraAdminToken: vi.fn().mockResolvedValue(true),
+        updateVeloeraUserId: vi.fn().mockResolvedValue(true),
+        resetVeloeraConfig: vi.fn().mockResolvedValue(true),
+      }),
+    )
+
+    render(<ManagedSiteTab />)
+
+    expect(
+      screen.getByPlaceholderText("settings:veloera.fields.baseUrlPlaceholder"),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText(
+        "settings:newApi.fields.usernamePlaceholder",
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText(
+        "settings:newApi.fields.passwordPlaceholder",
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByPlaceholderText(
+        "settings:newApi.fields.totpSecretPlaceholder",
+      ),
+    ).not.toBeInTheDocument()
+  })
+
+  it("hides model-sync and redirect settings for AxonHub", () => {
+    mockedUseUserPreferencesContext.mockReturnValue(
+      createContextValue({
+        managedSiteType: SITE_TYPES.AXON_HUB,
+        axonHubBaseUrl: "https://axonhub.example",
+        axonHubEmail: "admin@example.com",
+        axonHubPassword: "secret-password",
+        updateAxonHubBaseUrl: vi.fn().mockResolvedValue(true),
+        updateAxonHubEmail: vi.fn().mockResolvedValue(true),
+        updateAxonHubPassword: vi.fn().mockResolvedValue(true),
+        updateAxonHubConfig: vi.fn().mockResolvedValue(true),
+        resetAxonHubConfig: vi.fn().mockResolvedValue(true),
+      }),
+    )
+
+    render(<ManagedSiteTab />)
+
+    expect(
+      screen.queryByTestId("managed-site-model-sync-settings"),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId("model-redirect-settings"),
+    ).not.toBeInTheDocument()
+  })
+
+  it("renders Claude Code Hub settings and hides unsupported model controls", () => {
+    mockedUseUserPreferencesContext.mockReturnValue(
+      createContextValue({
+        managedSiteType: SITE_TYPES.CLAUDE_CODE_HUB,
+      }),
+    )
+
+    render(<ManagedSiteTab />)
+
+    expect(
+      screen.getByPlaceholderText(
+        "settings:claudeCodeHub.fields.baseUrlPlaceholder",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText(
+        "settings:claudeCodeHub.fields.adminTokenPlaceholder",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByTestId("managed-site-model-sync-settings"),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId("model-redirect-settings"),
+    ).not.toBeInTheDocument()
+  })
+
+  it.each([
+    [
+      SITE_TYPES.DONE_HUB,
+      {
+        doneHubBaseUrl: "https://done-hub.example",
+        doneHubAdminToken: "admin-token",
+        doneHubUserId: "7",
+        updateDoneHubBaseUrl: vi.fn().mockResolvedValue(true),
+        updateDoneHubAdminToken: vi.fn().mockResolvedValue(true),
+        updateDoneHubUserId: vi.fn().mockResolvedValue(true),
+        resetDoneHubConfig: vi.fn().mockResolvedValue(true),
+      },
+      "settings:doneHub.fields.baseUrlPlaceholder",
+    ],
+    [
+      SITE_TYPES.OCTOPUS,
+      {
+        octopusBaseUrl: "https://octopus.example",
+        octopusUsername: "admin",
+        octopusPassword: "secret-password",
+        updateOctopusBaseUrl: vi.fn().mockResolvedValue(true),
+        updateOctopusUsername: vi.fn().mockResolvedValue(true),
+        updateOctopusPassword: vi.fn().mockResolvedValue(true),
+        resetOctopusConfig: vi.fn().mockResolvedValue(true),
+      },
+      "settings:octopus.fields.baseUrlPlaceholder",
+    ],
+  ])(
+    "renders %s settings with shared model controls",
+    (managedSiteType, config, placeholder) => {
+      mockedUseUserPreferencesContext.mockReturnValue(
+        createContextValue({
+          managedSiteType,
+          ...config,
+        }),
+      )
+
+      render(<ManagedSiteTab />)
+
+      expect(screen.getByPlaceholderText(placeholder)).toBeInTheDocument()
+      expect(
+        screen.getByTestId("managed-site-model-sync-settings"),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId("model-redirect-settings")).toBeInTheDocument()
+    },
+  )
+})

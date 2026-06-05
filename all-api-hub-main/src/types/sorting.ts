@@ -1,0 +1,32 @@
+// Enum for sorting criteria identifiers
+export enum SortingCriteriaType {
+  /**
+   * Disabled accounts should be placed at the bottom of the list.
+   * This criterion is intended to be evaluated with very high priority so that
+   * disabled accounts do not bubble to the top due to other criteria.
+   */
+  DISABLED_ACCOUNT = "disabled_account",
+  PINNED = "pinned",
+  MANUAL_ORDER = "manual_order",
+  CURRENT_SITE = "current_site",
+  HEALTH_STATUS = "health_status",
+  CHECK_IN_REQUIREMENT = "check_in_requirement",
+  CUSTOM_CHECK_IN_URL = "custom_check_in_url",
+  CUSTOM_REDEEM_URL = "custom_redeem_url",
+  MATCHED_OPEN_TABS = "matched_open_tabs",
+  USER_SORT_FIELD = "user_sort_field",
+}
+
+// Interface for sorting field configuration.
+// This contains only the data required for sorting logic.
+export interface SortingFieldConfig {
+  id: SortingCriteriaType
+  enabled: boolean
+  priority: number // 0-3, lower = higher priority
+}
+
+// Complete sorting configuration
+export interface SortingPriorityConfig {
+  criteria: SortingFieldConfig[]
+  lastModified: number // Timestamp
+}

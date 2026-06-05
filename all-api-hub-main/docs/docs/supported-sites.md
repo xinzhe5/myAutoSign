@@ -1,0 +1,71 @@
+# 支持的站点列表
+
+> All API Hub 主要支持两类对象：一类是你日常登录和使用的中转站 / 管理面板，另一类是你自己搭建、希望在插件里继续管理的后台系统。
+
+
+## 日常可添加和管理的站点
+
+下面这些是用户最常见、也最适合通过 All API Hub 统一管理的站点类型。
+
+| 站点 / 系统 | 官方描述 | 官方链接 |
+|-------------|----------|----------|
+| one-api | LLM API 管理与分发系统，支持 OpenAI、Azure、Anthropic Claude、Google Gemini、DeepSeek 等主流模型，统一 API 适配，可用于 Key 管理与二次分发。 | [GitHub](https://github.com/songquanpeng/one-api) |
+| New API | 统一的 AI 模型聚合与分发中心。 | [官网](https://www.newapi.ai/) / [GitHub](https://github.com/QuantumNous/new-api) |
+| Sub2API | Sub2API-CRS2 一站式开源中转服务，让 Claude、Openai、Gemini、Antigravity 订阅统一接入，支持拼车共享，更高效分摊成本，原生工具无缝使用。 | [GitHub](https://github.com/Wei-Shaw/sub2api) |
+| one-hub | OpenAI 接口管理与分发系统，改自 songquanpeng/one-api，支持更多模型，加入统计页面，并完善非 OpenAI 模型的函数调用。 | [官网](https://one-hub.xiao5.info/) / [GitHub](https://github.com/MartialBE/one-hub) |
+| done-hub | 本项目是基于 one-hub 二次开发而来的。 | [GitHub](https://github.com/deanxv/done-hub) |
+| AnyRouter | Claude Code 中转站 · 零门槛 · 免费 $50 | [文档](https://docs.anyrouter.top/) / [官网](https://anyrouter.top) |
+| WONG公益站 | 暂无稳定公开官方描述。 | 暂无稳定公开官方链接 |
+| AIHubMix | 独立 AI API 聚合站点，插件以独立账号类型适配余额、密钥和模型接口。 | [官网](https://aihubmix.com/?aff=W3DN) / [API 文档](https://docs.aihubmix.com/cn/api/Cli) |
+| Veloera | 本项目已停止维护。 | [GitHub](https://github.com/Veloera/Veloera) |
+| VoAPI | 仅支持老版本兼容部署；新版 VoAPI 的接口和行为与当前插件兼容范围不一致。 | [GitHub](https://github.com/VoAPI/VoAPI) |
+| Super-API | Super-Api 全新 AI 模型接口管理与分发系统，仅供个人学习使用，请勿用于任何商业用途，本项目基于 NewAPI 开发。 | [官网](https://api.cngov.top/) / [GitHub](https://github.com/SuperAI-Api/Super-API) |
+| v-api | 基于 one-api 二开的功能强大的中转平台。 | 暂无 |
+
+## ❤️ 推荐赞助站点
+
+如果你正在寻找稳定、高效且兼容性良好的 AI 中转服务，可以尝试我们的合作伙伴：
+
+<table>
+  <tr>
+    <td width="160" align="center">
+      <a href="https://www.packyapi.com/register?aff=all-api-hub">
+        <img src="../../resources/partners/packycode.png" alt="PackyCode" width="140">
+      </a>
+    </td>
+    <td>
+      <strong>PackyCode</strong><br/>
+      提供 Claude Code、Codex、Gemini 等多种中转服务。使用<a href="https://www.packyapi.com/register?aff=all-api-hub">此链接</a>注册并在充值时填写 "all-api-hub" 优惠码，首次充值可享 <strong>9 折优惠</strong>！
+    </td>
+  </tr>
+</table>
+
+## 已兼容但公开资料较少的变体
+
+以下兼容类型目前也在插件支持范围内，但公开官方资料相对有限，通常见于私有部署、闭源分支或特定站点品牌化版本：
+
+- `Neo-API`
+- `RIX_API`
+
+这类系统如果没有稳定公开主页，这里就不额外给出链接；是否可用通常取决于目标站点是不是常见兼容版本。
+
+## 你可以接入并继续管理的自建后台
+
+如果你自己也在搭建后台系统，All API Hub 还支持把当前站点导入到你选中的后台里，便于继续做后续管理。
+
+| 后台系统 | 官方描述 | 官方链接 |
+|----------|----------|----------|
+| New API | 统一的 AI 模型聚合与分发中心。 | [官网](https://www.newapi.ai/) / [GitHub](https://github.com/QuantumNous/new-api) |
+| DoneHub | 本项目是基于 one-hub 二次开发而来的。 | [GitHub](https://github.com/deanxv/done-hub) |
+| Veloera | 本项目已停止维护。 | [GitHub](https://github.com/Veloera/Veloera) |
+| Octopus | 面向个人的 LLM API 聚合服务。 | [GitHub](https://github.com/bestruirui/octopus) |
+| AxonHub | 开源 AI Gateway，可通过任意 SDK 调用 100+ LLM，内置故障切换、负载均衡、成本控制与全链路追踪。 | [官网](https://axonhub.onrender.com/) / [GitHub](https://github.com/looplj/axonhub) |
+| Claude Code Hub | 面向团队的多供应商 AI API 代理与运营平台，统一接入 Claude、OpenAI Compatible、Codex 与 Gemini，并支持弹性调度、监控与价格管理。 | [GitHub](https://github.com/ding113/claude-code-hub) |
+
+## 相关文档
+
+- [支持的导出工具列表](./supported-export-tools.md)
+- [快速导出站点配置](./quick-export.md)
+- [自建站点管理](./self-hosted-site-management.md)
+- [自建站点模型同步](./managed-site-model-sync.md)
+

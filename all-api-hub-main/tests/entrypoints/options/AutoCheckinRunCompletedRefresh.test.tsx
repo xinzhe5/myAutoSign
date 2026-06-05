@@ -1,0 +1,71 @@
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import { RuntimeActionIds } from "~/constants/runtimeActions"
+import AutoCheckin from "~/entrypoints/options/pages/AutoCheckin"
+import { sendAutoCheckinMessage } from "~/services/checkin/autoCheckin/messaging"
+import { act, render, screen, waitFor } from "~~/tests/test-utils/render"
+
+vi.mock("react-hot-toast", () => ({
+  default: {
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
+
+vi.mock("~/services/checkin/autoCheckin/messaging", () => ({
+  sendAutoCheckinMessage: vi.fn(),
+}))
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe("AutoCheckin status view refresh", () => {
+  it("reloads status when autoCheckin:runCompleted is received", async () => {
+    const browserApi = await import("~/utils/browser/browserApi")
+
+    const sendAutoCheckinMessageSpy = vi
+      .mocked(sendAutoCheckinMessage)
+      .mockImplementation(async (type: string) => {
+        if (type === "autoCheckin:getStatus") {
+          return { success: true, data: { perAccount: {} } }
+        }
+        return { success: true }
+      })
+
+    let runtimeListener: ((message: any) => void) | null = null
+    vi.spyOn(browserApi, "onRuntimeMessage").mockImplementation((listener) => {
+      runtimeListener = listener as any
+      return () => {}
+    })
+
+    render(<AutoCheckin routeParams={{}} />)
+
+    await screen.findByRole("button", { name: /execution\.runNow/i })
+    await waitFor(() => {
+      expect(sendAutoCheckinMessageSpy).toHaveBeenCalledWith(
+        "autoCheckin:getStatus",
+      )
+    })
+
+    sendAutoCheckinMessageSpy.mockClear()
+    expect(runtimeListener).toBeTypeOf("function")
+
+    await act(async () => {
+      runtimeListener!({
+        action: RuntimeActionIds.AutoCheckinRunCompleted,
+        runKind: "daily",
+        updatedAccountIds: [],
+        timestamp: Date.now(),
+      })
+    })
+
+    await waitFor(() => {
+      expect(sendAutoCheckinMessageSpy).toHaveBeenCalledWith(
+        "autoCheckin:getStatus",
+      )
+    })
+  })
+})

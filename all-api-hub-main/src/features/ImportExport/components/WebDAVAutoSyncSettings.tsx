@@ -1,0 +1,459 @@
+import {
+  ArrowPathIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import toast from "react-hot-toast"
+import { useTranslation } from "react-i18next"
+
+import { OPTIONS_CAPABILITY_ICONS } from "~/components/icons/optionsPageIcons"
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  FormField,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+} from "~/components/ui"
+import { ProductAnalyticsScope } from "~/contexts/ProductAnalyticsScopeContext"
+import { useUserPreferencesContext } from "~/contexts/UserPreferencesContext"
+import { usePreferenceDraft } from "~/hooks/usePreferenceDraft"
+import { startProductAnalyticsAction } from "~/services/productAnalytics/actions"
+import {
+  PRODUCT_ANALYTICS_ACTION_IDS,
+  PRODUCT_ANALYTICS_ENTRYPOINTS,
+  PRODUCT_ANALYTICS_ERROR_CATEGORIES,
+  PRODUCT_ANALYTICS_FEATURE_IDS,
+  PRODUCT_ANALYTICS_RESULTS,
+  PRODUCT_ANALYTICS_SOURCE_KINDS,
+  PRODUCT_ANALYTICS_SURFACE_IDS,
+} from "~/services/productAnalytics/events"
+import {
+  buildWebDavSyncDiagnostics,
+  getWebdavSyncStrategyMode,
+} from "~/services/productAnalytics/webDavSync"
+import { WebdavAutoSyncMessageTypes } from "~/services/runtimeMessaging/messageTypes"
+import { sendWebdavAutoSyncMessage } from "~/services/webdav/webdavAutoSyncMessaging"
+import { WEBDAV_SYNC_STRATEGIES, WebDAVSettings } from "~/types/webdav"
+import { formatTimestamp } from "~/utils/core/formatters"
+import { createLogger } from "~/utils/core/logger"
+
+import { WEBDAV_AUTO_SYNC_TARGET_IDS } from "../searchTargets"
+
+/**
+ * Unified logger scoped to WebDAV auto-sync settings UI.
+ */
+const logger = createLogger("WebDAVAutoSyncSettings")
+const autoSyncSurface =
+  PRODUCT_ANALYTICS_SURFACE_IDS.OptionsWebDavAutoSyncSettings
+const WebdavSyncIcon = OPTIONS_CAPABILITY_ICONS.webdavSync
+
+/**
+ * WebDAV automatic sync configuration card: toggles auto-sync, schedule, strategy, and shows status/actions.
+ */
+export default function WebDAVAutoSyncSettings() {
+  const { t } = useTranslation("importExport")
+  const { preferences, updateWebdavAutoSyncSettings, loadPreferences } =
+    useUserPreferencesContext()
+  const persistedWebdavSettings = preferences.webdav
+
+  const savedConfig = useMemo(
+    () => ({
+      autoSync: persistedWebdavSettings.autoSync ?? false,
+      syncInterval: persistedWebdavSettings.syncInterval ?? 3600,
+      syncStrategy:
+        persistedWebdavSettings.syncStrategy ?? WEBDAV_SYNC_STRATEGIES.MERGE,
+    }),
+    [
+      persistedWebdavSettings.autoSync,
+      persistedWebdavSettings.syncInterval,
+      persistedWebdavSettings.syncStrategy,
+    ],
+  )
+  const {
+    draft: localConfig,
+    setDraft: setLocalConfig,
+    isDirty: autoSyncConfigDirty,
+    expectedLastUpdated,
+  } = usePreferenceDraft({
+    savedValue: savedConfig,
+    savedVersion: preferences.lastUpdated,
+  })
+  const autoSyncEnabled = localConfig.autoSync
+  const syncInterval = localConfig.syncInterval
+  const syncStrategy =
+    localConfig.syncStrategy as WebDAVSettings["syncStrategy"]
+
+  // Status
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState(0)
+  const [lastSyncStatus, setLastSyncStatus] = useState<
+    "success" | "error" | "idle"
+  >("idle")
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null)
+
+  // Actions
+  const [syncing, setSyncing] = useState(false)
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const response = await sendWebdavAutoSyncMessage(
+        WebdavAutoSyncMessageTypes.GetStatus,
+      )
+      if (response.success && response.data) {
+        setIsSyncing(response.data.isSyncing)
+        setLastSyncTime(response.data.lastSyncTime)
+        setLastSyncStatus(response.data.lastSyncStatus)
+        setLastSyncError(response.data.lastSyncError)
+      }
+    } catch (error) {
+      logger.error("Failed to load sync status", error)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadStatus()
+  }, [loadStatus])
+
+  const handleSaveSettings = async () => {
+    const tracker = startProductAnalyticsAction({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.WebDavSync,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.UpdateWebDavAutoSyncSettings,
+      surfaceId: autoSyncSurface,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+
+    setSavingSettings(true)
+    try {
+      const response = await updateWebdavAutoSyncSettings(
+        {
+          autoSync: autoSyncEnabled,
+          syncInterval,
+          syncStrategy,
+        },
+        {
+          expectedLastUpdated,
+        },
+      )
+
+      if (response.success) {
+        toast.success(
+          t("settings:messages.updateSuccess", {
+            name: t("webdav.autoSync.title"),
+          }),
+        )
+        tracker.complete(PRODUCT_ANALYTICS_RESULTS.Success)
+        await loadStatus()
+      } else {
+        toast.error(
+          response.error ||
+            t("settings:messages.updateFailed", {
+              name: t("webdav.autoSync.title"),
+            }),
+        )
+        tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+        })
+      }
+    } catch (error: any) {
+      logger.error("Failed to update auto-sync settings", error)
+      toast.error(
+        error?.message ||
+          t("settings:messages.updateFailed", {
+            name: t("webdav.autoSync.title"),
+          }),
+      )
+      tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+        errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+      })
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const handleSyncNow = async () => {
+    const tracker = startProductAnalyticsAction({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.WebDavSync,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.SyncWebDavNow,
+      surfaceId: autoSyncSurface,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+
+    setSyncing(true)
+    try {
+      const response = await sendWebdavAutoSyncMessage(
+        WebdavAutoSyncMessageTypes.SyncNow,
+      )
+
+      if (response.success) {
+        await loadPreferences()
+        tracker.complete(PRODUCT_ANALYTICS_RESULTS.Success, {
+          diagnostics: buildWebDavSyncDiagnostics({
+            sourceKind: PRODUCT_ANALYTICS_SOURCE_KINDS.Manual,
+            mode: getWebdavSyncStrategyMode(savedConfig.syncStrategy),
+            itemCount: 1,
+            successCount: 1,
+            failureCount: 0,
+            skippedCount: 0,
+          }),
+        })
+        await loadStatus()
+        toast.success(response.data?.message || t("webdav.syncSuccess"))
+      } else {
+        toast.error(response.error || t("webdav.syncFailed"))
+        tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          diagnostics: buildWebDavSyncDiagnostics({
+            sourceKind: PRODUCT_ANALYTICS_SOURCE_KINDS.Manual,
+            mode: getWebdavSyncStrategyMode(savedConfig.syncStrategy),
+            itemCount: 1,
+            successCount: 0,
+            failureCount: 1,
+            skippedCount: 0,
+            errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          }),
+        })
+      }
+    } catch (error: any) {
+      logger.error("Failed to trigger WebDAV auto-sync", error)
+      toast.error(error?.message || t("webdav.syncFailed"))
+      tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+        errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+        diagnostics: buildWebDavSyncDiagnostics({
+          sourceKind: PRODUCT_ANALYTICS_SOURCE_KINDS.Manual,
+          mode: getWebdavSyncStrategyMode(savedConfig.syncStrategy),
+          itemCount: 1,
+          successCount: 0,
+          failureCount: 1,
+          skippedCount: 0,
+          error,
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+        }),
+      })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const getStatusBadge = () => {
+    if (isSyncing) {
+      return (
+        <Badge variant="info">
+          <ArrowPathIcon className="mr-1 h-3 w-3 animate-spin" />
+          {t("webdav.syncing")}
+        </Badge>
+      )
+    }
+
+    if (lastSyncStatus === "success") {
+      return (
+        <Badge variant="success">
+          <CheckCircleIcon className="mr-1 h-3 w-3" />
+          {t("webdav.syncSuccess")}
+        </Badge>
+      )
+    }
+
+    if (lastSyncStatus === "error") {
+      return (
+        <Badge variant="danger">
+          <XCircleIcon className="mr-1 h-3 w-3" />
+          {t("webdav.syncError")}
+        </Badge>
+      )
+    }
+
+    return (
+      <Badge variant="secondary">
+        <ClockIcon className="mr-1 h-3 w-3" />
+        {t("webdav.notSynced")}
+      </Badge>
+    )
+  }
+
+  return (
+    <Card id={WEBDAV_AUTO_SYNC_TARGET_IDS.root} padding="none">
+      <CardHeader>
+        <div className="mb-1 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <WebdavSyncIcon className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+            <CardTitle className="mb-0">{t("webdav.autoSync.title")}</CardTitle>
+          </div>
+          {getStatusBadge()}
+        </div>
+        <CardDescription>{t("webdav.autoSync.description")}</CardDescription>
+      </CardHeader>
+
+      <CardContent padding="md" className="space-y-4">
+        {/* Auto-sync toggle */}
+        <FormField
+          label={t("webdav.autoSync.enable")}
+          description={t("webdav.autoSync.enableDesc")}
+        >
+          <div
+            id={WEBDAV_AUTO_SYNC_TARGET_IDS.enable}
+            className="flex items-center gap-2"
+          >
+            <Switch
+              checked={autoSyncEnabled}
+              onChange={(checked) =>
+                setLocalConfig((prev) => ({
+                  ...prev,
+                  autoSync: checked,
+                }))
+              }
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {autoSyncEnabled
+                ? t("common:status.enabled")
+                : t("common:status.disabled")}
+            </span>
+          </div>
+        </FormField>
+
+        {autoSyncEnabled && (
+          <>
+            {/* Sync interval */}
+            <FormField
+              label={t("webdav.autoSync.interval")}
+              description={t("webdav.autoSync.intervalDesc")}
+            >
+              <Input
+                id={WEBDAV_AUTO_SYNC_TARGET_IDS.interval}
+                type="number"
+                min={60}
+                max={86400}
+                step={60}
+                value={syncInterval}
+                onChange={(e) =>
+                  setLocalConfig((prev) => ({
+                    ...prev,
+                    syncInterval: Number(e.target.value),
+                  }))
+                }
+                placeholder="3600"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {t("webdav.autoSync.intervalHint", {
+                  minutes: Math.floor(syncInterval / 60),
+                })}
+              </p>
+            </FormField>
+
+            {/* Sync strategy */}
+            <FormField
+              label={t("webdav.autoSync.strategy")}
+              description={t("webdav.autoSync.strategyDesc")}
+            >
+              <Select
+                value={syncStrategy ?? ""}
+                onValueChange={(value) =>
+                  setLocalConfig((prev) => ({
+                    ...prev,
+                    syncStrategy: value as WebDAVSettings["syncStrategy"],
+                  }))
+                }
+              >
+                <SelectTrigger id={WEBDAV_AUTO_SYNC_TARGET_IDS.strategy}>
+                  <SelectValue placeholder={t("webdav.autoSync.strategy")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={WEBDAV_SYNC_STRATEGIES.MERGE}>
+                    {t("webdav.autoSync.strategyMerge")}
+                  </SelectItem>
+                  <SelectItem value={WEBDAV_SYNC_STRATEGIES.UPLOAD_ONLY}>
+                    {t("webdav.autoSync.strategyLocalFirst")}
+                  </SelectItem>
+                  <SelectItem value={WEBDAV_SYNC_STRATEGIES.DOWNLOAD_ONLY}>
+                    {t("webdav.autoSync.strategyRemoteFirst")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          </>
+        )}
+
+        {/* Status information */}
+        {lastSyncTime > 0 && (
+          <div className="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="font-medium">
+                {t("webdav.autoSync.lastSync")}:{" "}
+              </span>
+              {formatTimestamp(lastSyncTime)}
+            </p>
+            {lastSyncError && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                <span className="font-medium">
+                  {t("common:status.error")}:{" "}
+                </span>
+                {lastSyncError}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <ProductAnalyticsScope
+          entrypoint={PRODUCT_ANALYTICS_ENTRYPOINTS.Options}
+          featureId={PRODUCT_ANALYTICS_FEATURE_IDS.WebDavSync}
+          surfaceId={autoSyncSurface}
+        >
+          <div className="flex flex-wrap gap-3">
+            <Alert
+              compact
+              variant={autoSyncConfigDirty ? "warning" : "info"}
+              description={t(
+                autoSyncConfigDirty
+                  ? "webdav.autoSync.actionState.unsaved"
+                  : "webdav.autoSync.actionState.saved",
+              )}
+              className="basis-full"
+            />
+
+            <Button
+              id={WEBDAV_AUTO_SYNC_TARGET_IDS.saveSettings}
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+              loading={savingSettings}
+              variant="default"
+              size="sm"
+              className="flex-1"
+            >
+              {savingSettings
+                ? t("common:status.saving")
+                : t("webdav.autoSync.saveSettings")}
+            </Button>
+
+            <Button
+              id={WEBDAV_AUTO_SYNC_TARGET_IDS.syncNow}
+              onClick={handleSyncNow}
+              disabled={syncing || isSyncing}
+              loading={syncing || isSyncing}
+              variant="success"
+              size="sm"
+              className="flex-1"
+            >
+              {syncing || isSyncing
+                ? t("webdav.syncing")
+                : t("webdav.autoSync.syncNow")}
+            </Button>
+          </div>
+        </ProductAnalyticsScope>
+      </CardContent>
+    </Card>
+  )
+}

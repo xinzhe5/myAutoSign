@@ -1,0 +1,84 @@
+{
+  "confirmToast": {
+    "body": "AI API の可用性を確認・テストするために、AI API テストパネルを開きますか？",
+    "enhancedInfo": "この通知は拡張自動検出によって表示されました。誤検出の場合は問題を報告するか、設定で拡張自動検出を無効にできます。",
+    "feedback": "問題を報告",
+    "open": "開く",
+    "settings": "設定を開く",
+    "title": "AI API の URL と API キーを検出しました"
+  },
+  "messages": {
+    "success": {
+      "settingsSaved": "AI API Check の設定を保存しました。"
+    }
+  },
+  "modal": {
+    "actions": {
+      "fetchingModels": "取得中…",
+      "fetchModels": "モデルを取得",
+      "hideKey": "キーを隠す",
+      "openApiProfiles": "API 認証情報庫を開く",
+      "retry": "再試行",
+      "running": "実行中…",
+      "runOne": "実行",
+      "saveToProfiles": "API 認証情報庫に保存",
+      "saving": "保存中…",
+      "showKey": "キーを表示",
+      "test": "テスト",
+      "testing": "テスト中…"
+    },
+    "candidates": {
+      "apiKey": "候補 Key {{index}}"
+    },
+    "errors": {
+      "fetchModelsFailed": "モデルの取得に失敗しました。",
+      "missingBaseUrlOrKey": "先に Base URL と API キーを入力してください。",
+      "runProbeFailed": "プローブに失敗しました。",
+      "saveToProfilesFailed": "API 認証情報庫への保存に失敗しました。"
+    },
+    "fields": {
+      "apiKey": "API キー",
+      "apiType": "API 種別",
+      "baseUrl": "Base URL",
+      "modelId": "モデル ID"
+    },
+    "hints": {
+      "saveWithoutTest": "ヒント: Base URL と API キーが入力されていれば、その時点で保存できます（先にテストやモデル取得を行う必要はありません）。テストは任意で、可用性確認の補助にすぎません。"
+    },
+    "messages": {
+      "savedToProfiles": "{{name}} を API 認証情報庫に保存しました。"
+    },
+    "privacyHint": "API キーは機密情報として扱われます。既定では非表示で、API 認証情報庫に保存する操作を行わない限り、何も保存されません。",
+    "probes": {
+      "notRunYet": "未実行"
+    },
+    "sourceText": {
+      "label": "抽出元テキスト",
+      "placeholder": "ここに Base URL と API キーを貼り付けるか、コンテキストメニューから選択内容を使って事前入力してください。"
+    },
+    "title": "AI API 機能可用性テスト"
+  },
+  "settings": {
+    "autoDetect": {
+      "enable": "自動検出を有効化",
+      "enableDesc": "有効にすると、拡張機能はコピー操作から認証情報を検出する場合があり、モーダルを開く前に確認を求めます。",
+      "enhanced": {
+        "enable": "拡張自動検出を有効化",
+        "enableDesc": "裸のドメイン、非標準のキー形式、コピー内容に不正な文字が混在したキーを識別します。拡張検出に一致するとモーダルで通知され、すばやく無効化できます。"
+      },
+      "whitelist": {
+        "invalidMore": "…他",
+        "invalidTitle": "無効なパターン",
+        "patterns": "URL ホワイトリストパターン",
+        "patternsDesc": "1 行につき 1 つの JavaScript RegExp パターンを入力します。大文字小文字を区別しない一致が適用されます。無効なパターンは無視されます（常に不一致扱い）。",
+        "patternsPlaceholder": "^https://example\\.com/console"
+      }
+    },
+    "contextMenu": {
+      "enable": "ブラウザの右クリックメニューに表示",
+      "enableDesc": "ブラウザのコンテキストメニューに「AI API Check」を追加します。"
+    },
+    "description": "手動のコンテキストメニュー起動は常に利用可能です。自動検出はオプトイン方式で、ホワイトリスト対象ページでのみ動作します。抽出した API キーは既定では保存されません。",
+    "title": "Web AI API 機能可用性テスト"
+  }
+}

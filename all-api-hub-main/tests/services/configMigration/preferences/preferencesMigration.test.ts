@@ -1,0 +1,1405 @@
+import { describe, expect, it } from "vitest"
+
+import { DATA_TYPE_CASHFLOW, DATA_TYPE_CONSUMPTION } from "~/constants"
+import { SITE_TYPES } from "~/constants/siteType"
+import {
+  CURRENT_PREFERENCES_VERSION,
+  getPreferencesVersion,
+  migratePreferences,
+  needsPreferencesMigration,
+} from "~/services/preferences/migrations/preferencesMigration"
+import {
+  DEFAULT_PREFERENCES,
+  type UserPreferences,
+} from "~/services/preferences/userPreferences"
+import { DEFAULT_SORTING_PRIORITY_CONFIG } from "~/services/preferences/utils/sortingPriority"
+import {
+  ACCOUNT_AUTO_REFRESH_INTERVAL_MIN_SECONDS,
+  ACCOUNT_AUTO_REFRESH_MIN_INTERVAL_MIN_SECONDS,
+  DEFAULT_ACCOUNT_AUTO_REFRESH,
+} from "~/types/accountAutoRefresh"
+import type {
+  ChannelModelFilterRule,
+  ChannelModelPatternFilterRule,
+} from "~/types/channelModelFilters"
+import { DEFAULT_BALANCE_HISTORY_PREFERENCES } from "~/types/dailyBalanceHistory"
+import { DEFAULT_NEW_API_CONFIG } from "~/types/newApiConfig"
+import { DEFAULT_SITE_ANNOUNCEMENT_PREFERENCES } from "~/types/siteAnnouncements"
+import { SortingCriteriaType } from "~/types/sorting"
+import {
+  DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+  TASK_NOTIFICATION_CHANNELS,
+} from "~/types/taskNotifications"
+import { DEFAULT_VELOERA_CONFIG } from "~/types/veloeraConfig"
+import { DEFAULT_WEBDAV_SETTINGS, WEBDAV_SYNC_STRATEGIES } from "~/types/webdav"
+import { buildUserPreferences } from "~~/tests/test-utils/factories"
+
+const buildModelRedirectFixture = () => ({
+  ...structuredClone(buildUserPreferences().modelRedirect),
+  enabled: false,
+  standardModels: [],
+  pruneMissingTargetsOnModelSync: false,
+})
+
+const buildChannelModelFilterRule = (
+  overrides: Partial<ChannelModelPatternFilterRule> = {},
+): ChannelModelFilterRule => ({
+  id: "rule-1",
+  kind: "pattern",
+  name: "OpenAI include",
+  pattern: "openai/*",
+  isRegex: false,
+  action: "include",
+  enabled: true,
+  createdAt: 1,
+  updatedAt: 1,
+  ...overrides,
+})
+
+// Helper function to create a minimal v0 preferences object
+/**
+ * Builds a baseline v0 UserPreferences object for migration test scenarios.
+ *
+ * Note: the returned object includes currently-required fields like `logging`
+ * to keep the fixture type-safe.
+ */
+function createV0Preferences(
+  overrides?: Partial<UserPreferences>,
+): UserPreferences {
+  const timestamp = Date.now()
+
+  return {
+    themeMode: "system" as const,
+    logging: DEFAULT_PREFERENCES.logging,
+    // Legacy stored value before the v7->v8 cashflow tab rename migration.
+    activeTab: DATA_TYPE_CONSUMPTION as any,
+    currencyType: "USD" as const,
+    sortField: "balance" as const,
+    sortOrder: "desc" as const,
+    accountAutoRefresh: DEFAULT_ACCOUNT_AUTO_REFRESH,
+    showHealthStatus: true,
+    webdav: DEFAULT_WEBDAV_SETTINGS,
+    newApi: DEFAULT_NEW_API_CONFIG,
+    veloera: DEFAULT_VELOERA_CONFIG,
+    managedSiteType: SITE_TYPES.NEW_API,
+    // Legacy field preserved for v6->v7 migration
+    newApiModelSync: {
+      enabled: false,
+      interval: 24 * 60 * 60 * 1000,
+      concurrency: 2,
+      maxRetries: 2,
+      rateLimit: { requestsPerMinute: 20, burst: 5 },
+      allowedModels: [],
+      globalChannelModelFilters: [],
+    },
+    autoCheckin: {
+      globalEnabled: false,
+      pretriggerDailyOnUiOpen: true,
+      notifyUiOnCompletion: true,
+      windowStart: "09:00",
+      windowEnd: "18:00",
+      scheduleMode: "random",
+      retryStrategy: {
+        enabled: false,
+        intervalMinutes: 30,
+        maxAttemptsPerDay: 3,
+      },
+    },
+    modelRedirect: buildModelRedirectFixture(),
+    sortingPriorityConfig: undefined,
+    lastUpdated: timestamp,
+    sharedPreferencesLastUpdated: timestamp,
+    // v0 does not have preferencesVersion
+    ...overrides,
+  }
+}
+
+describe("preferencesMigration", () => {
+  describe("getPreferencesVersion", () => {
+    it("returns 0 for undefined preferences", () => {
+      expect(getPreferencesVersion(undefined)).toBe(0)
+    })
+
+    it("returns 0 when preferencesVersion is not set", () => {
+      const prefs = createV0Preferences()
+      expect(getPreferencesVersion(prefs)).toBe(0)
+    })
+
+    it("returns the version when preferencesVersion is set", () => {
+      const prefs = createV0Preferences({ preferencesVersion: 3 })
+      expect(getPreferencesVersion(prefs)).toBe(3)
+    })
+
+    it("returns 0 for null preferences", () => {
+      expect(getPreferencesVersion(null as any)).toBe(0)
+    })
+  })
+
+  describe("needsPreferencesMigration", () => {
+    it("returns false for undefined preferences", () => {
+      expect(needsPreferencesMigration(undefined)).toBe(false)
+    })
+
+    it("returns true when version is less than current", () => {
+      const prefs = createV0Preferences({ preferencesVersion: 2 })
+      expect(needsPreferencesMigration(prefs)).toBe(true)
+    })
+
+    it("returns true when preferencesVersion is not set", () => {
+      const prefs = createV0Preferences()
+      expect(needsPreferencesMigration(prefs)).toBe(true)
+    })
+
+    it("returns false when version equals current", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: CURRENT_PREFERENCES_VERSION,
+      })
+      expect(needsPreferencesMigration(prefs)).toBe(false)
+    })
+
+    it("returns false when version is greater than current", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: CURRENT_PREFERENCES_VERSION + 1,
+      })
+      expect(needsPreferencesMigration(prefs)).toBe(false)
+    })
+  })
+
+  describe("migratePreferences", () => {
+    it("does not modify preferences at current version", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: CURRENT_PREFERENCES_VERSION,
+        activeTab: DATA_TYPE_CASHFLOW,
+        managedSiteModelSync: {
+          enabled: false,
+          interval: 24 * 60 * 60 * 1000,
+          concurrency: 2,
+          maxRetries: 2,
+          rateLimit: { requestsPerMinute: 20, burst: 5 },
+          allowedModels: [],
+          globalChannelModelFilters: [],
+        },
+        newApiModelSync: undefined,
+        sortingPriorityConfig: DEFAULT_SORTING_PRIORITY_CONFIG,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result).toEqual(prefs)
+    })
+
+    it("migrates v7 activeTab consumption to cashflow", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 7,
+        // Explicitly simulate a v7 prefs object that still has the legacy value.
+        activeTab: DATA_TYPE_CONSUMPTION as any,
+        managedSiteModelSync: {
+          enabled: false,
+          interval: 24 * 60 * 60 * 1000,
+          concurrency: 2,
+          maxRetries: 2,
+          rateLimit: { requestsPerMinute: 20, burst: 5 },
+          allowedModels: [],
+          globalChannelModelFilters: [],
+        },
+        newApiModelSync: undefined,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.activeTab).toBe(DATA_TYPE_CASHFLOW)
+    })
+
+    it("migrates v0 preferences to current version", () => {
+      const prefs = createV0Preferences({
+        // Legacy flat fields for v0->v1 (sorting config)
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.sortingPriorityConfig).toBeDefined()
+      expect(result.managedSiteModelSync).toBeDefined()
+      expect((result as any).newApiModelSync).toBeUndefined()
+    })
+
+    it("defaults showTodayCashflow to true when missing", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 10,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.showTodayCashflow).toBe(true)
+    })
+
+    it("defaults balanceHistory to disabled when missing", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 11,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.balanceHistory).toEqual(DEFAULT_BALANCE_HISTORY_PREFERENCES)
+    })
+
+    it("defaults estimated today income to disabled when migrating balance history preferences", () => {
+      const migrated = migratePreferences(
+        createV0Preferences({
+          balanceHistory: {
+            enabled: true,
+            endOfDayCapture: { enabled: true },
+            retentionDays: 45,
+          },
+          preferencesVersion: 24,
+        } as any),
+      )
+
+      expect(migrated.balanceHistory).toMatchObject({
+        enabled: true,
+        endOfDayCapture: { enabled: true },
+        retentionDays: 45,
+        estimatedTodayIncome: { enabled: false },
+      })
+      expect(migrated.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+    })
+
+    it("preserves estimated today income when migrating balance history preferences", () => {
+      const migrated = migratePreferences(
+        createV0Preferences({
+          balanceHistory: {
+            enabled: true,
+            endOfDayCapture: { enabled: true },
+            estimatedTodayIncome: { enabled: true },
+            retentionDays: 45,
+          },
+          preferencesVersion: 24,
+        } as any),
+      )
+
+      expect(migrated.balanceHistory).toMatchObject({
+        enabled: true,
+        endOfDayCapture: { enabled: true },
+        retentionDays: 45,
+        estimatedTodayIncome: { enabled: true },
+      })
+      expect(migrated.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+    })
+
+    it("migrates v25 Web AI API Check preferences with enhanced auto-detect defaults", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 25,
+        webAiApiCheck: {
+          enabled: true,
+          contextMenu: { enabled: true },
+          autoDetect: {
+            enabled: false,
+            urlWhitelist: { patterns: ["^https://stored\\.example"] },
+          },
+        },
+      } as any)
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.webAiApiCheck).toMatchObject({
+        enabled: true,
+        contextMenu: { enabled: true },
+        autoDetect: {
+          enabled: false,
+          enhanced: { enabled: true },
+          urlWhitelist: { patterns: ["^https://stored\\.example"] },
+        },
+      })
+    })
+
+    it("preserves an explicit enhanced auto-detect opt-out during v25 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 25,
+        webAiApiCheck: {
+          enabled: true,
+          contextMenu: { enabled: true },
+          autoDetect: {
+            enabled: true,
+            enhanced: { enabled: false },
+            urlWhitelist: { patterns: ["^https://stored\\.example"] },
+          },
+        },
+      } as any)
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.webAiApiCheck).toMatchObject({
+        enabled: true,
+        contextMenu: { enabled: true },
+        autoDetect: {
+          enabled: true,
+          enhanced: { enabled: false },
+          urlWhitelist: { patterns: ["^https://stored\\.example"] },
+        },
+      })
+    })
+
+    it("defaults site announcement polling to disabled for new preference snapshots", () => {
+      expect(DEFAULT_PREFERENCES.siteAnnouncementNotifications).toEqual(
+        DEFAULT_SITE_ANNOUNCEMENT_PREFERENCES,
+      )
+      expect(DEFAULT_PREFERENCES.siteAnnouncementNotifications?.enabled).toBe(
+        false,
+      )
+    })
+
+    it("normalizes invalid balance-history settings during v11->v12 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 11,
+        balanceHistory: {
+          enabled: "yes" as any,
+          endOfDayCapture: { enabled: "no" as any },
+          retentionDays: "not-a-number" as any,
+          estimatedTodayIncome: { enabled: false },
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.balanceHistory).toEqual(DEFAULT_BALANCE_HISTORY_PREFERENCES)
+    })
+
+    it("clamps balance-history retention days into the supported storage range", () => {
+      const lowPrefs = createV0Preferences({
+        preferencesVersion: 11,
+        balanceHistory: {
+          enabled: true,
+          endOfDayCapture: { enabled: true },
+          retentionDays: 0,
+          estimatedTodayIncome: { enabled: false },
+        },
+      })
+      const highPrefs = createV0Preferences({
+        preferencesVersion: 11,
+        balanceHistory: {
+          enabled: true,
+          endOfDayCapture: { enabled: false },
+          retentionDays: 99999,
+          estimatedTodayIncome: { enabled: false },
+        },
+      })
+
+      const lowResult = migratePreferences(lowPrefs)
+      const highResult = migratePreferences(highPrefs)
+
+      expect(lowResult.balanceHistory?.retentionDays).toBe(1)
+      expect(highResult.balanceHistory?.retentionDays).toBe(3650)
+      expect(highResult.balanceHistory?.endOfDayCapture.enabled).toBe(false)
+    })
+
+    it("re-enables openChangelogOnUpdate during v13->v14 migration", () => {
+      const prefs: UserPreferences = {
+        ...DEFAULT_PREFERENCES,
+        preferencesVersion: 13,
+        openChangelogOnUpdate: false,
+      }
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.openChangelogOnUpdate).toBe(true)
+    })
+
+    it("preserves an existing octopus config during v12->v13 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 12,
+        octopus: {
+          baseUrl: "https://octopus.example.com",
+          username: "alice",
+          password: "secret",
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.octopus).toEqual({
+        baseUrl: "https://octopus.example.com",
+        username: "alice",
+        password: "secret",
+      })
+    })
+
+    it("processes v1 preferences with sorting config migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 1,
+        sortingPriorityConfig: {
+          criteria: [
+            {
+              id: SortingCriteriaType.CURRENT_SITE,
+              enabled: true,
+              priority: 0,
+            },
+          ],
+          lastModified: Date.now(),
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      // PINNED should be added during migration
+      const hasPinned = result.sortingPriorityConfig?.criteria.some(
+        (c) => c.id === SortingCriteriaType.PINNED,
+      )
+      expect(hasPinned).toBe(true)
+    })
+
+    it("handles v2 preferences with WebDAV config migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 2,
+        // Legacy flat WebDAV fields
+        webdavUrl: "https://example.com",
+        webdavUsername: "user",
+        webdavPassword: "pass",
+        webdavAutoSync: true,
+        webdavSyncInterval: 3600,
+        webdavSyncStrategy: WEBDAV_SYNC_STRATEGIES.MERGE,
+      }) as UserPreferences
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      // Old fields should be removed
+      expect(result).not.toHaveProperty("webdavUrl")
+      // Nested structure should be set
+      expect(result.webdav).toBeDefined()
+      expect(result.webdav.url).toBe("https://example.com")
+    })
+
+    it("handles v3 preferences with auto-refresh config migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 3,
+        // Legacy flat auto-refresh fields
+        autoRefresh: true,
+        refreshInterval: 300,
+        minRefreshInterval: 45,
+        refreshOnOpen: false,
+      }) as UserPreferences
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      // Old fields should be removed
+      expect(result).not.toHaveProperty("autoRefresh")
+      expect(result).not.toHaveProperty("refreshInterval")
+      // Nested structure should be set
+      expect(result.accountAutoRefresh).toEqual({
+        enabled: true,
+        interval: 300,
+        minInterval: 45,
+        refreshOnOpen: false,
+      })
+    })
+
+    it("handles v4 preferences with new-api config migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 4,
+        // Legacy flat new-api fields
+        newApiBaseUrl: "https://api.example.com",
+        newApiAdminToken: "admin-token",
+        newApiUserId: "user-id",
+      }) as UserPreferences
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      // Old fields should be removed
+      expect(result).not.toHaveProperty("newApiBaseUrl")
+      expect(result).not.toHaveProperty("newApiAdminToken")
+      expect(result).not.toHaveProperty("newApiUserId")
+      // Nested structure should be set
+      expect(result.newApi).toEqual({
+        baseUrl: "https://api.example.com",
+        adminToken: "admin-token",
+        userId: "user-id",
+      })
+    })
+
+    it("preserves managedSiteModelSync when both legacy and current sync configs exist", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 6,
+        managedSiteModelSync: {
+          enabled: true,
+          interval: 1000,
+          concurrency: 4,
+          maxRetries: 3,
+          rateLimit: { requestsPerMinute: 30, burst: 10 },
+          allowedModels: ["gpt-4o"],
+          globalChannelModelFilters: [buildChannelModelFilterRule()],
+        },
+        newApiModelSync: {
+          enabled: false,
+          interval: 2000,
+          concurrency: 1,
+          maxRetries: 1,
+          rateLimit: { requestsPerMinute: 10, burst: 2 },
+          allowedModels: [],
+          globalChannelModelFilters: [],
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.managedSiteModelSync).toEqual({
+        enabled: true,
+        interval: 1000,
+        concurrency: 4,
+        maxRetries: 3,
+        rateLimit: { requestsPerMinute: 30, burst: 10 },
+        allowedModels: ["gpt-4o"],
+        globalChannelModelFilters: [buildChannelModelFilterRule()],
+      })
+      expect(result).not.toHaveProperty("newApiModelSync")
+    })
+
+    it("clamps auto-refresh intervals to new minimums during migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 9,
+        accountAutoRefresh: {
+          enabled: true,
+          interval: 10,
+          minInterval: 0,
+          refreshOnOpen: false,
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.accountAutoRefresh.interval).toBe(
+        ACCOUNT_AUTO_REFRESH_INTERVAL_MIN_SECONDS,
+      )
+      expect(result.accountAutoRefresh.minInterval).toBe(
+        ACCOUNT_AUTO_REFRESH_MIN_INTERVAL_MIN_SECONDS,
+      )
+    })
+
+    it("sequentially migrates from v0 through all versions", () => {
+      const prefs = createV0Preferences({
+        // All legacy flat fields for a complete v0 config
+        sortingPriorityConfig: {
+          criteria: [
+            {
+              id: SortingCriteriaType.CURRENT_SITE,
+              enabled: true,
+              priority: 0,
+            },
+            {
+              id: SortingCriteriaType.HEALTH_STATUS,
+              enabled: true,
+              priority: 1,
+            },
+          ],
+          lastModified: Date.now(),
+        },
+        webdavUrl: "https://backup.example.com",
+        webdavUsername: "backupuser",
+        webdavPassword: "backuppass",
+        webdavAutoSync: true,
+        webdavSyncInterval: 7200,
+        webdavSyncStrategy: WEBDAV_SYNC_STRATEGIES.UPLOAD_ONLY,
+        autoRefresh: true,
+        refreshInterval: 600,
+        minRefreshInterval: 60,
+        refreshOnOpen: true,
+        newApiBaseUrl: "https://api.example.com",
+        newApiAdminToken: "admin-token",
+        newApiUserId: "user-id",
+      }) as UserPreferences
+
+      const result = migratePreferences(prefs)
+
+      // Should be at current version
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+
+      // All old fields should be removed
+      expect(result).not.toHaveProperty("webdavUrl")
+      expect(result).not.toHaveProperty("webdavUsername")
+      expect(result).not.toHaveProperty("autoRefresh")
+      expect(result).not.toHaveProperty("newApiBaseUrl")
+
+      // New nested structures should be set correctly
+      expect(result.webdav).toEqual({
+        ...DEFAULT_WEBDAV_SETTINGS,
+        url: "https://backup.example.com",
+        username: "backupuser",
+        password: "backuppass",
+        autoSync: true,
+        syncInterval: 7200,
+        syncStrategy: WEBDAV_SYNC_STRATEGIES.UPLOAD_ONLY,
+      })
+
+      expect(result.accountAutoRefresh).toEqual({
+        enabled: true,
+        interval: 600,
+        minInterval: 60,
+        refreshOnOpen: true,
+      })
+
+      expect(result.newApi).toEqual({
+        baseUrl: "https://api.example.com",
+        adminToken: "admin-token",
+        userId: "user-id",
+      })
+    })
+
+    it("preserves non-migrated properties during migration", () => {
+      const prefs = createV0Preferences({
+        themeMode: "dark" as const,
+        activeTab: "balance" as const,
+        currencyType: "CNY" as const,
+        sortField: "name" as const,
+        sortOrder: "asc" as const,
+        showHealthStatus: false,
+        language: "zh-CN",
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.themeMode).toBe("dark")
+      expect(result.activeTab).toBe("balance")
+      expect(result.currencyType).toBe("CNY")
+      expect(result.sortField).toBe("name")
+      expect(result.sortOrder).toBe("asc")
+      expect(result.showHealthStatus).toBe(false)
+      expect(result.language).toBe("zh-CN")
+    })
+
+    it("canonicalizes legacy zh_CN language values during migration", () => {
+      const prefs = createV0Preferences({
+        language: "zh_CN",
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.language).toBe("zh-CN")
+    })
+
+    it("preserves unsupported language tags during v16->v17 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 16,
+        language: "custom-locale",
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.language).toBe("custom-locale")
+    })
+
+    it("handles partial migrations correctly", () => {
+      // Create a v2 preferences with only some of the legacy fields
+      // Manually build prefs without relying on helper to avoid pre-populated structures
+      const prefs: UserPreferences = {
+        themeMode: "system",
+        logging: DEFAULT_PREFERENCES.logging,
+        // Legacy stored value before the v7->v8 cashflow tab rename migration.
+        activeTab: DATA_TYPE_CONSUMPTION as any,
+        currencyType: "USD",
+        sortField: "balance",
+        sortOrder: "desc",
+        accountAutoRefresh: DEFAULT_ACCOUNT_AUTO_REFRESH,
+        showHealthStatus: true,
+        newApi: DEFAULT_NEW_API_CONFIG,
+        veloera: DEFAULT_VELOERA_CONFIG,
+        managedSiteType: SITE_TYPES.NEW_API,
+        newApiModelSync: {
+          enabled: false,
+          interval: 24 * 60 * 60 * 1000,
+          concurrency: 2,
+          maxRetries: 2,
+          rateLimit: { requestsPerMinute: 20, burst: 5 },
+          allowedModels: [],
+          globalChannelModelFilters: [],
+        },
+        autoCheckin: {
+          globalEnabled: false,
+          pretriggerDailyOnUiOpen: true,
+          notifyUiOnCompletion: true,
+          windowStart: "09:00",
+          windowEnd: "18:00",
+          scheduleMode: "random",
+          retryStrategy: {
+            enabled: false,
+            intervalMinutes: 30,
+            maxAttemptsPerDay: 3,
+          },
+        },
+        modelRedirect: buildModelRedirectFixture(),
+        webdav: DEFAULT_WEBDAV_SETTINGS,
+        lastUpdated: Date.now(),
+        preferencesVersion: 2,
+        // Legacy fields that need migration from v2->v3 (WebDAV)
+        webdavUrl: "https://example.com",
+      } as UserPreferences
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.webdav).toBeDefined()
+      expect(result.webdav.url).toBe("https://example.com")
+      // Old field should be removed
+      expect(result).not.toHaveProperty("webdavUrl")
+    })
+
+    it("respects defaults when fields are missing", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 2,
+        // No legacy WebDAV fields
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.webdav).toEqual(DEFAULT_WEBDAV_SETTINGS)
+    })
+
+    it("initializes missing WebDAV syncData during v14 to v15 migration", () => {
+      const { syncData: _syncData, ...legacyWebdav } = DEFAULT_WEBDAV_SETTINGS
+      void _syncData
+
+      const prefs = createV0Preferences({
+        preferencesVersion: 14,
+        webdav: legacyWebdav,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.webdav).toEqual(DEFAULT_WEBDAV_SETTINGS)
+    })
+
+    it("fills missing WebDAV syncData keys during v14 to v15 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 14,
+        webdav: {
+          ...DEFAULT_WEBDAV_SETTINGS,
+          syncData: {
+            accounts: false,
+            preferences: false,
+          },
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.webdav.syncData).toEqual({
+        ...DEFAULT_WEBDAV_SETTINGS.syncData,
+        accounts: false,
+        preferences: false,
+      })
+    })
+
+    it("initializes sharedPreferencesLastUpdated during v15 to v16 migration", () => {
+      const legacyTimestamp = 123456
+      const prefs = createV0Preferences({
+        preferencesVersion: 15,
+        lastUpdated: legacyTimestamp,
+      })
+      delete (prefs as any).sharedPreferencesLastUpdated
+
+      const result = migratePreferences(prefs)
+
+      expect(result.sharedPreferencesLastUpdated).toBe(legacyTimestamp)
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+    })
+
+    it("backfills sharedPreferencesLastUpdated even when version is already current", () => {
+      const currentTimestamp = 654321
+      const prefs = createV0Preferences({
+        preferencesVersion: CURRENT_PREFERENCES_VERSION,
+        lastUpdated: currentTimestamp,
+      })
+      delete (prefs as any).sharedPreferencesLastUpdated
+
+      const result = migratePreferences(prefs)
+
+      expect(result.sharedPreferencesLastUpdated).toBe(currentTimestamp)
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+    })
+
+    it("handles mixed old and new field scenarios", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 2,
+        // Old flat WebDAV fields alongside new nested structure
+        webdav: {
+          url: "https://old.com",
+          username: "olduser",
+          password: "oldpass",
+          autoSync: false,
+          syncInterval: 3600,
+          syncStrategy: WEBDAV_SYNC_STRATEGIES.MERGE,
+        },
+        webdavUrl: "https://new.com",
+        webdavUsername: "newuser",
+      }) as UserPreferences
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      // Old fields should be prioritized and then removed
+      expect(result.webdav.url).toBe("https://new.com")
+      expect(result.webdav.username).toBe("newuser")
+      expect(result).not.toHaveProperty("webdavUrl")
+    })
+
+    it("adds PINNED criterion during v0->v1 and v1->v2 migrations", () => {
+      const prefs = createV0Preferences({
+        sortingPriorityConfig: {
+          criteria: [
+            {
+              id: SortingCriteriaType.CURRENT_SITE,
+              enabled: true,
+              priority: 0,
+            },
+          ],
+          lastModified: Date.now(),
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      const pinnedCriterion = result.sortingPriorityConfig?.criteria.find(
+        (c) => c.id === SortingCriteriaType.PINNED,
+      )
+
+      expect(pinnedCriterion).toBeDefined()
+      expect(pinnedCriterion?.enabled).toBe(true)
+    })
+
+    it("normalizes sorting priorities after migrations", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 1,
+        sortingPriorityConfig: {
+          criteria: [
+            {
+              id: SortingCriteriaType.CURRENT_SITE,
+              enabled: true,
+              priority: 10,
+            },
+            {
+              id: SortingCriteriaType.HEALTH_STATUS,
+              enabled: true,
+              priority: 20,
+            },
+          ],
+          lastModified: Date.now(),
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      // Priorities should be normalized
+      const priorities = result.sortingPriorityConfig?.criteria.map(
+        (c) => c.priority,
+      )
+      const uniquePriorities = [...new Set(priorities)]
+      expect(uniquePriorities.length).toBe(priorities?.length)
+    })
+
+    it("handles undefined preferencesVersion as v0", () => {
+      const prefs = createV0Preferences({
+        webdavUrl: "https://example.com",
+        autoRefresh: true,
+        refreshInterval: 300,
+      }) as UserPreferences
+
+      delete (prefs as any).preferencesVersion
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.webdav.url).toBe("https://example.com")
+    })
+
+    it("stops gracefully when a migration step is missing", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: -1 as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(-1)
+      expect(result.sharedPreferencesLastUpdated).toBe(prefs.lastUpdated)
+    })
+
+    it("updates lastUpdated timestamp during migration", () => {
+      const prefs = createV0Preferences({
+        lastUpdated: 1000,
+      })
+
+      const result = migratePreferences(prefs)
+
+      // lastUpdated may or may not be changed depending on implementation
+      // but the result should have a valid timestamp
+      expect(result.lastUpdated).toBeDefined()
+      expect(typeof result.lastUpdated).toBe("number")
+    })
+
+    it("correctly handles defaults for all migration steps", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 1,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.sortingPriorityConfig).toBeDefined()
+      expect(result.webdav).toBeDefined()
+      expect(result.accountAutoRefresh).toBeDefined()
+      expect(result.newApi).toBeDefined()
+    })
+
+    it("preserves optional fields like language during migration", () => {
+      const prefs = createV0Preferences({
+        language: "en",
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.language).toBe("en")
+    })
+
+    it("handles sorting config without migration when already correct", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: CURRENT_PREFERENCES_VERSION,
+        sortingPriorityConfig: DEFAULT_SORTING_PRIORITY_CONFIG,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result).toEqual(prefs)
+    })
+
+    it("reorders legacy MANUAL_ORDER priority during v17->v18 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 17,
+        sortingPriorityConfig: {
+          lastModified: 1000,
+          criteria: [
+            {
+              id: SortingCriteriaType.DISABLED_ACCOUNT,
+              enabled: true,
+              priority: 0,
+            },
+            {
+              id: SortingCriteriaType.CURRENT_SITE,
+              enabled: true,
+              priority: 1,
+            },
+            {
+              id: SortingCriteriaType.PINNED,
+              enabled: true,
+              priority: 2,
+            },
+            {
+              id: SortingCriteriaType.MANUAL_ORDER,
+              enabled: true,
+              priority: 3,
+            },
+            {
+              id: SortingCriteriaType.USER_SORT_FIELD,
+              enabled: true,
+              priority: 4,
+            },
+            {
+              id: SortingCriteriaType.CHECK_IN_REQUIREMENT,
+              enabled: true,
+              priority: 5,
+            },
+            {
+              id: SortingCriteriaType.MATCHED_OPEN_TABS,
+              enabled: true,
+              priority: 6,
+            },
+            {
+              id: SortingCriteriaType.HEALTH_STATUS,
+              enabled: true,
+              priority: 7,
+            },
+            {
+              id: SortingCriteriaType.CUSTOM_CHECK_IN_URL,
+              enabled: true,
+              priority: 8,
+            },
+            {
+              id: SortingCriteriaType.CUSTOM_REDEEM_URL,
+              enabled: true,
+              priority: 9,
+            },
+          ],
+        },
+      })
+
+      const result = migratePreferences(prefs)
+      const ids = result.sortingPriorityConfig?.criteria.map(
+        (criterion) => criterion.id,
+      )
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(ids?.indexOf(SortingCriteriaType.USER_SORT_FIELD)).toBe(3)
+      expect(ids?.indexOf(SortingCriteriaType.MANUAL_ORDER)).toBe(4)
+      expect(ids?.indexOf(SortingCriteriaType.CHECK_IN_REQUIREMENT)).toBe(5)
+      expect(ids?.indexOf(SortingCriteriaType.MATCHED_OPEN_TABS)).toBe(6)
+      expect(ids?.indexOf(SortingCriteriaType.HEALTH_STATUS)).toBe(7)
+      expect(ids?.indexOf(SortingCriteriaType.CUSTOM_CHECK_IN_URL)).toBe(8)
+      expect(ids?.indexOf(SortingCriteriaType.CUSTOM_REDEEM_URL)).toBe(9)
+    })
+
+    it("initializes task notification preferences during v18 to v19 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 18,
+      })
+      delete (prefs as any).taskNotifications
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual(
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+      )
+    })
+
+    it("preserves existing task notification preferences during v18 to v19 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 18,
+        taskNotifications: {
+          enabled: false,
+          tasks: {
+            ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.tasks,
+            webdavAutoSync: false,
+          },
+        } as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual({
+        enabled: false,
+        tasks: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.tasks,
+          webdavAutoSync: false,
+        },
+        channels: DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels,
+      })
+    })
+
+    it("backfills missing task notification task switches during v18 to v19 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 18,
+        taskNotifications: {
+          enabled: true,
+          tasks: {
+            autoCheckin: false,
+          } as any,
+        } as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.taskNotifications).toEqual({
+        enabled: true,
+        tasks: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.tasks,
+          autoCheckin: false,
+        },
+        channels: DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels,
+      })
+    })
+
+    it("preserves configured third-party notification channels during v19 to v20 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 19,
+        taskNotifications: {
+          enabled: true,
+          tasks: DEFAULT_TASK_NOTIFICATION_PREFERENCES.tasks,
+          channels: {
+            ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels,
+            [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+              enabled: true,
+              botToken: "telegram-token",
+              chatId: "-1001234567890",
+            },
+          },
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual({
+        ...DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+        channels: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels,
+          [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+            enabled: true,
+            botToken: "telegram-token",
+            chatId: "-1001234567890",
+          },
+        },
+      })
+    })
+
+    it("backfills default notification channels when v19 task notifications are missing", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 19,
+        taskNotifications: undefined as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual(
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+      )
+    })
+
+    it("backfills the WeCom notification channel during v20 to v21 migration", () => {
+      const { [TASK_NOTIFICATION_CHANNELS.Wecom]: _wecom, ...legacyChannels } =
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels
+      void _wecom
+      const prefs = createV0Preferences({
+        preferencesVersion: 20,
+        taskNotifications: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+          channels: {
+            ...legacyChannels,
+            [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+              enabled: true,
+              botToken: "telegram-token",
+              chatId: "-1001234567890",
+            },
+          },
+        } as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual({
+        ...DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+        channels: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels,
+          [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+            enabled: true,
+            botToken: "telegram-token",
+            chatId: "-1001234567890",
+          },
+          [TASK_NOTIFICATION_CHANNELS.Wecom]: {
+            enabled: false,
+            webhookKey: "",
+          },
+        },
+      })
+    })
+
+    it("falls back to default task notifications during v20 to v21 migration when stored data is invalid", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 20,
+        taskNotifications: null as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual(
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+      )
+    })
+
+    it("backfills the DingTalk notification channel during v21 to v22 migration", () => {
+      const {
+        [TASK_NOTIFICATION_CHANNELS.Dingtalk]: _dingtalk,
+        ...legacyChannels
+      } = DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels
+      void _dingtalk
+      const prefs = createV0Preferences({
+        preferencesVersion: 21,
+        taskNotifications: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+          channels: {
+            ...legacyChannels,
+            [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+              enabled: true,
+              botToken: "telegram-token",
+              chatId: "-1001234567890",
+            },
+          },
+        } as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual({
+        ...DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+        channels: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels,
+          [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+            enabled: true,
+            botToken: "telegram-token",
+            chatId: "-1001234567890",
+          },
+          [TASK_NOTIFICATION_CHANNELS.Dingtalk]: {
+            enabled: false,
+            webhookKey: "",
+            secret: "",
+          },
+        },
+      })
+    })
+
+    it("falls back to default task notifications during v21 to v22 migration when stored data is invalid", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 21,
+        taskNotifications: undefined as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual(
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+      )
+    })
+
+    it("backfills the ntfy notification channel during v22 to v23 migration", () => {
+      const { [TASK_NOTIFICATION_CHANNELS.Ntfy]: _ntfy, ...legacyChannels } =
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels
+      void _ntfy
+      const prefs = createV0Preferences({
+        preferencesVersion: 22,
+        taskNotifications: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+          channels: {
+            ...legacyChannels,
+            [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+              enabled: true,
+              botToken: "telegram-token",
+              chatId: "-1001234567890",
+            },
+          },
+        } as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual({
+        ...DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+        channels: {
+          ...DEFAULT_TASK_NOTIFICATION_PREFERENCES.channels,
+          [TASK_NOTIFICATION_CHANNELS.Telegram]: {
+            enabled: true,
+            botToken: "telegram-token",
+            chatId: "-1001234567890",
+          },
+          [TASK_NOTIFICATION_CHANNELS.Ntfy]: {
+            enabled: false,
+            topicUrl: "",
+            accessToken: "",
+          },
+        },
+      })
+    })
+
+    it("falls back to default task notifications during v22 to v23 migration when stored data is invalid", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 22,
+        taskNotifications: "invalid" as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual(
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+      )
+    })
+
+    it("forces site announcement polling off during v23 to v24 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 23,
+        siteAnnouncementNotifications: {
+          enabled: true,
+          notificationEnabled: false,
+          intervalMinutes: 120,
+        },
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.siteAnnouncementNotifications).toEqual({
+        enabled: false,
+        notificationEnabled: false,
+        intervalMinutes: 120,
+      })
+    })
+
+    it("falls back to defaults when stored taskNotifications is a non-object during v18 to v19 migration", () => {
+      const prefs = createV0Preferences({
+        preferencesVersion: 18,
+        taskNotifications: "invalid" as any,
+      })
+
+      const result = migratePreferences(prefs)
+
+      expect(result.preferencesVersion).toBe(CURRENT_PREFERENCES_VERSION)
+      expect(result.taskNotifications).toEqual(
+        DEFAULT_TASK_NOTIFICATION_PREFERENCES,
+      )
+    })
+
+    it("removes all deprecated fields after full migration", () => {
+      const prefs = createV0Preferences({
+        // All deprecated fields
+        newApiBaseUrl: "https://api.example.com",
+        newApiAdminToken: "admin-token",
+        newApiUserId: "user-id",
+        autoRefresh: true,
+        refreshInterval: 300,
+        minRefreshInterval: 45,
+        refreshOnOpen: false,
+        webdavUrl: "https://example.com",
+        webdavUsername: "user",
+        webdavPassword: "pass",
+        webdavAutoSync: true,
+        webdavSyncInterval: 3600,
+        webdavSyncStrategy: WEBDAV_SYNC_STRATEGIES.MERGE,
+      }) as UserPreferences
+
+      const result = migratePreferences(prefs)
+
+      expect(result).not.toHaveProperty("newApiBaseUrl")
+      expect(result).not.toHaveProperty("newApiAdminToken")
+      expect(result).not.toHaveProperty("newApiUserId")
+      expect(result).not.toHaveProperty("autoRefresh")
+      expect(result).not.toHaveProperty("refreshInterval")
+      expect(result).not.toHaveProperty("minRefreshInterval")
+      expect(result).not.toHaveProperty("refreshOnOpen")
+      expect(result).not.toHaveProperty("webdavUrl")
+      expect(result).not.toHaveProperty("webdavUsername")
+      expect(result).not.toHaveProperty("webdavPassword")
+      expect(result).not.toHaveProperty("webdavAutoSync")
+      expect(result).not.toHaveProperty("webdavSyncInterval")
+      expect(result).not.toHaveProperty("webdavSyncStrategy")
+    })
+  })
+})

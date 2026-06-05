@@ -1,0 +1,69 @@
+{
+  "actions": {
+    "checkNow": "立即检查",
+    "collapse": "收起",
+    "expand": "展开",
+    "markAllRead": "全部已读",
+    "markRead": "标记已读",
+    "pollingSettings": "抓取设置",
+    "viewSource": "查看站点公告"
+  },
+  "badges": {
+    "notified": "已通知",
+    "unread": "未读"
+  },
+  "description": {
+    "disabledSummary": "自动抓取当前已关闭；你仍可手动触发一次检查。",
+    "enabledInterval": "当前间隔：每 {{intervalMinutes}} 分钟。",
+    "enabledSummary": "自动抓取当前已开启；你可以查看抓取到的网站公告、处理未读状态，并手动触发一次检查。",
+    "pollingSettingsLink": "配置自动抓取"
+  },
+  "empty": {
+    "addAccount": "添加账号",
+    "description": "后台检查到新公告后会显示在这里。",
+    "descriptionWhenPollingDisabled": "你可以立即手动检查；自动抓取可在设置中管理。",
+    "filtered": "当前筛选条件下没有公告",
+    "noAccounts": "先添加账号后才能检查公告",
+    "noAccountsDesc": "公告检查需要至少一个已启用账号，才能知道要抓取哪些站点。",
+    "pollingSettingsLink": "配置自动抓取",
+    "title": "暂无公告记录"
+  },
+  "filters": {
+    "allReadStates": "全部状态",
+    "allSites": "全部站点",
+    "allSiteTypes": "全部类型",
+    "read": "已读",
+    "readState": "阅读状态",
+    "searchSite": "搜索站点",
+    "site": "站点",
+    "siteType": "站点类型",
+    "unread": "未读"
+  },
+  "loading": "正在加载公告...",
+  "messages": {
+    "checkCompleted": "公告检查已完成",
+    "checkFailed": "公告检查失败",
+    "loadFailed": "加载公告失败",
+    "markAllReadFailed": "批量标记公告已读失败",
+    "markReadFailed": "标记公告已读失败"
+  },
+  "notification": {
+    "multipleUnread": "{{title}}，还有 {{count}} 条未读公告",
+    "title": "{{site}} 有新公告"
+  },
+  "status": {
+    "failed": "该站点最近一次公告检查失败：{{error}}",
+    "failedTitle": "检查失败",
+    "lastChecked": "最近检查：{{time}}",
+    "unsupported": "该站点最近一次检查未发现可用公告接口。",
+    "unsupportedTitle": "暂不支持公告接口"
+  },
+  "summary": {
+    "filtered": "当前显示 {{count}} / {{total}} 条公告",
+    "notified": "{{count}} 条已发送系统通知",
+    "sites": "涉及站点",
+    "total": "公告总数",
+    "unread": "未读公告"
+  },
+  "title": "网站公告"
+}

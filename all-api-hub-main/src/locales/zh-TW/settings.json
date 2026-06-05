@@ -1,0 +1,691 @@
+{
+  "accountManagement": {
+    "description": "在專用管理控制台中管理帳號、餘額、API 金鑰並配置排序優先順序。",
+    "openPage": "開啟帳號管理頁面",
+    "title": "帳號管理"
+  },
+  "actionClick": {
+    "actionIconClickDesc": "選擇擴充套件圖示時的開啟行為，彈出視窗或側邊欄。",
+    "actionIconClickTitle": "點擊擴充套件圖示時開啟",
+    "description": "選擇點擊擴充套件圖示時的行為。",
+    "popupLabel": "彈窗",
+    "popupTitle": "開啟彈出視窗",
+    "sidepanelFallbackToast": "已儲存側邊欄偏好設定。本裝置不支援側邊欄，將回退為開啟彈窗。",
+    "sidepanelLabel": "側邊欄",
+    "sidepanelTitle": "開啟側邊欄",
+    "sidepanelUnsupportedHelper": "當前裝置不支援側邊欄。點擊工具欄圖示將回退為開啟彈窗。",
+    "title": "工具欄圖示行為"
+  },
+  "appearanceLanguage": {
+    "language": "語言",
+    "languageDesc": "選擇您偏好的顯示語言",
+    "onboardingHelper": "切換後會立即更新引導內容，並作為後續設定頁面的顯示語言。",
+    "onboardingLabel": "選擇介面語言",
+    "switcher": {
+      "currentLanguage": "當前介面語言：{{language}}",
+      "groupLabel": "介面語言選擇",
+      "options": {
+        "en": {
+          "label": "EN",
+          "name": "英文"
+        },
+        "ja": {
+          "label": "日文",
+          "name": "日語"
+        },
+        "vi": {
+          "label": "越南",
+          "name": "越南語"
+        },
+        "zh-CN": {
+          "label": "簡中",
+          "name": "簡體中文"
+        },
+        "zh-TW": {
+          "label": "繁中",
+          "name": "繁體中文"
+        }
+      },
+      "switchToLanguage": "切換介面語言為{{language}}"
+    }
+  },
+  "autoFillCurrentSiteUrlOnAccountAdd": {
+    "description": "控制新增帳號時，是否自動把目前站點網址預先填入 URL 欄位。",
+    "title": "帳號",
+    "toggleDesc": "開啟後，開啟新增帳號視窗時會把目前瀏覽器分頁的站點 origin 預填到 URL 欄位。識別流程仍需沿用現有的下一步操作。",
+    "toggleLabel": "新增帳號時自動填入目前站點網址"
+  },
+  "autoProvisionKeyOnAccountAdd": {
+    "description": "控制新增帳號後是否自動建立預設 API 金鑰。",
+    "title": "API 金鑰",
+    "toggleDesc": "開啟後，帳號儲存完成會檢查遠端金鑰列表；若沒有金鑰則自動建立一個預設金鑰。",
+    "toggleLabel": "新增帳號後自動建立預設金鑰"
+  },
+  "axonHub": {
+    "cors": {
+      "description": "新的 AxonHub 實例通常需要調整服務端 CORS 配置，否則 All API Hub 擴充套件無法從瀏覽器存取 AxonHub。可將 AXONHUB_SERVER_CORS_ALLOWED_ORIGINS 設為 \"*\"，或限制為你信任的瀏覽器 / 擴充套件來源。",
+      "title": "必需的 CORS 設定"
+    },
+    "description": "配置用於連接 AxonHub 管理後台的整合設定。",
+    "fields": {
+      "baseUrlDesc": "設定 AxonHub 站點的基礎 URL",
+      "baseUrlLabel": "基礎 URL",
+      "baseUrlPlaceholder": "https://axonhub.example.com",
+      "emailDesc": "用於 /admin/auth/signin 登入的 AxonHub 管理員信箱",
+      "emailLabel": "管理員信箱",
+      "emailPlaceholder": "admin@example.com",
+      "hidePassword": "隱藏密碼",
+      "passwordDesc": "用於取得 AxonHub 管理端 GraphQL 工作階段令牌的管理員密碼",
+      "passwordLabel": "管理員密碼",
+      "passwordPlaceholder": "輸入密碼",
+      "showPassword": "顯示密碼"
+    },
+    "title": "AxonHub 整合設定",
+    "validation": {
+      "corsFailed": "AxonHub 配置驗證失敗：{{error}}。這通常表示新的 AxonHub 實例尚未允許擴充套件的瀏覽器來源。請調整 AxonHub 服務端 CORS 配置，將 AXONHUB_SERVER_CORS_ALLOWED_ORIGINS 設為 \"*\"，或允許擴充套件 / 瀏覽器來源後重試。",
+      "description": "測試信箱和密碼是否可以登入 AxonHub 管理端 GraphQL",
+      "failed": "AxonHub 配置驗證失敗：{{error}}",
+      "missingFields": "請填寫所有必填欄位",
+      "success": "AxonHub 配置驗證成功",
+      "title": "驗證配置",
+      "validate": "驗證配置",
+      "validating": "驗證中..."
+    }
+  },
+  "changelogOnUpdate": {
+    "description": "控制外掛更新完成後，首次開啟外掛介面時是否在外掛內顯示更新內容。",
+    "title": "更新日誌",
+    "toggleDesc": "開啟後，外掛更新完成後首次開啟外掛介面時，會在外掛內彈出更新內容（每個版本僅一次），並可手動開啟完整更新日誌頁面。",
+    "toggleLabel": "更新後自動顯示更新內容"
+  },
+  "claudeCodeHub": {
+    "description": "設定 Claude Code Hub 管理站點的連線資訊。",
+    "fields": {
+      "adminTokenDesc": "Claude Code Hub action API 接受的管理員權杖或 API Key",
+      "adminTokenLabel": "管理員權杖",
+      "adminTokenPlaceholder": "輸入管理員權杖",
+      "baseUrlDesc": "設定 Claude Code Hub 站點的基礎 URL",
+      "baseUrlLabel": "基礎 URL",
+      "baseUrlPlaceholder": "https://claude-code-hub.example.com",
+      "hideAdminToken": "隱藏管理員權杖",
+      "showAdminToken": "顯示管理員權杖"
+    },
+    "title": "Claude Code Hub 整合設定",
+    "unsupported": {
+      "description": "目前版本暫不支援 Claude Code Hub 的模型同步和模型重定向。",
+      "title": "不支援的渠道操作"
+    },
+    "validation": {
+      "description": "測試該權杖是否可透過 action API 讀取 Claude Code Hub 提供商列表",
+      "failed": "Claude Code Hub 設定驗證失敗：{{error}}",
+      "missingFields": "請填寫所有必填欄位",
+      "success": "Claude Code Hub 設定驗證成功",
+      "title": "驗證設定",
+      "validate": "驗證設定",
+      "validating": "驗證中..."
+    }
+  },
+  "claudeCodeRouter": {
+    "apiKeyLabel": "API Key",
+    "apiKeyPlaceholder": "sk-123456",
+    "baseUrlLabel": "基礎 URL",
+    "baseUrlPlaceholder": "http://localhost:3000",
+    "description": "配置 Claude Code Router 管理介面連線資訊",
+    "keyDesc": "用於 /api/config 的可選 APIKEY（如未啟用可留空）",
+    "title": "Claude Code Router",
+    "urlDesc": "Claude Code Router 服務基礎 URL，例如 http://localhost:3000"
+  },
+  "cliProxy": {
+    "baseUrlLabel": "管理介面基礎 URL",
+    "checkConnectionAction": "檢測連線",
+    "checkConnectionDesc": "儲存後可主動檢測目前 URL 與管理金鑰是否能存取 CLIProxyAPI Management API。",
+    "checkConnectionLabel": "連線檢測",
+    "description": "配置到 CLIProxyAPI 管理介面的連線資訊。",
+    "hideKey": "隱藏管理金鑰",
+    "keyDesc": "用於管理介面訪問認證的管理金鑰",
+    "managementDocsLinkLabel": "查看 Management API 文件",
+    "managementKeyLabel": "管理金鑰",
+    "showKey": "顯示管理金鑰",
+    "title": "CLIProxyAPI 設定",
+    "urlDesc": "設定管理介面基礎 URL，例如 http://localhost:8317/v0/management"
+  },
+  "danger": {
+    "resetAllSettings": "重置所有設定",
+    "resetDesc": "將所有配置重置為預設值，此操作不可撤銷",
+    "resetFailed": "重置設定失敗",
+    "resetSettings": "重置設定",
+    "title": "危險操作"
+  },
+  "dataBackup": {
+    "importExport": {
+      "description": "訪問專用的匯入和匯出資料頁面。",
+      "info": "匯入/匯出頁面提供資料匯入、匯出為不同格式和備份管理的完整功能。",
+      "openPage": "開啟匯入/匯出頁面",
+      "title": "匯入與匯出"
+    }
+  },
+  "description": "管理外掛的基本配置選項",
+  "display": {
+    "cny": "人民幣 (¥)",
+    "currencyDesc": "設定餘額和收支顯示的預設貨幣單位",
+    "currencyUnit": "貨幣單位",
+    "defaultTab": "預設標籤頁",
+    "defaultTabDesc": "設定外掛啟動時顯示的預設標籤頁",
+    "description": "自定義外掛的外觀和顯示偏好",
+    "title": "顯示設定",
+    "todayCashflow": "今日收支",
+    "todayCashflowEnabled": "顯示今日收支",
+    "todayCashflowEnabledDesc": "控制是否顯示並獲取今日消耗/收入等統計。關閉後將隱藏今日統計，並在重新整理時跳過相關資料請求。",
+    "totalBalance": "總餘額",
+    "usd": "美元 ($)"
+  },
+  "doneHub": {
+    "adminCredentialsLink": {
+      "description": "開啟管理後臺個人資料頁面，快速獲取系統訪問令牌和使用者 ID。",
+      "open": "開啟頁面",
+      "title": "快速獲取"
+    },
+    "description": "配置用於連線 Done Hub 相容服務的整合設定。",
+    "fields": {
+      "adminTokenLabel": "管理員的系統訪問令牌",
+      "baseUrlLabel": "基礎 URL",
+      "baseUrlPlaceholder": "https://api.example.com",
+      "hideToken": "隱藏系統訪問令牌",
+      "showToken": "顯示系統訪問令牌",
+      "userIdLabel": "管理員使用者 ID"
+    },
+    "title": "Done Hub 整合設定",
+    "tokenDesc": "管理員使用者的系統訪問令牌，請在 Done Hub 管理後臺 -> 個人設定 -> 令牌 處生成",
+    "urlDesc": "設定用於 Done Hub 整合的基礎 URL",
+    "userIdDesc": "管理員使用者 ID (純數字)，root 管理員通常為 1"
+  },
+  "duplicateAccountWarningOnAdd": {
+    "description": "控制新增帳號時，如果該站點已存在帳號，是否需要彈窗確認。",
+    "title": "帳號",
+    "toggleDesc": "開啟後，當你嘗試為同一站點 URL 再次新增帳號時，會彈出確認對話方塊。",
+    "toggleLabel": "新增重複帳號前提醒"
+  },
+  "logging": {
+    "consoleEnabled": "啟用控制台日誌",
+    "consoleEnabledDesc": "關閉後，All API Hub 不會在瀏覽器控制台輸出任何日誌（包括錯誤）。",
+    "description": "控制是否在瀏覽器控制台輸出日誌，用於排查問題。",
+    "levels": {
+      "debug": "除錯",
+      "error": "錯誤",
+      "info": "資訊",
+      "warn": "警告"
+    },
+    "minLevel": "最小日誌級別",
+    "minLevelDesc": "啟用控制台日誌後，僅輸出不低於該級別的日誌。",
+    "title": "日誌"
+  },
+  "managedSite": {
+    "axonHub": "AxonHub",
+    "claudeCodeHub": "Claude Code Hub",
+    "description": "選擇您要管理的 API 聚合平台站點。這將決定用於渠道管理和模型同步的配置。",
+    "doneHub": "Done Hub",
+    "newApi": "New API",
+    "octopus": "Octopus",
+    "siteTypeDesc": "選擇用於渠道管理和模型同步的平台",
+    "siteTypeLabel": "站點型別",
+    "title": "自建站點配置",
+    "veloera": "Veloera"
+  },
+  "messages": {
+    "confirmReset": "確認重置",
+    "preferencesChangedExternally": "偏好設定已在其他地方變更，請重新整理後再試。",
+    "resetConfirmDesc": "確定要將{{name}}重置為預設設定嗎？此操作無法撤銷。",
+    "resetFailed": "重置{{name}}失敗",
+    "resetSuccess": "{{name}}已重置為預設設定",
+    "saveSettingsFailed": "儲存設定失敗",
+    "updateFailed": "{{name}}更新失敗",
+    "updateSuccess": "{{name}}更新成功"
+  },
+  "newApi": {
+    "adminCredentialsLink": {
+      "description": "開啟管理後臺個人設定頁面，快速獲取系統訪問令牌和使用者 ID。",
+      "open": "開啟頁面",
+      "title": "快速獲取"
+    },
+    "description": "配置用於連線 New API 相容服務的整合設定。",
+    "fields": {
+      "adminTokenLabel": "管理員的系統訪問令牌",
+      "baseUrlLabel": "基礎 URL",
+      "baseUrlPlaceholder": "https://api.example.com",
+      "hidePassword": "隱藏登入密碼",
+      "hideToken": "隱藏系統訪問令牌",
+      "hideTotpSecret": "隱藏 TOTP 金鑰",
+      "passwordDesc": "可選。與登入使用者名稱配合使用，用於登入 New API 管理後臺，並在需要檢視渠道 key 或執行完整 key 比對時建立登入會話。",
+      "passwordLabel": "登入密碼",
+      "passwordPlaceholder": "輸入密碼",
+      "showPassword": "顯示登入密碼",
+      "showToken": "顯示系統訪問令牌",
+      "showTotpSecret": "顯示 TOTP 金鑰",
+      "totpSecretDesc": "可選。填寫後，All API Hub 可自動生成 TOTP 驗證碼，用於完成登入 2FA，以及檢視渠道 key 所需的安全驗證。",
+      "totpSecretLabel": "TOTP 金鑰",
+      "totpSecretPlaceholder": "貼上 Base32 TOTP 金鑰",
+      "userIdLabel": "管理員使用者 ID",
+      "usernameDesc": "可選。用於登入 New API 管理後臺，並在需要時完成兩步驗證。主要用於渠道管理中檢視真實渠道 key，以及金鑰管理中判斷某個 key 是否已在渠道中使用。",
+      "usernameLabel": "登入使用者名稱",
+      "usernamePlaceholder": "admin"
+    },
+    "sessionTest": {
+      "action": "測試配置",
+      "description": "測試已填寫的登入使用者名稱、密碼和 TOTP 金鑰是否正確可用。驗證成功後，即可繼續執行需要登入和兩步驗證的相關操作。",
+      "testing": "正在測試配置...",
+      "title": "測試登入與兩步驗證配置"
+    },
+    "title": "New API 整合設定",
+    "tokenDesc": "管理員使用者的系統訪問令牌，請在 New API 管理後臺 -> 個人設定 -> 安全設定 -> 系統訪問令牌 處生成",
+    "urlDesc": "設定用於 New API 整合的基礎 URL",
+    "userIdDesc": "管理員使用者 ID (純數字)，請在 New API 管理後臺 -> 個人設定 處檢視"
+  },
+  "octopus": {
+    "description": "配置用於連線 Octopus 自建站點的整合設定。系統將自動使用您的憑據登入並管理 JWT Token。",
+    "fields": {
+      "baseUrlDesc": "設定 Octopus 站點的基礎 URL",
+      "baseUrlLabel": "基礎 URL",
+      "baseUrlPlaceholder": "https://octopus.example.com",
+      "hidePassword": "隱藏密碼",
+      "passwordDesc": "Octopus 管理員密碼，用於自動登入",
+      "passwordLabel": "密碼",
+      "passwordPlaceholder": "輸入密碼",
+      "showPassword": "顯示密碼",
+      "usernameDesc": "Octopus 管理員使用者名稱，用於自動登入",
+      "usernameLabel": "使用者名稱",
+      "usernamePlaceholder": "admin"
+    },
+    "title": "Octopus 整合設定",
+    "validation": {
+      "description": "測試使用者名稱和密碼是否正確",
+      "error": "驗證過程中發生錯誤",
+      "failed": "配置驗證失敗，請檢查使用者名稱和密碼",
+      "missingFields": "請填寫所有必填欄位",
+      "success": "配置驗證成功，連線正常",
+      "title": "驗證配置",
+      "validate": "驗證配置",
+      "validating": "驗證中..."
+    }
+  },
+  "permissions": {
+    "actions": {
+      "allow": "允許（推薦）",
+      "refresh": "重新整理狀態",
+      "remove": "撤銷"
+    },
+    "description": "在需要臨時視窗過盾流程時，再授予這些可選權限。",
+    "helper": "開啟後，權限只用於完成過盾必要的 Cookie/請求頭操作，而且可以隨時關閉，不會影響基礎功能。",
+    "items": {
+      "clipboardRead": {
+        "description": "允許兌換助手檢測複製的兌換碼，從而提示自動兌換兌換碼。",
+        "title": "讀取剪貼簿"
+      },
+      "cookies": {
+        "description": "允許讀取必要的 Cookie，用於在需要時自動附加認證資訊。",
+        "title": "Cookies"
+      },
+      "declarativeNetRequestWithHostAccess": {
+        "description": "允許在臨時視窗過盾期間按 Tab 應用請求頭規則，為不同帳號附加正確的 Cookie，避免多帳號下的資料異常問題。",
+        "title": "宣告式網路請求"
+      },
+      "notifications": {
+        "description": "允許後臺定時任務完成後傳送系統通知。",
+        "title": "系統通知"
+      },
+      "webRequest": {
+        "description": "僅在臨時視窗過盾或自動重新整理需要時，監聽請求並追加必要的請求頭。",
+        "title": "網路請求"
+      },
+      "webRequestBlocking": {
+        "description": "在請求發出前同步附加 Cookie，確保繞過防護頁面的流程穩定可行。",
+        "title": "網路請求阻斷"
+      }
+    },
+    "messages": {
+      "granted": "已開啟 {{name}}，相關流程將按預期執行",
+      "grantFailed": "未能開啟 {{name}}，如仍需使用請稍後重試",
+      "revoked": "已撤銷 {{name}} 權限",
+      "revokeFailed": "撤銷 {{name}} 權限失敗"
+    },
+    "status": {
+      "checking": "檢測中…",
+      "denied": "未授予",
+      "granted": "已授予"
+    },
+    "statusCaption": "權限狀態與瀏覽器同步，如在此頁面外修改請點擊重新整理。",
+    "title": "權限管理"
+  },
+  "permissionsOnboarding": {
+    "actions": {
+      "allowAll": "授予推薦權限",
+      "maybeLater": "稍後再說"
+    },
+    "analyticsDisclosure": "擴充套件包含可關閉的匿名產品統計，幫助我們優先修復常見問題、優化常用功能與相容性，並減少不必要的干擾；不會收集 API Key、Cookie、帳號 URL、餘額、請求內容或使用者輸入。",
+    "intro": "權限只用於完成過盾必要的 Cookie/請求頭操作，而且可以隨時關閉。",
+    "openSourceBadge": "開源 · 社羣共建",
+    "permissionListDescription": "繞過防火牆防護等功能的必要權限，讓資料獲取能在存在防火牆的網站上正常工作。",
+    "permissionListTitle": "這些權限的作用",
+    "project": {
+      "cta": "前往倉庫關注版本、提交 Issue 或參與開發。",
+      "label": "專案倉庫",
+      "starCta": "去 GitHub 點亮 Star"
+    },
+    "reason": {
+      "newPermissions": "我們新增了一些可選權限以支援新的功能，請再次確認授權以確保一切正常執行。"
+    },
+    "subtitle": "這是一個開源擴充套件，需要可選權限來啟用臨時視窗過盾等高階功能。",
+    "title": "歡迎加入 All API Hub",
+    "toasts": {
+      "error": "權限請求被取消",
+      "success": "已授予全部推薦權限"
+    }
+  },
+  "productAnalytics": {
+    "description": "幫助我們更快發現常見問題、改進常用流程並提升相容性的匿名統計。我們不會收集 API Key、Cookie、帳號 URL、餘額、請求內容或使用者輸入。",
+    "enableDescription": "允許傳送有限的功能使用情況、錯誤類別和粗略站點類型統計，用於優先改進最影響你體驗的部分。",
+    "enableLabel": "啟用匿名產品統計",
+    "title": "匿名產品統計"
+  },
+  "refresh": {
+    "autoRefresh": "自動重新整理",
+    "autoRefreshDesc": "定期自動重新整理帳號資料",
+    "description": "配置自動資料重新整理相關的設定，例如重新整理間隔和啟動時的行為。",
+    "minRefreshInterval": "最小重新整理間隔",
+    "minRefreshIntervalDesc": "限制連續重新整理最小間隔，避免頻繁請求（至少 {{minSeconds}} 秒）",
+    "minRefreshIntervalInvalid": "請輸入有效的最小重新整理間隔（至少 {{minSeconds}} 秒）。",
+    "refreshInterval": "重新整理間隔",
+    "refreshIntervalDesc": "設定自動重新整理的時間間隔（預設{{defaultInterval}}秒，建議不要設定過小以避免頻繁請求）",
+    "refreshIntervalInvalid": "請輸入有效的重新整理間隔（至少 {{minSeconds}} 秒）。",
+    "refreshOnOpen": "開啟外掛時自動重新整理",
+    "refreshOnOpenDesc": "當開啟外掛彈出視窗時自動重新整理帳號資料",
+    "shieldAutoRefresh": "用於自動重新整理",
+    "shieldContextsDesc": "選擇允許使用臨時視窗防護繞過的場景。當總開關關閉時，這些選項將被忽略。",
+    "shieldContextsTitle": "在以下場景使用防護繞過",
+    "shieldDescriptionTempWindowOnly": "啟用後，擴充套件可能會彈出一個臨時視窗，透過防護頁面（例如 Cloudflare 5 秒盾）後再獲取資料",
+    "shieldDescriptionWithCookieInterceptor": "在 Firefox 中，擴充套件會彈出一個臨時視窗透過防護頁面並獲取必要 Cookie，然後由 Cookie 攔截器在傳送請求時自動附加這些 Cookie",
+    "shieldEnabled": "啟用防護繞過（臨時視窗）",
+    "shieldEnabledDescTempWindowOnly": "關閉後，擴充套件不會彈出臨時視窗來繞過網站防護頁面",
+    "shieldEnabledDescWithCookieInterceptor": "關閉後，擴充套件不會彈出臨時視窗來獲取 Cookie，因此 Cookie 攔截器也無法為請求附加認證資訊",
+    "shieldManualRefresh": "用於手動重新整理",
+    "shieldMethodComposite": "共享視窗（標籤頁）",
+    "shieldMethodDesc": "選擇在執行防護繞過時使用臨時標籤頁還是彈窗視窗。",
+    "shieldMethodHintComposite": "使用一個共享視窗，並將每次過盾流程放在該視窗的標籤頁中執行。",
+    "shieldMethodHintTab": "使用當前視窗的後臺標籤頁完成過盾，介面干擾更小。",
+    "shieldMethodHintWindow": "使用多個新視窗完成過盾，每次過盾都會彈出一個新視窗。",
+    "shieldMethodTab": "臨時標籤頁",
+    "shieldMethodTitle": "繞過方式",
+    "shieldMethodWindow": "彈窗視窗",
+    "shieldOptions": "在設定頁面中使用",
+    "shieldPermissionAction": "前往權限設定",
+    "shieldPermissionWarningDesc": "需要授予 Cookies / Web Request 權限，臨時視窗繞過功能才能附加認證 Cookies 併傳送請求。",
+    "shieldPermissionWarningTitle": "請先授予 Cookie 攔截權限",
+    "shieldPopup": "在彈出視窗中使用",
+    "shieldPopupFirefoxNote": "在 Firefox 彈出視窗中，為避免彈窗被關閉，在彈出視窗中使用始終處於禁用狀態。此設定仍會儲存在其他瀏覽器中生效。",
+    "shieldSidepanel": "在側邊欄中使用",
+    "shieldTitle": "臨時視窗繞過防火牆防護",
+    "title": "重新整理設定"
+  },
+  "releaseUpdate": {
+    "checkNow": "立即檢查",
+    "downloadUpdate": "下載更新",
+    "helpers": {
+      "checkFailed": "可稍後重試，或前往發布頁手動查看最新版本。",
+      "manualUpdate": "目前安裝為手動更新管道，請前往發布頁取得新版本。",
+      "manualUpdateGeneric": "請依目前安裝管道完成更新，必要時可前往發布頁手動取得新版本。",
+      "notChecked": "點擊「立即檢查」後即可確認目前版本是否需要更新。",
+      "openLatest": "可前往發布頁查看最新正式版與更新內容。",
+      "storeUpdate": "目前安裝通常會自動更新，也可前往商店或發布頁查看最新版本。",
+      "unavailable": "可稍後重試，或直接前往發布頁查看最新正式版。",
+      "upToDate": "可前往發布頁查看更新內容，確認本次版本包含的變更。"
+    },
+    "lastChecked": "最近檢查：{{time}}",
+    "latestVersionPending": "最新正式版：待檢查",
+    "latestVersionUnavailable": "最新正式版：暫未取得",
+    "openLatest": "查看最新版本",
+    "reasons": {
+      "api-unavailable": "目前瀏覽器環境不支援自動偵測，可手動檢查最新正式版",
+      "chromium-development": "目前安裝管道支援檢查最新正式版，可手動發起檢查",
+      "firefox-ambiguous": "Firefox 目前無法可靠判斷安裝管道，建議按需手動檢查最新正式版",
+      "safari-unsupported": "Safari 暫不支援自動偵測，建議前往發布頁查看最新正式版",
+      "store-build": "目前安裝管道不支援自動偵測，但仍可手動檢查最新正式版",
+      "unknown": "目前安裝管道暫不支援自動偵測，可手動檢查最新正式版"
+    },
+    "states": {
+      "checkFailed": "檢查失敗，暫未取得最新正式版資訊",
+      "notChecked": "尚未檢查最新正式版，可手動檢查",
+      "unavailable": "暫時無法讀取更新狀態",
+      "updateAvailable": "發現可升級的新版本",
+      "upToDate": "已完成檢查，目前版本已是最新正式版"
+    },
+    "versionBadge": {
+      "changelogAriaLabel": "版本 {{version}} 更新日誌",
+      "updateAvailableAriaLabel": "版本 {{version}} 有可用更新"
+    }
+  },
+  "siteAnnouncementNotifications": {
+    "description": "控制是否在背景定時抓取已啟用帳號所屬站點的網站公告。",
+    "page": {
+      "description": "目前每 {{intervalMinutes}} 分鐘於背景檢查一次，也可以手動立即檢查。",
+      "open": "查看公告",
+      "title": "公告頁面"
+    },
+    "polling": {
+      "enable": "啟用網站公告抓取",
+      "enableDesc": "關閉後會停止背景定時抓取，已儲存的本機公告記錄仍會保留，公告頁面仍可手動檢查。",
+      "interval": "抓取間隔",
+      "intervalDesc": "設定背景抓取網站公告的分鐘間隔，支援 15 到 1440 分鐘。"
+    },
+    "title": "網站公告"
+  },
+  "sorting": {
+    "checkInDesc": "將需要簽到的站點排在前面",
+    "checkInRequirement": "簽到需求",
+    "currentSiteDesc": "將目前瀏覽器中已登入的帳號置於列表頂部",
+    "currentSitePriority": "目前登入帳號優先",
+    "customCheckInDesc": "將使用外部簽到連結的站點排在前面",
+    "customCheckInUrl": "外部簽到連結",
+    "customRedeemDesc": "將使用自定義兌換連結的站點排在前面",
+    "customRedeemUrl": "自定義兌換連結",
+    "customSortDesc": "根據使用者在列表檢視中選擇的欄位（如餘額）進行排序",
+    "description": "定義帳戶列表的排序優先順序，以組織帳戶的顯示方式。",
+    "disabledAccount": "禁用帳號沉底",
+    "disabledAccountDesc": "將被禁用的帳號統一放到列表底部",
+    "healthDesc": "按站點的健康狀況排序（錯誤 > 警告 > 未知 > 健康）",
+    "healthStatus": "健康狀態",
+    "manualOrder": "手動排序",
+    "manualOrderDesc": "按照您在帳號列表中手動調整的順序進行排序",
+    "matchedOpenTabs": "匹配的開啟標籤頁",
+    "matchedOpenTabsDesc": "將與目前開啟標籤頁（標題或 URL）匹配的相關帳號排在前面",
+    "pinnedDesc": "將已置頂的帳號按置頂順序排在列表頂部",
+    "pinnedPriority": "置頂優先",
+    "priority": "優先順序",
+    "title": "排序優先順序設定",
+    "unknownSortRule": "未知排序規則",
+    "userCustomSort": "使用者自定義排序"
+  },
+  "tabs": {
+    "accountManagement": "帳號管理",
+    "accountUsage": "帳號用量",
+    "balanceHistory": "餘額歷史",
+    "checkinRedeem": "簽到與兌換",
+    "claudeCodeRouter": "Claude Code Router",
+    "cliProxy": "CLIProxyAPI",
+    "dataBackup": "資料與備份",
+    "general": "通用",
+    "managedSite": "自建站點管理",
+    "notifications": "通知",
+    "permissions": "權限管理",
+    "refresh": "資料重新整理",
+    "select": "選擇一個分組",
+    "webAiApiCheck": "AI API 測試"
+  },
+  "taskNotifications": {
+    "channels": {
+      "browser": {
+        "description": "透過瀏覽器系統通知傳送，需要授予 notifications 權限。",
+        "title": "瀏覽器系統通知"
+      },
+      "dingtalk": {
+        "description": "透過釘釘群組自訂機器人傳送任務通知。建議直接貼上釘釘提供的完整 Webhook URL，也相容只填寫 access_token。",
+        "docsLink": "查看設定文件",
+        "secret": "加簽 Secret（可選）",
+        "secretPlaceholder": "SECxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "title": "釘釘機器人",
+        "webhookKey": "Webhook URL 或 access_token",
+        "webhookKeyDescription": "在釘釘群組的自訂機器人設定頁複製 Webhook 地址並貼到這裡；如果只填寫 `access_token=` 後面的值，也會自動補全地址。啟用加簽安全設定時，請同時填寫 Secret。",
+        "webhookKeyPlaceholder": "https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "feishu": {
+        "description": "透過飛書自訂機器人傳送任務通知。建議直接貼上飛書提供的完整 Webhook URL，也相容只填寫最後一段 key。",
+        "docsLink": "查看設定文件",
+        "title": "飛書機器人",
+        "webhookKey": "Webhook URL 或 Key",
+        "webhookKeyDescription": "在飛書群組的自訂機器人設定頁複製 Webhook 地址並貼到這裡；如果只填寫 `/hook/` 後面的 key，也會自動補全地址。",
+        "webhookKeyPlaceholder": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      },
+      "ntfy": {
+        "accessToken": "存取權杖（可選）",
+        "accessTokenPlaceholder": "tk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "description": "透過 ntfy 主題傳送任務通知，支援 ntfy.sh 或自建 ntfy 服務。",
+        "docsLink": "查看設定文件",
+        "title": "ntfy",
+        "topicUrl": "Topic URL 或主題名稱",
+        "topicUrlDescription": "可以填寫完整主題 URL，例如 `https://ntfy.sh/mytopic`，也可以只填寫 ntfy.sh 的主題名稱。自建服務或私有主題需要時請填寫存取權杖。",
+        "topicUrlPlaceholder": "https://ntfy.sh/mytopic"
+      },
+      "telegram": {
+        "botToken": "Bot Token",
+        "botTokenPlaceholder": "123456:ABC-DEF...",
+        "chatId": "Chat ID",
+        "chatIdPlaceholder": "123456789 或 -1001234567890",
+        "description": "透過 Telegram Bot 傳送任務通知。",
+        "title": "Telegram Bot"
+      },
+      "webhook": {
+        "description": "向自訂 HTTP(S) Webhook 傳送 JSON 通知。URL 支援範本變數，可用於 Bark 等把通知內容放在路徑中的服務。",
+        "title": "通用 Webhook",
+        "url": "Webhook URL",
+        "urlDescription": "URL 中可使用 {title}、{message}、{task}、{status}、{total}、{success}、{failed}、{skipped}，傳送前會按 URL 片段自動編碼。例如 Bark 可填寫 https://api.day.app/your-key/{title}/{message}。",
+        "urlPlaceholder": "https://api.day.app/your-key/{title}/{message}"
+      },
+      "wecom": {
+        "description": "透過企業微信群消息推送傳送任務通知。建議直接貼上企業微信提供的完整 Webhook URL，也相容只填寫 key。",
+        "docsLink": "查看設定文件",
+        "title": "企業微信機器人",
+        "webhookKey": "Webhook URL 或 Key",
+        "webhookKeyDescription": "在企業微信群設定的消息推送配置中複製 Webhook 地址並貼到這裡；如果只填寫 `key=` 後面的 key，也會自動補全地址。",
+        "webhookKeyPlaceholder": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      }
+    },
+    "enable": "啟用任務通知",
+    "enableDesc": "開啟後，已勾選任務在定時執行完成時會傳送成功、部分成功或失敗通知。",
+    "groups": {
+      "channels": {
+        "description": "選擇通知透過哪些渠道送達。瀏覽器通知需要授權，Telegram、飛書、釘釘、企業微信、ntfy 和 Webhook 可分別配置並傳送測試。",
+        "title": "通知渠道"
+      },
+      "setup": {
+        "description": "先開啟或關閉定時任務通知，再選擇通知渠道和需要提醒的事件。",
+        "title": "基礎設定"
+      },
+      "tasks": {
+        "description": "選擇哪些後臺定時任務完成或網站公告更新時需要傳送通知。",
+        "title": "通知事件"
+      }
+    },
+    "notification": {
+      "body": {
+        "failure": "{{task}}執行失敗。",
+        "partialSuccess": "{{task}}部分完成。",
+        "success": "{{task}}已成功完成。"
+      },
+      "counts": "總計 {{total}}，成功 {{success}}，失敗 {{failed}}，跳過 {{skipped}}。",
+      "title": {
+        "failure": "{{task}}失敗",
+        "partialSuccess": "{{task}}部分成功",
+        "success": "{{task}}完成"
+      }
+    },
+    "permission": {
+      "description": "系統通知需要瀏覽器授予 notifications 可選權限。你也可以在權限管理頁撤銷。",
+      "request": "授權通知權限",
+      "requestFailed": "未能授予通知權限",
+      "requestSuccess": "通知權限已授予",
+      "title": "通知權限"
+    },
+    "siteAnnouncements": {
+      "enable": "網站公告通知",
+      "enableDesc": "開啟後，網站公告抓取到新公告時會傳送任務通知；關閉後仍會儲存本機公告記錄。"
+    },
+    "taskDescriptions": {
+      "autoCheckin": "每日自動簽到和自動重試完成後通知。",
+      "balanceHistoryCapture": "餘額歷史日終自動捕獲完成後通知。",
+      "managedSiteModelSync": "自建站點模型定時同步完成後通知。",
+      "usageHistorySync": "用量歷史定時同步完成後通知。",
+      "webdavAutoSync": "WebDAV 定時自動同步完成後通知。"
+    },
+    "tasks": {
+      "autoCheckin": "自動簽到",
+      "balanceHistoryCapture": "餘額歷史日終捕獲",
+      "managedSiteModelSync": "模型同步",
+      "usageHistorySync": "用量歷史同步",
+      "webdavAutoSync": "WebDAV 自動同步"
+    },
+    "tasksLabel": "任務通知",
+    "test": {
+      "action": "傳送測試通知",
+      "browserFailed": "瀏覽器通知測試失敗，請確認已啟用瀏覽器通知渠道並授予通知權限。",
+      "channelDisabled": "測試通知傳送失敗，請先啟用並設定此通知渠道。",
+      "dingtalkMissingConfig": "釘釘機器人 Webhook URL 或 access_token 未設定。",
+      "failed": "測試通知傳送失敗，請檢查此通知渠道設定。",
+      "feishuMissingConfig": "飛書機器人 Webhook URL 或 Key 未設定。",
+      "httpError": "{{label}} 回傳了 HTTP {{status}}。",
+      "httpErrorWithDetail": "{{label}} 回傳了 HTTP {{status}}：{{detail}}",
+      "message": "這是一條 All API Hub 任務通知測試。",
+      "ntfyInvalidUrl": "ntfy Topic URL 必須使用 http:// 或 https://，或填寫有效的 ntfy.sh 主題名稱。",
+      "ntfyMissingConfig": "ntfy Topic URL 或主題名稱未設定。",
+      "sent": "測試通知已傳送",
+      "telegramMissingConfig": "Telegram Bot Token 或 Chat ID 未設定。",
+      "title": "All API Hub 測試通知",
+      "webhookInvalidUrl": "Webhook URL 必須使用 http:// 或 https://。",
+      "webhookMissingConfig": "Webhook URL 未設定。",
+      "wecomMissingConfig": "企業微信機器人 Webhook URL 或 Key 未設定。"
+    }
+  },
+  "theme": {
+    "appearance": "外觀",
+    "clickSwitch": "點擊切換到{{nextMode}}模式",
+    "current": "當前: {{theme}} ({{resolvedTheme}})",
+    "currentTheme": "當前: 跟隨系統 ({{theme}})",
+    "dark": "深色",
+    "followSystem": "跟隨系統",
+    "followSystemTheme": "跟隨系統主題設定",
+    "light": "淺色",
+    "selectTheme": "選擇一個外觀主題",
+    "switchTo": "切換到{{theme}}主題: {{description}}",
+    "toggle": "主題切換，當前{{currentMode}}模式，點擊切換到{{nextMode}}模式",
+    "useDarkTheme": "使用深色主題",
+    "useLightTheme": "使用淺色主題"
+  },
+  "title": "設定",
+  "veloera": {
+    "adminCredentialsLink": {
+      "description": "開啟管理後臺個人設定頁面，快速獲取系統訪問令牌和使用者 ID。",
+      "open": "開啟頁面",
+      "title": "快速獲取"
+    },
+    "description": "配置用於連線 Veloera 相容服務的整合設定。",
+    "fields": {
+      "adminTokenLabel": "管理員的系統訪問令牌",
+      "baseUrlLabel": "基礎 URL",
+      "baseUrlPlaceholder": "https://api.example.com",
+      "hideToken": "隱藏系統訪問令牌",
+      "showToken": "顯示系統訪問令牌",
+      "userIdLabel": "管理員使用者 ID"
+    },
+    "title": "Veloera 整合設定",
+    "tokenDesc": "管理員使用者的系統訪問令牌，請在 Veloera 管理後臺 -> 個人設定 -> 個人資訊 處生成",
+    "urlDesc": "設定用於 Veloera 整合的基礎 URL",
+    "userIdDesc": "管理員使用者 ID (純數字)，請在 Veloera 管理後臺 -> 個人設定 處檢視"
+  }
+}

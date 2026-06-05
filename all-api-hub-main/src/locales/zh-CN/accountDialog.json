@@ -1,0 +1,210 @@
+{
+  "actions": {
+    "autoConfigAriaLabel": "保存账号并前往 {{managedSite}} 渠道配置",
+    "autoConfigRequiresValidAccount": "请先补全当前账号信息",
+    "autoConfigTitle": "保存当前账号，并打开 {{managedSite}} 的预填渠道配置",
+    "configToManagedSite": "保存并配置到 {{managedSite}}",
+    "configuring": "配置中...",
+    "confirmAdd": "确认添加",
+    "helpDocument": "帮助文档",
+    "reloadCurrentPage": "刷新当前页面",
+    "reloadExtensionAndRetry": "重新加载扩展后重试",
+    "reportUnsupportedSite": "反馈未适配站点",
+    "saveAccount": "保存账号",
+    "saveChanges": "保存更改",
+    "workflow": {
+      "checkingToken": "正在检查 API 密钥...",
+      "creatingToken": "正在创建默认密钥...",
+      "loadingSavedAccount": "正在读取已保存账号...",
+      "openingManagedSiteDialog": "正在打开渠道配置...",
+      "savingAccount": "正在保存账号...",
+      "waitingForOneTimeKey": "请先保存一次性密钥...",
+      "waitingForSub2ApiGroup": "请选择 Sub2API 分组..."
+    }
+  },
+  "aihubmixDefaultKeyPrompt": {
+    "cancel": "稍后手动创建",
+    "cancelHint": "取消不会影响账号保存。你之后也可以在密钥管理中手动创建 AIHubMix API 密钥。",
+    "confirm": "现在创建并查看",
+    "creating": "正在创建...",
+    "description": "{{accountName}} 已保存。AIHubMix API 密钥创建后只会显示一次，请确认你现在可以立即复制并保存完整密钥。",
+    "title": "创建 AIHubMix 默认密钥？",
+    "warningTitle": "完整密钥只显示一次"
+  },
+  "form": {
+    "accessToken": "访问令牌",
+    "autoCheckInEnabled": "启用每日自动签到",
+    "autoCheckInEnabledDesc": "在全局自动签到功能启用时，此账号是否参与每日签到",
+    "checkInStatus": "签到状态检测（需站点本身已开启签到功能）",
+    "cookieAuthSessionCookie": "会话 Cookie",
+    "cookieAuthSessionCookieDesc": "从当前已登录的浏览器标签页导入该账号的会话 Cookie（同站点多账号需分别导入）",
+    "cookieAuthSessionCookiePlaceholder": "粘贴 Cookie 头部值",
+    "cookiePermissionEnableCookieAuth": "授予 Cookie 多账号所需权限",
+    "cookiePermissionHelpAction": "前往权限设置",
+    "cookiePermissionRecommendationDesc": "用于从当前登录页读取 Cookie，并在刷新、签到等请求中按账号带上对应 Cookie，支持同站点多账号稳定工作。",
+    "customCheckInDesc": "外部签到站、福利站等可以获得账号余额或兑换码的站点地址",
+    "customCheckInUrl": "外部签到站点 URL（可选）",
+    "customRedeemUrl": "自定义充值/兑换页面 URL（可选）",
+    "customRedeemUrlDesc": "充值/兑换页面的 URL",
+    "exchangeRate": "充值金额比例（CNY/USD）",
+    "exchangeRateDesc": "表示充值 1 美元需要多少人民币。系统会尝试自动获取，如未获取到请手动填写",
+    "exchangeRatePlaceholder": "请输入充值比例",
+    "excludeFromTodayIncome": "不计入今日收入",
+    "excludeFromTodayIncomeDesc": "仅影响“今日收入”合计，不会禁用刷新、签到或账号显示",
+    "excludeFromTotalBalance": "不计入总余额",
+    "excludeFromTotalBalanceDesc": "仅影响“总余额”统计，不会禁用刷新、签到等功能",
+    "hideAccessToken": "隐藏访问令牌",
+    "hideRefreshToken": "隐藏 Refresh Token",
+    "importCookieAuthSessionCookie": "从当前登录导入",
+    "manualBalanceUsd": "手动余额 (USD)",
+    "manualBalanceUsdDesc": "当站点无法自动获取余额/额度时，可手动填写",
+    "manualBalanceUsdError": "请输入有效的金额（>= 0）",
+    "manualBalanceUsdPlaceholder": "留空则自动获取",
+    "notes": "备注",
+    "notesPlaceholder": "选填，输入备注信息",
+    "openRedeemWithCheckIn": "使用外部签到时同时打开充值页面",
+    "showAccessToken": "显示访问令牌",
+    "showRefreshToken": "显示 Refresh Token",
+    "siteName": "网站名称",
+    "siteType": "站点类型",
+    "sub2apiCheckInUnsupported": "Sub2API 暂不支持站点签到功能（已自动关闭）。",
+    "sub2apiImportRefreshToken": "从当前登录账号导入",
+    "sub2apiRefreshToken": "Refresh Token",
+    "sub2apiRefreshTokenMode": "插件托管会话（多账号）",
+    "sub2apiRefreshTokenModeDesc": "可选。将当前登录账号的 refresh_token 存入扩展，使每个账号可后台自动独立刷新和续期认证，支持同站点多账号。",
+    "sub2apiRefreshTokenPlaceholder": "粘贴 refresh_token 值",
+    "sub2apiRefreshTokenWarningDesc": "refresh_token 用于让扩展独立续期登录态，会随账号备份一起保存。为减少轮转冲突，建议在无痕/隐私窗口登录后导入，随后关闭该窗口，避免与日常控制台并行刷新同一会话。",
+    "sub2apiRefreshTokenWarningTitle": "提示",
+    "sub2apiTokenExpiresAt": "访问令牌过期时间",
+    "tags": "标签",
+    "tagsCreate": "创建“{{name}}”",
+    "tagsDelete": "删除",
+    "tagsDeleteCancel": "取消",
+    "tagsDeleteConfirm": "删除",
+    "tagsDeleteDescription": "全局删除“{{name}}”。此操作会从所有账号中移除该标签。",
+    "tagsDeleteTitle": "删除标签",
+    "tagsDescription": "使用标签对账号进行分类，便于快速筛选",
+    "tagsNoResults": "未找到标签",
+    "tagsPlaceholder": "添加或选择标签",
+    "tagsRemove": "移除 {{name}}",
+    "tagsRename": "重命名",
+    "tagsRenameCancel": "取消",
+    "tagsRenameSave": "保存",
+    "tagsSearchPlaceholder": "搜索标签…",
+    "tagsSelectedCount": "已选择 {{count}} 个标签",
+    "userId": "用户 ID",
+    "userIdNumber": "用户 ID（数字）",
+    "username": "用户名",
+    "validRateError": "请输入有效的汇率，大于 0"
+  },
+  "infoPanel": {
+    "autoDetect": "自动识别",
+    "autoDetectInfo": "请先在目标站点登录，插件会自动识别并补全添加账号所需信息",
+    "confirmAddInfo": "请确认账号信息无误后点击\"确认添加\"按钮",
+    "confirmation": "账号信息确认",
+    "editInfo": "编辑账号信息",
+    "editInfoDesc": "修改账号信息后，系统会重新验证并获取最新的余额数据",
+    "ldohSiteListHint": "没有站点？LDOH 提供了 Linux.do 社区内大量公益 AI 站点的目录。",
+    "manualAdd": "手动添加",
+    "manualInfo": "手动填写账号信息。账号将被安全地保存在本地存储中",
+    "openLdohSiteList": "打开 LDOH 站点列表",
+    "reDetectInfo": "如果站点信息有变化，建议点击\"重新识别\"按钮（需要在目标站点先自行登录）"
+  },
+  "messages": {
+    "addSuccess": "账号 {{name}} 添加成功!",
+    "autoDetectCookiePermissionReloadHint": "如果刚授予 Cookie 多账号权限后首次识别一直无结果，可重新加载扩展后再试。",
+    "autoDetectFailed": "自动识别失败: {{error}}",
+    "autoDetectSuccess": "自动识别成功！",
+    "autoDetectTakingTooLong": "自动识别耗时较长？点击打开排查文档",
+    "cookiePermissionGranted": "权限已授权",
+    "cookiePermissionGrantFailed": "未获得权限授权",
+    "importCookiesEmpty": "未找到当前站点的浏览器 Cookie，请先确认已在该站点登录后再重试",
+    "importCookiesFailed": "导入 Cookie 失败：{{error}}",
+    "importCookiesFailedUnknown": "导入 Cookie 失败，发生未知错误",
+    "importCookiesLoading": "正在导入 Cookie...",
+    "importCookiesPermissionDenied": "扩展无法读取该站点的 Cookie，请先检查浏览器中对此站点的 Cookie / 站点权限后再重试",
+    "importCookiesSuccess": "Cookie 导入成功",
+    "importSub2apiSessionMissing": "未找到 refresh_token。请先登录 Sub2API 控制台后重试。",
+    "importSub2apiSessionSuccess": "已导入 Sub2API 会话",
+    "loadFailed": "加载账号数据失败",
+    "newApiConfigFailed": "自动配置到 New API失败: {{error}}",
+    "operationFailed": "操作失败: {{error}}",
+    "reloadExtensionConfirm": "重新加载扩展会关闭当前扩展页面，请确认已保存需要的信息。",
+    "saveAccountFailed": "保存账号失败",
+    "saveFailed": "保存失败",
+    "updateSuccess": "账号 {{name}} 更新成功!",
+    "urlRequired": "请先输入 URL"
+  },
+  "mode": {
+    "autoDetect": "自动识别",
+    "detecting": "识别中...",
+    "manualAdd": "手动添加",
+    "reDetect": "重新识别"
+  },
+  "sections": {
+    "accountAuth": {
+      "title": "账号认证"
+    },
+    "balanceAndStats": {
+      "title": "余额与统计"
+    },
+    "checkInConfig": {
+      "title": "签到配置"
+    },
+    "siteInfo": {
+      "title": "站点信息"
+    },
+    "tagsAndNotes": {
+      "description": "标签用于组织、筛选和快速识别账号，备注用于补充上下文。",
+      "title": "标签与备注"
+    }
+  },
+  "siteInfo": {
+    "alreadyAdded": "该站点已存在账号",
+    "authMethod": "认证方式",
+    "authMethodPlaceholder": "认证方式",
+    "authType": {
+      "accessToken": "访问令牌认证",
+      "cookieAuth": "Cookie 认证"
+    },
+    "cookieWarning": "推荐优先使用访问令牌。Cookie 认证需要导入会话 Cookie，且可能因过期/续期导致失效，需要失效后重新导入；同站点多账号需为每个账号分别导入，非必要不建议使用。",
+    "currentLoginAlreadyAdded": "当前登录账号已添加",
+    "currentSite": "当前站点",
+    "editNow": "立即编辑",
+    "siteUrl": "网站 URL",
+    "sub2apiAuthOnly": "Sub2API 仅支持访问令牌认证（JWT）",
+    "sub2apiHint": "Sub2API 使用短期 JWT，当失效时，扩展会自动使用临时窗口尝试获取新的 JWT（需要在该站点已登录）。启用“插件托管会话”后，每个账号可后台自动独立刷新和续期认证，支持同站点多账号。",
+    "unknown": "无法获取",
+    "useCurrent": "使用当前站点"
+  },
+  "title": {
+    "add": "新增账号",
+    "edit": "编辑账号"
+  },
+  "warnings": {
+    "duplicateAccount": {
+      "actions": {
+        "continue": "继续",
+        "disableAndContinue": "以后不再提醒，并继续"
+      },
+      "description": "你已在 {{siteUrl}} 添加了 {{count}} 个账号。继续添加可能会造成重复，是否继续？",
+      "descriptionExact": "在 {{siteUrl}} 上，用户 ID {{userId}} 的账号已存在（{{username}}）。继续添加可能会造成重复，是否继续？",
+      "title": "重复账号",
+      "warningTitle": "该站点已存在账号"
+    },
+    "managedSiteConfig": {
+      "actions": {
+        "later": "稍后再说",
+        "openSettings": "前往设置"
+      },
+      "description": "{{message}}",
+      "guide": "这个功能会先保存当前账号，再自动准备可用的 API Key，并预填到 {{managedSite}} 的新建渠道中，帮你更快完成渠道创建。完成托管站点配置后即可使用。",
+      "title": "先配置 {{managedSite}}",
+      "warningTitle": "{{managedSite}} 尚未完成配置"
+    },
+    "reloadExtension": {
+      "title": "重新加载扩展",
+      "warningTitle": "确认重新加载扩展？"
+    }
+  }
+}

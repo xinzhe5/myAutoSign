@@ -1,0 +1,1777 @@
+import {
+  apiCredentialProfilesStorage,
+  mergeApiCredentialProfilesConfigs,
+} from "~/services/apiCredentialProfiles/apiCredentialProfilesStorage"
+import {
+  BACKUP_VERSION,
+  normalizeBackupForMerge,
+  type BackupFullV2,
+} from "~/services/importExport/importExportService"
+import { notifyTaskResult } from "~/services/notifications/taskNotificationService"
+import {
+  getSharedPreferencesLastUpdated,
+  restoreWebdavLocalOnlyPreferences,
+} from "~/services/preferences/webdavSharedPreferences"
+import { migrateAccountTagsData } from "~/services/tags/migrations/accountTagsDataMigration"
+import { tagStorage } from "~/services/tags/tagStorage"
+import {
+  createDefaultTagStore,
+  sanitizeTagStore,
+} from "~/services/tags/tagStoreUtils"
+import {
+  DELETED_ENTRY_KIND,
+  type AccountStorageConfig,
+  type DeletedEntryKind,
+  type SiteAccount,
+  type SiteBookmark,
+  type TagStore,
+} from "~/types"
+import {
+  API_CREDENTIAL_PROFILES_CONFIG_VERSION,
+  type ApiCredentialProfilesConfig,
+} from "~/types/apiCredentialProfiles"
+import type { ChannelConfigMap } from "~/types/channelConfig"
+import {
+  TASK_NOTIFICATION_STATUSES,
+  TASK_NOTIFICATION_TASKS,
+} from "~/types/taskNotifications"
+import {
+  isWebdavSyncDataSelectionEmpty,
+  resolveWebdavSyncDataSelection,
+  WEBDAV_SYNC_STRATEGIES,
+  WebDAVSettings,
+  type WebDAVSyncDataSelection,
+} from "~/types/webdav"
+import {
+  clearAlarm,
+  createAlarm,
+  getAlarm,
+  hasAlarmsAPI,
+  isMessageReceiverUnavailableError,
+  onAlarm,
+  sendRuntimeMessage,
+} from "~/utils/browser/browserApi"
+import { getErrorMessage } from "~/utils/core/error"
+import { createLogger } from "~/utils/core/logger"
+import { t } from "~/utils/i18n/core"
+
+import { accountStorage } from "../accounts/accountStorage"
+import { ACCOUNT_STORAGE_KEYS, STORAGE_LOCKS } from "../core/storageKeys"
+import { withExtensionStorageWriteLock } from "../core/storageWriteLock"
+import { channelConfigStorage } from "../managedSites/channelConfigStorage"
+import {
+  userPreferences,
+  type UserPreferences,
+} from "../preferences/userPreferences"
+import { WebdavAutoSyncMessageTypes } from "../runtimeMessaging/messageTypes"
+import {
+  createRuntimeMessageFailure,
+  type RuntimeMessageResponse,
+} from "../runtimeMessaging/result"
+import {
+  onWebdavAutoSyncMessage,
+  type WebdavAutoSyncMutationResponse,
+  type WebdavAutoSyncStatusResponse,
+  type WebdavAutoSyncSyncNowResponse,
+  type WebdavAutoSyncUpdateSettingsRequest,
+} from "./webdavAutoSyncMessaging"
+import {
+  detectWebdavBackupPresence,
+  mergeWebdavBackupPayloadBySelection,
+  normalizeWebdavOrderedEntryIds,
+} from "./webdavSelectiveSync"
+import {
+  downloadBackup,
+  isWebdavFileNotFoundError,
+  parseWebdavBackupJson,
+  testWebdavConnection,
+  uploadBackup,
+} from "./webdavService"
+
+const logger = createLogger("WebdavAutoSync")
+
+type UpdateWebdavAutoSyncSettingsResult =
+  | {
+      ok: true
+      savedPreferences: UserPreferences
+    }
+  | {
+      ok: false
+      reason: "conflict" | "error"
+    }
+
+/**
+ * Convert the persisted WebDAV sync interval (seconds) to a safe alarms cadence (minutes).
+ *
+ * Notes:
+ * - `browser.alarms` operates in minutes and generally requires >= 1 minute.
+ * - The options UI constrains WebDAV interval to [60..86400] seconds in 60s steps, but we still clamp defensively.
+ */
+function clampWebdavSyncIntervalMinutes(value: unknown): number {
+  const seconds = Number(value)
+  const safeSeconds = Number.isFinite(seconds) ? seconds : 3600
+  const minutes = Math.trunc(safeSeconds / 60)
+  return Math.min(24 * 60, Math.max(1, minutes))
+}
+
+/**
+ * Manages WebDAV auto-sync in the background.
+ * Responsibilities:
+ * - Reads WebDAV preferences to decide if/when to sync.
+ * - Uses WebExtension alarms (MV3-safe) with an isSyncing guard to avoid overlap.
+ * - Merges or uploads backups according to user-selected strategy.
+ * - Notifies frontends about sync status/results.
+ */
+class WebdavAutoSyncService {
+  static readonly ALARM_NAME = "webdavAutoSync"
+  static readonly BEST_EFFORT_UPLOAD_ALARM_NAME =
+    "webdavAutoSyncBestEffortUpload"
+  private static readonly BEST_EFFORT_UPLOAD_DELAY_MINUTES = 1
+
+  private removeAlarmListener: (() => void) | null = null
+  private removeStorageChangeListener: (() => void) | null = null
+  private isInitialized = false
+  private isSyncing = false
+  private isScheduled = false
+  private suppressAccountStorageChangeHandling = false
+  private lastSyncTime = 0
+  private lastSyncStatus: "success" | "error" | "idle" = "idle"
+  private lastSyncError: string | null = null
+
+  /**
+   * Initialize auto-sync (idempotent).
+   * Loads preferences and starts alarm schedule when enabled.
+   *
+   * Safe to call multiple times; returns early if already initialized.
+   */
+  async initialize() {
+    if (this.isInitialized) {
+      logger.debug("服务已初始化")
+      return
+    }
+
+    try {
+      // Register alarm listener early. In MV3 service workers, timers are unreliable; alarms are the stable scheduler.
+      this.removeAlarmListener = onAlarm(async (alarm) => {
+        if (alarm.name === WebdavAutoSyncService.ALARM_NAME) {
+          // Await to keep the MV3 service worker alive for the duration of the sync.
+          await this.performBackgroundSync()
+          return
+        }
+
+        if (
+          alarm.name === WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME
+        ) {
+          await this.performBestEffortUpload()
+        }
+      })
+      this.removeStorageChangeListener = this.subscribeToAccountStorageChanges()
+
+      await this.setupAutoSync()
+      this.isInitialized = true
+      logger.info("服务初始化成功")
+    } catch (error) {
+      logger.error("服务初始化失败", error)
+    }
+  }
+
+  /**
+   * Start or stop auto-sync based on current preferences.
+   * Always reconciles the alarms schedule to prevent duplicate schedules.
+   *
+   * Reads WebDAV creds and interval from user preferences; skips when config
+   * is incomplete or disabled.
+   */
+  async setupAutoSync() {
+    try {
+      // 获取用户偏好设置
+      const preferences = await userPreferences.getPreferences()
+
+      if (!preferences.webdav.autoSync) {
+        await clearAlarm(WebdavAutoSyncService.ALARM_NAME)
+        await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+        this.isScheduled = false
+        logger.info("自动同步已关闭")
+        return
+      }
+
+      // 检查WebDAV配置是否完整；缺失凭据时跳过自动同步
+      if (
+        !preferences.webdav.url ||
+        !preferences.webdav.username ||
+        !preferences.webdav.password
+      ) {
+        await clearAlarm(WebdavAutoSyncService.ALARM_NAME)
+        await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+        this.isScheduled = false
+        logger.warn("WebDAV配置不完整，无法启动自动同步")
+        return
+      }
+
+      const syncDataSelection = resolveWebdavSyncDataSelection(
+        preferences.webdav.syncData,
+      )
+
+      if (isWebdavSyncDataSelectionEmpty(syncDataSelection)) {
+        await clearAlarm(WebdavAutoSyncService.ALARM_NAME)
+        await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+        this.isScheduled = false
+        logger.warn(
+          "WebDAV sync selection is empty; auto-sync remains unscheduled",
+        )
+        return
+      }
+
+      if (!hasAlarmsAPI()) {
+        await clearAlarm(WebdavAutoSyncService.ALARM_NAME)
+        await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+        this.isScheduled = false
+        logger.warn("Alarms API not supported; WebDAV auto-sync is disabled")
+        return
+      }
+
+      if (
+        preferences.webdav.syncStrategy ===
+          WEBDAV_SYNC_STRATEGIES.DOWNLOAD_ONLY ||
+        (!syncDataSelection.accounts && !syncDataSelection.bookmarks)
+      ) {
+        await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+      }
+
+      const intervalMinutes = clampWebdavSyncIntervalMinutes(
+        preferences.webdav.syncInterval,
+      )
+
+      // Preserve a matching alarm when possible so background restarts do not shift the schedule.
+      const existingAlarm = await getAlarm(WebdavAutoSyncService.ALARM_NAME)
+      if (
+        existingAlarm &&
+        existingAlarm.periodInMinutes != null &&
+        Math.abs(existingAlarm.periodInMinutes - intervalMinutes) < 0.001
+      ) {
+        this.isScheduled = true
+        logger.debug("已存在相同周期的 WebDAV 自动同步 alarm，保持不变", {
+          periodInMinutes: existingAlarm.periodInMinutes,
+          scheduledTime: existingAlarm.scheduledTime
+            ? new Date(existingAlarm.scheduledTime)
+            : null,
+        })
+        return
+      }
+
+      await clearAlarm(WebdavAutoSyncService.ALARM_NAME)
+      await createAlarm(WebdavAutoSyncService.ALARM_NAME, {
+        // Match previous setInterval semantics: first run happens after the full interval.
+        delayInMinutes: intervalMinutes,
+        periodInMinutes: intervalMinutes,
+      })
+
+      this.isScheduled = Boolean(
+        await getAlarm(WebdavAutoSyncService.ALARM_NAME),
+      )
+
+      logger.info("自动同步已启动", {
+        schedule: "alarm",
+        intervalSeconds: preferences.webdav.syncInterval || 3600,
+        intervalMinutes,
+      })
+    } catch (error) {
+      logger.error("设置自动同步失败", error)
+    }
+  }
+
+  /**
+   * Execute a background sync run.
+   * Uses isSyncing flag to skip overlapping executions.
+   *
+   * Updates lastSyncTime/status and notifies frontend listeners.
+   */
+  private async performBackgroundSync() {
+    if (this.isSyncing) {
+      logger.debug("同步正在进行中，跳过本次执行")
+      return
+    }
+
+    this.isSyncing = true
+    try {
+      logger.info("开始执行后台同步")
+
+      await this.flushPendingBestEffortUpload()
+      await this.syncWithWebdav()
+
+      this.lastSyncTime = Date.now()
+      this.lastSyncStatus = "success"
+      this.lastSyncError = null
+
+      logger.info("后台同步完成")
+
+      // 通知前端更新（如果popup是打开的）
+      this.notifyFrontend("sync_completed", {
+        timestamp: this.lastSyncTime,
+      })
+      await notifyTaskResult({
+        task: TASK_NOTIFICATION_TASKS.WebdavAutoSync,
+        status: TASK_NOTIFICATION_STATUSES.Success,
+      })
+    } catch (error) {
+      logger.error("后台同步失败", error)
+      this.lastSyncStatus = "error"
+      this.lastSyncError = getErrorMessage(error)
+      this.notifyFrontend("sync_error", { error: getErrorMessage(error) })
+      await notifyTaskResult({
+        task: TASK_NOTIFICATION_TASKS.WebdavAutoSync,
+        status: TASK_NOTIFICATION_STATUSES.Failure,
+        message: getErrorMessage(error),
+      })
+    } finally {
+      this.isSyncing = false
+    }
+  }
+
+  private subscribeToAccountStorageChanges(): () => void {
+    const listener = (
+      changes: Record<string, browser.storage.StorageChange>,
+      areaName: string,
+    ) => {
+      if (areaName !== "local") return
+      const accountChange = changes[ACCOUNT_STORAGE_KEYS.ACCOUNTS]
+      if (!accountChange) return
+      if (this.suppressAccountStorageChangeHandling) {
+        logger.debug("忽略 WebDAV 本地回写触发的账号存储变更")
+        return
+      }
+      if (!this.hasDeletedSharedEntries(accountChange)) {
+        return
+      }
+
+      void this.handleSharedAccountStorageChanged()
+    }
+
+    browser.storage.onChanged.addListener(listener)
+    return () => browser.storage.onChanged.removeListener(listener)
+  }
+
+  private hasDeletedSharedEntries(change: browser.storage.StorageChange) {
+    const oldAccountsConfig =
+      change.oldValue && typeof change.oldValue === "object"
+        ? (change.oldValue as {
+            accounts?: Array<{ id?: string }>
+            bookmarks?: Array<{ id?: string }>
+          })
+        : {}
+    const newAccountsConfig =
+      change.newValue && typeof change.newValue === "object"
+        ? (change.newValue as {
+            accounts?: Array<{ id?: string }>
+            bookmarks?: Array<{ id?: string }>
+          })
+        : {}
+
+    const collectIds = (entries: Array<{ id?: string }> | undefined) =>
+      new Set(
+        (entries || [])
+          .map((entry) => entry?.id)
+          .filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          ),
+      )
+
+    const oldIds = collectIds([
+      ...(oldAccountsConfig.accounts || []),
+      ...(oldAccountsConfig.bookmarks || []),
+    ])
+    const newIds = collectIds([
+      ...(newAccountsConfig.accounts || []),
+      ...(newAccountsConfig.bookmarks || []),
+    ])
+
+    for (const id of oldIds) {
+      if (!newIds.has(id)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  private async handleSharedAccountStorageChanged() {
+    try {
+      if (!(await this.shouldScheduleBestEffortUploadForAccounts())) {
+        return
+      }
+
+      await this.scheduleBestEffortUpload("account_storage_changed")
+    } catch (error) {
+      logger.warn("Failed to schedule best-effort WebDAV upload", error)
+    }
+  }
+
+  private async shouldScheduleBestEffortUploadForAccounts() {
+    if (!hasAlarmsAPI()) {
+      return false
+    }
+
+    const preferences = await userPreferences.getPreferences()
+    if (!preferences.webdav.autoSync) {
+      return false
+    }
+
+    if (
+      !preferences.webdav.url ||
+      !preferences.webdav.username ||
+      !preferences.webdav.password
+    ) {
+      return false
+    }
+
+    if (
+      preferences.webdav.syncStrategy === WEBDAV_SYNC_STRATEGIES.DOWNLOAD_ONLY
+    ) {
+      return false
+    }
+
+    const syncDataSelection = resolveWebdavSyncDataSelection(
+      preferences.webdav.syncData,
+    )
+
+    return syncDataSelection.accounts || syncDataSelection.bookmarks
+  }
+
+  private async scheduleBestEffortUpload(reason: string) {
+    await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+    await createAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME, {
+      // MV3 service workers cannot rely on short-lived timers. A one-shot alarm is slower
+      // than `setTimeout`, but it survives worker suspension and still gives us an
+      // upload-first opportunity before the next regular merge run.
+      delayInMinutes: WebdavAutoSyncService.BEST_EFFORT_UPLOAD_DELAY_MINUTES,
+    })
+
+    logger.info("已调度尽力而为的 WebDAV 主动上传", {
+      reason,
+      delayInMinutes: WebdavAutoSyncService.BEST_EFFORT_UPLOAD_DELAY_MINUTES,
+    })
+  }
+
+  private async flushPendingBestEffortUpload() {
+    const pending = await getAlarm(
+      WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME,
+    )
+    if (!pending) {
+      return
+    }
+
+    // Clear the one-shot alarm before uploading: this path is intentionally
+    // best-effort, so a failed upload may be lost here and later regular sync
+    // runs are responsible for propagating the latest local changes.
+    await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+    await this.uploadLocalSnapshotToWebdav()
+  }
+
+  private async performBestEffortUpload() {
+    if (this.isSyncing) {
+      logger.debug("常规同步正在进行中，延后尽力而为上传")
+      await this.scheduleBestEffortUpload("sync_in_progress")
+      return
+    }
+
+    this.isSyncing = true
+    try {
+      logger.info("开始执行尽力而为的 WebDAV 主动上传")
+      await this.uploadLocalSnapshotToWebdav()
+      this.lastSyncTime = Date.now()
+      this.lastSyncStatus = "success"
+      this.lastSyncError = null
+      this.notifyFrontend("sync_completed", {
+        timestamp: this.lastSyncTime,
+      })
+    } catch (error) {
+      logger.warn("尽力而为的 WebDAV 主动上传失败", error)
+      this.lastSyncStatus = "error"
+      this.lastSyncError = getErrorMessage(error)
+      this.notifyFrontend("sync_error", { error: getErrorMessage(error) })
+    } finally {
+      this.isSyncing = false
+    }
+  }
+
+  private async collectLocalSyncSnapshot() {
+    const preferences = await userPreferences.getPreferences()
+    const syncDataSelection = resolveWebdavSyncDataSelection(
+      preferences.webdav.syncData,
+    )
+
+    if (isWebdavSyncDataSelectionEmpty(syncDataSelection)) {
+      throw new Error(t("messages:webdav.syncDataSelectionRequired"))
+    }
+
+    const [
+      localAccountsConfig,
+      localTagStore,
+      localPreferences,
+      localChannelConfigs,
+      localApiCredentialProfiles,
+    ] = await Promise.all([
+      accountStorage.exportData(),
+      tagStorage.exportTagStore(),
+      userPreferences.exportPreferences(),
+      channelConfigStorage.exportConfigs(),
+      apiCredentialProfilesStorage.exportConfig(),
+    ])
+
+    return {
+      preferences,
+      syncDataSelection,
+      localAccountsConfig,
+      localTagStore,
+      localPreferences,
+      localChannelConfigs,
+      localApiCredentialProfiles,
+    }
+  }
+
+  private buildBackupExportData(input: {
+    accounts: SiteAccount[]
+    bookmarks: SiteBookmark[]
+    pinnedAccountIds: string[]
+    orderedAccountIds: string[]
+    deletedEntryRecords?: AccountStorageConfig["deletedEntryRecords"]
+    tagStore: TagStore
+    preferences: UserPreferences
+    channelConfigs: ChannelConfigMap
+    apiCredentialProfiles: ApiCredentialProfilesConfig
+  }): BackupFullV2 {
+    return {
+      version: BACKUP_VERSION,
+      timestamp: Date.now(),
+      accounts: {
+        accounts: input.accounts,
+        bookmarks: input.bookmarks,
+        pinnedAccountIds: input.pinnedAccountIds,
+        orderedAccountIds: input.orderedAccountIds,
+        deletedEntryRecords: input.deletedEntryRecords || {},
+        last_updated: Date.now(),
+      },
+      tagStore: input.tagStore,
+      preferences: input.preferences,
+      channelConfigs: input.channelConfigs,
+      apiCredentialProfiles: input.apiCredentialProfiles,
+    }
+  }
+
+  private async downloadRemoteBackupForWrite() {
+    try {
+      const content = await downloadBackup(undefined, {
+        prepareForWrite: true,
+      })
+      const remoteData = parseWebdavBackupJson<BackupFullV2>(content)
+      logger.info("成功下载远程数据", { timestamp: remoteData?.timestamp })
+      return remoteData
+    } catch (error: any) {
+      if (isWebdavFileNotFoundError(error)) {
+        logger.info("远程文件不存在，将创建新备份")
+        return null
+      }
+
+      throw error
+    }
+  }
+
+  private async uploadLocalSnapshotToWebdav() {
+    const {
+      syncDataSelection,
+      localAccountsConfig,
+      localTagStore,
+      localPreferences,
+      localChannelConfigs,
+      localApiCredentialProfiles,
+    } = await this.collectLocalSyncSnapshot()
+
+    const localAccounts = localAccountsConfig.accounts
+    const localBookmarks = localAccountsConfig.bookmarks || []
+    const entryIdSet = new Set<string>([
+      ...localAccounts.map((account) => account.id),
+      ...localBookmarks.map((bookmark) => bookmark.id),
+    ])
+    const remoteData = await this.downloadRemoteBackupForWrite()
+    const exportData = this.buildBackupExportData({
+      accounts: localAccounts,
+      bookmarks: localBookmarks,
+      pinnedAccountIds: (localAccountsConfig.pinnedAccountIds || []).filter(
+        (id) => entryIdSet.has(id),
+      ),
+      orderedAccountIds: normalizeWebdavOrderedEntryIds({
+        baseOrderedIds: localAccountsConfig.orderedAccountIds || [],
+        entryIdSet,
+        accounts: localAccounts,
+        bookmarks: localBookmarks,
+      }),
+      deletedEntryRecords: localAccountsConfig.deletedEntryRecords,
+      tagStore: localTagStore,
+      preferences: localPreferences,
+      channelConfigs: localChannelConfigs,
+      apiCredentialProfiles: localApiCredentialProfiles,
+    })
+
+    const payload = mergeWebdavBackupPayloadBySelection({
+      backup: exportData,
+      selection: syncDataSelection,
+      remoteBackup: remoteData,
+    })
+
+    await uploadBackup(JSON.stringify(payload, null, 2))
+    logger.info("本地快照已尽力上传到 WebDAV")
+  }
+
+  /**
+   * 同步数据到WebDAV。
+   *
+   * 流程：
+   * 1. 使用当前用户 WebDAV 配置测试连接。
+   * 2. 从远程下载备份并通过 normalizeBackupForMerge 按版本规范化
+   *    （兼容 V1 旧结构和当前 V2 扁平结构，未来版本可扩展）。
+   *    - 如果远程备份是加密封套（envelope），downloadBackup 会尝试用
+   *      当前 WebDAV 加密密码自动解密；缺失/错误密码会导致本次同步失败。
+   * 3. 根据 syncStrategy 决定合并方式：
+   *    - "merge": 调用 mergeData 基于时间戳双向合并本地 / 远程账号与偏好设置。
+   *    - "upload_only" 或远程无数据：使用本地数据覆盖远程。
+   *    - 默认：优先使用远程数据，否则回退到本地。
+   * 4. 将合并后的账号和偏好设置写回本地存储，并上传新的备份（始终使用
+   *    BACKUP_VERSION 与扁平结构，包含 channelConfigs 快照）。
+   *    - uploadBackup 会根据当前 WebDAV 加密开关决定是否将备份加密后上传。
+   *
+   * Throws when connection fails or merge/upload errors occur.
+   */
+  async syncWithWebdav() {
+    const {
+      preferences,
+      syncDataSelection,
+      localAccountsConfig,
+      localTagStore,
+      localPreferences,
+      localChannelConfigs,
+      localApiCredentialProfiles,
+    } = await this.collectLocalSyncSnapshot()
+
+    // 测试连接
+    try {
+      await testWebdavConnection()
+    } catch (error) {
+      logger.error("WebDAV连接失败", error)
+      throw new Error(t("messages:webdav.connectionFailed", { status: "N/A" }))
+    }
+
+    // 下载远程数据
+    const remoteData = await this.downloadRemoteBackupForWrite()
+
+    const localPinnedAccountIds = localAccountsConfig.pinnedAccountIds || []
+    const localOrderedAccountIds = localAccountsConfig.orderedAccountIds || []
+    const localBookmarks = localAccountsConfig.bookmarks || []
+
+    const remotePresence = detectWebdavBackupPresence(remoteData)
+    const normalizedRemote = normalizeBackupForMerge(
+      remoteData,
+      localPreferences,
+    )
+    const remotePreferences =
+      remotePresence.hasPreferences && normalizedRemote.preferences
+        ? restoreWebdavLocalOnlyPreferences(
+            normalizedRemote.preferences as UserPreferences,
+            localPreferences,
+          )
+        : localPreferences
+
+    // 决定同步策略
+    const strategy =
+      preferences.webdav.syncStrategy || WEBDAV_SYNC_STRATEGIES.MERGE
+
+    const emptyProfiles: ApiCredentialProfilesConfig = {
+      version: API_CREDENTIAL_PROFILES_CONFIG_VERSION,
+      profiles: [],
+      lastUpdated: 0,
+    }
+
+    let accountsToSave: SiteAccount[] = localAccountsConfig.accounts
+    let bookmarksToSave: SiteBookmark[] = localBookmarks
+    let tagStoreToSave = localTagStore
+    let preferencesToSave: UserPreferences = localPreferences
+    let channelConfigsToSave: ChannelConfigMap = localChannelConfigs
+    let apiCredentialProfilesToSave: ApiCredentialProfilesConfig =
+      localApiCredentialProfiles
+    let pinnedAccountIdsToSave: string[] = localPinnedAccountIds
+    let orderedAccountIdsToSave: string[] = localOrderedAccountIds
+    let deletedEntryRecordsToSave = localAccountsConfig.deletedEntryRecords
+
+    if (strategy === WEBDAV_SYNC_STRATEGIES.MERGE && remoteData) {
+      // 合并策略
+      const remotePreferencesTimestamp = remotePresence.hasPreferences
+        ? getSharedPreferencesLastUpdated(normalizedRemote.preferences as any)
+        : 0
+
+      const mergeResult = this.mergeData(
+        {
+          accounts: localAccountsConfig.accounts,
+          bookmarks: localBookmarks,
+          deletedEntryRecords: localAccountsConfig.deletedEntryRecords,
+          accountsTimestamp: localAccountsConfig.last_updated,
+          tagStore: localTagStore,
+          preferences: localPreferences,
+          preferencesTimestamp:
+            getSharedPreferencesLastUpdated(localPreferences),
+          channelConfigs: localChannelConfigs,
+          apiCredentialProfiles: localApiCredentialProfiles,
+        },
+        {
+          accounts: normalizedRemote.accounts,
+          bookmarks: normalizedRemote.bookmarks,
+          deletedEntryRecords: normalizedRemote.deletedEntryRecords,
+          accountsTimestamp: normalizedRemote.accountsTimestamp,
+          tagStore: sanitizeTagStore(
+            normalizedRemote.tagStore ?? createDefaultTagStore(),
+          ),
+          preferences: remotePreferences,
+          preferencesTimestamp: remotePreferencesTimestamp,
+          channelConfigs: normalizedRemote.channelConfigs,
+          apiCredentialProfiles:
+            (remotePresence.hasApiCredentialProfiles &&
+              normalizedRemote.apiCredentialProfiles) ||
+            emptyProfiles,
+        },
+        syncDataSelection,
+      )
+
+      accountsToSave = mergeResult.accounts
+      bookmarksToSave = mergeResult.bookmarks
+      tagStoreToSave = mergeResult.tagStore
+      preferencesToSave = mergeResult.preferences
+      channelConfigsToSave = mergeResult.channelConfigs
+      apiCredentialProfilesToSave = mergeResult.apiCredentialProfiles
+      deletedEntryRecordsToSave = mergeResult.deletedEntryRecords
+
+      const entryIdSet = new Set<string>([
+        ...accountsToSave.map((account) => account.id),
+        ...bookmarksToSave.map((bookmark) => bookmark.id),
+      ])
+
+      if (syncDataSelection.accounts || syncDataSelection.bookmarks) {
+        const selectedIdSet = new Set<string>([
+          ...(syncDataSelection.accounts
+            ? accountsToSave.map((account) => account.id)
+            : []),
+          ...(syncDataSelection.bookmarks
+            ? bookmarksToSave.map((bookmark) => bookmark.id)
+            : []),
+        ])
+
+        const remotePinnedIds = remotePresence.hasPinnedAccountIds
+          ? normalizedRemote.pinnedAccountIds
+          : []
+
+        const mergedPinnedIds = [
+          ...remotePinnedIds.filter((id) => selectedIdSet.has(id)),
+          ...localPinnedAccountIds.filter((id) => selectedIdSet.has(id)),
+        ]
+        const seenPinned = new Set<string>()
+        const pinnedSelected: string[] = []
+        for (const id of mergedPinnedIds) {
+          if (seenPinned.has(id)) continue
+          seenPinned.add(id)
+          pinnedSelected.push(id)
+        }
+
+        const pinnedUnselected = localPinnedAccountIds.filter(
+          (id) => !selectedIdSet.has(id),
+        )
+
+        pinnedAccountIdsToSave = [
+          ...pinnedSelected,
+          ...pinnedUnselected,
+        ].filter((id) => entryIdSet.has(id))
+
+        const selectedOrderSource =
+          remotePresence.hasOrderedAccountIds &&
+          normalizedRemote.accountsTimestamp > localAccountsConfig.last_updated
+            ? normalizedRemote.orderedAccountIds
+            : localOrderedAccountIds
+
+        const baseOrderedIds = [
+          ...selectedOrderSource.filter((id) => selectedIdSet.has(id)),
+          ...localOrderedAccountIds.filter((id) => !selectedIdSet.has(id)),
+        ]
+
+        orderedAccountIdsToSave = normalizeWebdavOrderedEntryIds({
+          baseOrderedIds,
+          entryIdSet,
+          accounts: accountsToSave,
+          bookmarks: bookmarksToSave,
+        })
+      }
+      logger.info("合并完成", { accountCount: accountsToSave.length })
+    } else if (
+      strategy === WEBDAV_SYNC_STRATEGIES.DOWNLOAD_ONLY &&
+      remoteData
+    ) {
+      // 远程优先策略：仅对选中的数据域应用远程数据；缺失的远程 section 不会覆盖本地
+      const remoteStore = sanitizeTagStore(
+        normalizedRemote.tagStore ?? createDefaultTagStore(),
+      )
+      const localStore = sanitizeTagStore(
+        localTagStore ?? createDefaultTagStore(),
+      )
+
+      const migratedLocal = migrateAccountTagsData({
+        accounts: localAccountsConfig.accounts,
+        tagStore: localStore,
+      })
+      const migratedRemote = migrateAccountTagsData({
+        accounts: normalizedRemote.accounts as SiteAccount[],
+        tagStore: remoteStore,
+      })
+
+      const remoteApiCredentialProfilesForTags =
+        normalizedRemote.apiCredentialProfiles ?? emptyProfiles
+
+      const tagMerge = tagStorage.mergeTagStoresForSync({
+        localTagStore: migratedLocal.tagStore,
+        remoteTagStore: migratedRemote.tagStore,
+        localAccounts: migratedLocal.accounts,
+        remoteAccounts: migratedRemote.accounts,
+        localBookmarks,
+        remoteBookmarks: normalizedRemote.bookmarks as SiteBookmark[],
+        localTaggables: localApiCredentialProfiles.profiles,
+        remoteTaggables: remoteApiCredentialProfilesForTags.profiles,
+      })
+
+      const useRemoteAccounts =
+        syncDataSelection.accounts && remotePresence.hasAccountsList
+      const useRemoteBookmarks =
+        syncDataSelection.bookmarks && remotePresence.hasBookmarksList
+
+      accountsToSave = useRemoteAccounts
+        ? tagMerge.remoteAccounts
+        : tagMerge.localAccounts
+      bookmarksToSave = useRemoteBookmarks
+        ? tagMerge.remoteBookmarks
+        : tagMerge.localBookmarks
+
+      tagStoreToSave =
+        syncDataSelection.accounts ||
+        syncDataSelection.bookmarks ||
+        syncDataSelection.apiCredentialProfiles
+          ? tagMerge.tagStore
+          : localTagStore
+
+      preferencesToSave =
+        syncDataSelection.preferences && remotePresence.hasPreferences
+          ? remotePreferences
+          : localPreferences
+
+      channelConfigsToSave =
+        normalizedRemote.channelConfigs || localChannelConfigs
+
+      apiCredentialProfilesToSave =
+        syncDataSelection.apiCredentialProfiles &&
+        remotePresence.hasApiCredentialProfiles &&
+        normalizedRemote.apiCredentialProfiles
+          ? {
+              ...normalizedRemote.apiCredentialProfiles,
+              profiles: tagMerge.remoteTaggables,
+            }
+          : localApiCredentialProfiles
+
+      {
+        const entryIdSet = new Set<string>([
+          ...accountsToSave.map((account) => account.id),
+          ...bookmarksToSave.map((bookmark) => bookmark.id),
+        ])
+
+        const selectedIdSet = new Set<string>([
+          ...(useRemoteAccounts
+            ? accountsToSave.map((account) => account.id)
+            : []),
+          ...(useRemoteBookmarks
+            ? bookmarksToSave.map((bookmark) => bookmark.id)
+            : []),
+        ])
+
+        const remotePinnedIds = remotePresence.hasPinnedAccountIds
+          ? normalizedRemote.pinnedAccountIds
+          : []
+        const remoteOrderedIds = remotePresence.hasOrderedAccountIds
+          ? normalizedRemote.orderedAccountIds
+          : []
+
+        if (remotePresence.hasPinnedAccountIds) {
+          const mergedPinnedIds = [
+            ...remotePinnedIds.filter((id) => selectedIdSet.has(id)),
+            ...localPinnedAccountIds.filter((id) => !selectedIdSet.has(id)),
+          ]
+          const seenPinned = new Set<string>()
+          const uniquePinnedIds: string[] = []
+          for (const id of mergedPinnedIds) {
+            if (seenPinned.has(id)) continue
+            seenPinned.add(id)
+            uniquePinnedIds.push(id)
+          }
+          pinnedAccountIdsToSave = uniquePinnedIds.filter((id) =>
+            entryIdSet.has(id),
+          )
+        } else {
+          pinnedAccountIdsToSave = localPinnedAccountIds.filter((id) =>
+            entryIdSet.has(id),
+          )
+        }
+
+        const baseOrderedIds = remotePresence.hasOrderedAccountIds
+          ? [
+              ...remoteOrderedIds.filter((id) => selectedIdSet.has(id)),
+              ...localOrderedAccountIds.filter((id) => !selectedIdSet.has(id)),
+            ]
+          : localOrderedAccountIds
+
+        orderedAccountIdsToSave = normalizeWebdavOrderedEntryIds({
+          baseOrderedIds,
+          entryIdSet,
+          accounts: accountsToSave,
+          bookmarks: bookmarksToSave,
+        })
+      }
+
+      logger.info("使用远程数据（已应用选择）")
+    } else if (strategy === WEBDAV_SYNC_STRATEGIES.UPLOAD_ONLY || !remoteData) {
+      // 覆盖策略或远程无数据
+      accountsToSave = localAccountsConfig.accounts
+      bookmarksToSave = localBookmarks
+      tagStoreToSave = localTagStore
+      preferencesToSave = localPreferences
+      channelConfigsToSave = localChannelConfigs
+      apiCredentialProfilesToSave = localApiCredentialProfiles
+      {
+        const entryIdSet = new Set<string>([
+          ...accountsToSave.map((account) => account.id),
+          ...bookmarksToSave.map((bookmark) => bookmark.id),
+        ])
+        pinnedAccountIdsToSave = localPinnedAccountIds.filter((id) =>
+          entryIdSet.has(id),
+        )
+        orderedAccountIdsToSave = normalizeWebdavOrderedEntryIds({
+          baseOrderedIds: localOrderedAccountIds,
+          entryIdSet,
+          accounts: accountsToSave,
+          bookmarks: bookmarksToSave,
+        })
+      }
+      logger.info("使用本地数据覆盖")
+    } else {
+      logger.error("无效的同步策略，将中止本次同步", {
+        strategy: String(strategy),
+      })
+      throw new Error(`Invalid WebDAV sync strategy: ${String(strategy)}`)
+    }
+
+    const shouldWriteLocal =
+      Boolean(remoteData) && strategy !== WEBDAV_SYNC_STRATEGIES.UPLOAD_ONLY
+
+    if (shouldWriteLocal) {
+      await this.applyLocalSyncResult({
+        syncDataSelection,
+        accountsToSave,
+        bookmarksToSave,
+        deletedEntryRecordsToSave,
+        pinnedAccountIdsToSave,
+        orderedAccountIdsToSave,
+        tagStoreToSave,
+        preferencesToSave,
+        channelConfigsToSave,
+        apiCredentialProfilesToSave,
+        localAccountsConfig,
+        localTagStore,
+        localPreferences,
+        localChannelConfigs,
+        localApiCredentialProfiles,
+      })
+    }
+
+    // 上传到WebDAV
+    const exportData = this.buildBackupExportData({
+      accounts: accountsToSave,
+      bookmarks: bookmarksToSave,
+      pinnedAccountIds: pinnedAccountIdsToSave,
+      orderedAccountIds: orderedAccountIdsToSave,
+      deletedEntryRecords: deletedEntryRecordsToSave,
+      tagStore: tagStoreToSave,
+      preferences: preferencesToSave,
+      channelConfigs: channelConfigsToSave,
+      apiCredentialProfiles: apiCredentialProfilesToSave,
+    })
+
+    const payload = mergeWebdavBackupPayloadBySelection({
+      backup: exportData,
+      selection: syncDataSelection,
+      remoteBackup: remoteData,
+    })
+
+    await uploadBackup(JSON.stringify(payload, null, 2))
+    logger.info("数据已上传到WebDAV")
+  }
+
+  private async importPreferencesOrThrow(preferences: UserPreferences) {
+    const imported = await userPreferences.importPreferences(preferences, {
+      preserveWebdav: true,
+    })
+
+    if (!imported) {
+      throw new Error("Failed to import WebDAV preferences")
+    }
+  }
+
+  private async applyLocalSyncResult(input: {
+    syncDataSelection: WebDAVSyncDataSelection
+    accountsToSave: SiteAccount[]
+    bookmarksToSave: SiteBookmark[]
+    deletedEntryRecordsToSave?: AccountStorageConfig["deletedEntryRecords"]
+    pinnedAccountIdsToSave: string[]
+    orderedAccountIdsToSave: string[]
+    tagStoreToSave: TagStore
+    preferencesToSave: UserPreferences
+    channelConfigsToSave: ChannelConfigMap
+    apiCredentialProfilesToSave: ApiCredentialProfilesConfig
+    localAccountsConfig: {
+      accounts: SiteAccount[]
+      bookmarks?: SiteBookmark[]
+      pinnedAccountIds?: string[]
+      orderedAccountIds?: string[]
+      deletedEntryRecords?: AccountStorageConfig["deletedEntryRecords"]
+    }
+    localTagStore: TagStore
+    localPreferences: UserPreferences
+    localChannelConfigs: ChannelConfigMap
+    localApiCredentialProfiles: ApiCredentialProfilesConfig
+  }) {
+    const rollbackSteps: Array<() => Promise<void>> = []
+
+    this.suppressAccountStorageChangeHandling = true
+    try {
+      await withExtensionStorageWriteLock(
+        STORAGE_LOCKS.WEBDAV_SYNC_APPLY,
+        async () => {
+          try {
+            if (
+              input.syncDataSelection.accounts ||
+              input.syncDataSelection.bookmarks
+            ) {
+              await accountStorage.importData({
+                accounts: input.accountsToSave,
+                pinnedAccountIds: input.pinnedAccountIdsToSave,
+                orderedAccountIds: input.orderedAccountIdsToSave,
+                bookmarks: input.bookmarksToSave,
+                deletedEntryRecords: input.deletedEntryRecordsToSave,
+              })
+
+              rollbackSteps.push(async () => {
+                await accountStorage.importData({
+                  accounts: input.localAccountsConfig.accounts,
+                  bookmarks: input.localAccountsConfig.bookmarks || [],
+                  pinnedAccountIds:
+                    input.localAccountsConfig.pinnedAccountIds || [],
+                  orderedAccountIds:
+                    input.localAccountsConfig.orderedAccountIds || [],
+                  deletedEntryRecords:
+                    input.localAccountsConfig.deletedEntryRecords,
+                })
+              })
+            }
+
+            if (
+              input.syncDataSelection.accounts ||
+              input.syncDataSelection.bookmarks ||
+              input.syncDataSelection.apiCredentialProfiles
+            ) {
+              await tagStorage.importTagStore(input.tagStoreToSave)
+
+              rollbackSteps.push(async () => {
+                await tagStorage.importTagStore(input.localTagStore)
+              })
+            }
+
+            if (input.syncDataSelection.preferences) {
+              await this.importPreferencesOrThrow(input.preferencesToSave)
+
+              rollbackSteps.push(async () => {
+                await this.importPreferencesOrThrow(input.localPreferences)
+              })
+            }
+
+            await channelConfigStorage.importConfigs(input.channelConfigsToSave)
+            rollbackSteps.push(async () => {
+              await channelConfigStorage.importConfigs(
+                input.localChannelConfigs,
+              )
+            })
+
+            if (input.syncDataSelection.apiCredentialProfiles) {
+              await apiCredentialProfilesStorage.importConfig(
+                input.apiCredentialProfilesToSave,
+              )
+
+              rollbackSteps.push(async () => {
+                await apiCredentialProfilesStorage.importConfig(
+                  input.localApiCredentialProfiles,
+                )
+              })
+            }
+          } catch (error) {
+            for (const rollback of rollbackSteps.reverse()) {
+              try {
+                await rollback()
+              } catch (rollbackError) {
+                logger.error(
+                  "Failed to rollback partially applied WebDAV sync writes",
+                  rollbackError,
+                )
+              }
+            }
+
+            throw error
+          }
+        },
+      )
+    } finally {
+      this.suppressAccountStorageChangeHandling = false
+    }
+  }
+
+  /**
+   * Merge local and remote data based on timestamps (latest wins).
+   * Also reconciles channel configs and deduplicates pinned ids.
+   * @returns Merged accounts, preferences, and channel configs.
+   */
+  private mergeData(
+    local: {
+      accounts: SiteAccount[]
+      bookmarks: SiteBookmark[]
+      deletedEntryRecords?: AccountStorageConfig["deletedEntryRecords"]
+      accountsTimestamp: number
+      tagStore: TagStore
+      preferences: UserPreferences
+      preferencesTimestamp: number
+      channelConfigs: ChannelConfigMap
+      apiCredentialProfiles: ApiCredentialProfilesConfig
+    },
+    remote: {
+      accounts: SiteAccount[]
+      bookmarks: SiteBookmark[]
+      deletedEntryRecords?: AccountStorageConfig["deletedEntryRecords"]
+      accountsTimestamp: number
+      tagStore: TagStore
+      preferences: UserPreferences
+      preferencesTimestamp: number
+      channelConfigs: ChannelConfigMap | null
+      apiCredentialProfiles: ApiCredentialProfilesConfig
+    },
+    selection: WebDAVSyncDataSelection = resolveWebdavSyncDataSelection(null),
+  ): {
+    accounts: SiteAccount[]
+    bookmarks: SiteBookmark[]
+    tagStore: TagStore
+    preferences: UserPreferences
+    channelConfigs: ChannelConfigMap
+    apiCredentialProfiles: ApiCredentialProfilesConfig
+    deletedEntryRecords: NonNullable<
+      AccountStorageConfig["deletedEntryRecords"]
+    >
+  } {
+    logger.debug("开始合并数据", {
+      localAccountCount: local.accounts.length,
+      remoteAccountCount: remote.accounts.length,
+      localBookmarkCount: local.bookmarks.length,
+      remoteBookmarkCount: remote.bookmarks.length,
+    })
+
+    // Migrate legacy string tags (if any) into tag ids on both sides.
+    const localTagStore = sanitizeTagStore(
+      local.tagStore ?? createDefaultTagStore(),
+    )
+    const remoteTagStore = sanitizeTagStore(
+      remote.tagStore ?? createDefaultTagStore(),
+    )
+    const migratedLocal = migrateAccountTagsData({
+      accounts: local.accounts,
+      tagStore: localTagStore,
+    })
+    const migratedRemote = migrateAccountTagsData({
+      accounts: remote.accounts,
+      tagStore: remoteTagStore,
+    })
+
+    // Merge tag stores and remap accounts so tag ids always resolve.
+    const tagMerge = tagStorage.mergeTagStoresForSync({
+      localTagStore: migratedLocal.tagStore,
+      remoteTagStore: migratedRemote.tagStore,
+      localAccounts: migratedLocal.accounts,
+      remoteAccounts: migratedRemote.accounts,
+      localBookmarks: local.bookmarks,
+      remoteBookmarks: remote.bookmarks,
+      localTaggables: local.apiCredentialProfiles.profiles,
+      remoteTaggables: remote.apiCredentialProfiles.profiles,
+    })
+
+    // 合并账号数据
+    const accountMap = new Map<string, SiteAccount>()
+    const deletedEntryRecords = WebdavAutoSyncService.mergeDeletedEntryRecords({
+      localRecords: local.deletedEntryRecords,
+      remoteRecords: remote.deletedEntryRecords,
+      includeRemoteAccounts: selection.accounts,
+      includeRemoteBookmarks: selection.bookmarks,
+    })
+
+    // 首先添加本地账号
+    tagMerge.localAccounts.forEach((account) => {
+      if (
+        WebdavAutoSyncService.isEntrySuppressedByDeletionRecord({
+          id: account.id,
+          kind: DELETED_ENTRY_KIND.ACCOUNT,
+          entryUpdatedAt: account.updated_at,
+          entryUserUpdatedAt: account.user_updated_at,
+          deletedEntryRecords,
+        })
+      ) {
+        return
+      }
+
+      accountMap.set(account.id, account)
+    })
+
+    // 然后处理远程账号（按 updated_at 选择较新版本）
+    if (selection.accounts) {
+      tagMerge.remoteAccounts.forEach((remoteAccount) => {
+        const localAccount = accountMap.get(remoteAccount.id)
+
+        if (!localAccount) {
+          if (
+            WebdavAutoSyncService.isEntrySuppressedByDeletionRecord({
+              id: remoteAccount.id,
+              kind: DELETED_ENTRY_KIND.ACCOUNT,
+              entryUpdatedAt: remoteAccount.updated_at,
+              entryUserUpdatedAt: remoteAccount.user_updated_at,
+              deletedEntryRecords,
+            })
+          ) {
+            logger.debug("忽略已删除账号的旧远程副本", {
+              accountId: remoteAccount.id,
+              siteName: remoteAccount.site_name,
+            })
+            return
+          }
+
+          // 远程账号在本地不存在，直接添加
+          accountMap.set(remoteAccount.id, remoteAccount)
+          logger.debug("添加远程账号", {
+            accountId: remoteAccount.id,
+            siteName: remoteAccount.site_name,
+          })
+        } else {
+          // 账号在两边都存在，比较时间戳
+          const localUpdatedAt = localAccount.updated_at || 0
+          const remoteUpdatedAt = remoteAccount.updated_at || 0
+
+          if (remoteUpdatedAt > localUpdatedAt) {
+            // 远程更新，使用远程数据
+            accountMap.set(remoteAccount.id, remoteAccount)
+            logger.debug("使用远程账号（远程更新）", {
+              accountId: remoteAccount.id,
+              siteName: remoteAccount.site_name,
+            })
+          } else {
+            logger.debug("保留本地账号（本地更新）", {
+              accountId: localAccount.id,
+              siteName: localAccount.site_name,
+            })
+          }
+        }
+      })
+    }
+
+    const mergedAccounts = Array.from(accountMap.values())
+
+    const bookmarkMap = new Map<string, SiteBookmark>()
+    tagMerge.localBookmarks.forEach((bookmark) => {
+      if (
+        WebdavAutoSyncService.isEntrySuppressedByDeletionRecord({
+          id: bookmark.id,
+          kind: DELETED_ENTRY_KIND.BOOKMARK,
+          entryUpdatedAt: bookmark.updated_at,
+          deletedEntryRecords,
+        })
+      ) {
+        return
+      }
+
+      bookmarkMap.set(bookmark.id, bookmark)
+    })
+
+    if (selection.bookmarks) {
+      tagMerge.remoteBookmarks.forEach((remoteBookmark) => {
+        const localBookmark = bookmarkMap.get(remoteBookmark.id)
+        if (!localBookmark) {
+          if (
+            WebdavAutoSyncService.isEntrySuppressedByDeletionRecord({
+              id: remoteBookmark.id,
+              kind: DELETED_ENTRY_KIND.BOOKMARK,
+              entryUpdatedAt: remoteBookmark.updated_at,
+              deletedEntryRecords,
+            })
+          ) {
+            return
+          }
+
+          bookmarkMap.set(remoteBookmark.id, remoteBookmark)
+          return
+        }
+
+        const localUpdatedAt = localBookmark.updated_at || 0
+        const remoteUpdatedAt = remoteBookmark.updated_at || 0
+        if (remoteUpdatedAt > localUpdatedAt) {
+          bookmarkMap.set(remoteBookmark.id, remoteBookmark)
+        }
+      })
+    }
+
+    const mergedBookmarks = Array.from(bookmarkMap.values())
+
+    const deletedEntryRecordsToKeep =
+      WebdavAutoSyncService.pruneResolvedDeletedEntryRecords({
+        records: deletedEntryRecords,
+        accounts: mergedAccounts,
+        bookmarks: mergedBookmarks,
+      })
+
+    const apiCredentialProfiles = selection.apiCredentialProfiles
+      ? mergeApiCredentialProfilesConfigs({
+          local: {
+            ...local.apiCredentialProfiles,
+            profiles: tagMerge.localTaggables,
+          },
+          incoming: {
+            ...remote.apiCredentialProfiles,
+            profiles: tagMerge.remoteTaggables,
+          },
+        })
+      : {
+          ...local.apiCredentialProfiles,
+          profiles: tagMerge.localTaggables,
+        }
+
+    // Compare shared-preference timestamps so device-local WebDAV/refresh edits do
+    // not change merge arbitration.
+    const preferences = selection.preferences
+      ? remote.preferencesTimestamp > local.preferencesTimestamp
+        ? remote.preferences
+        : local.preferences
+      : local.preferences
+
+    // 合并通道配置
+    const localChannelConfigs = local.channelConfigs
+    const remoteChannelConfigs = remote.channelConfigs
+    const mergedChannelConfigs: ChannelConfigMap = { ...localChannelConfigs }
+
+    if (remoteChannelConfigs && typeof remoteChannelConfigs === "object") {
+      for (const [key, value] of Object.entries(remoteChannelConfigs)) {
+        const channelId = Number(key)
+        if (!Number.isFinite(channelId) || channelId <= 0) {
+          continue
+        }
+
+        const localConfig = localChannelConfigs[channelId]
+        const remoteConfig = value as ChannelConfigMap[number]
+
+        if (!localConfig) {
+          mergedChannelConfigs[channelId] = remoteConfig
+        } else {
+          const localUpdatedAt =
+            typeof localConfig.updatedAt === "number"
+              ? localConfig.updatedAt
+              : 0
+          const remoteUpdatedAt =
+            typeof remoteConfig.updatedAt === "number"
+              ? remoteConfig.updatedAt
+              : 0
+
+          mergedChannelConfigs[channelId] =
+            remoteUpdatedAt > localUpdatedAt ? remoteConfig : localConfig
+        }
+      }
+    }
+
+    logger.info("合并完成", {
+      accountCount: mergedAccounts.length,
+      preferencesSource:
+        selection.preferences &&
+        remote.preferencesTimestamp > local.preferencesTimestamp
+          ? "remote"
+          : "local",
+      channelConfigCount: Object.keys(mergedChannelConfigs).length,
+    })
+
+    return {
+      accounts: mergedAccounts,
+      bookmarks: mergedBookmarks,
+      tagStore:
+        selection.accounts ||
+        selection.bookmarks ||
+        selection.apiCredentialProfiles
+          ? tagMerge.tagStore
+          : localTagStore,
+      preferences,
+      channelConfigs: mergedChannelConfigs,
+      apiCredentialProfiles,
+      deletedEntryRecords: deletedEntryRecordsToKeep,
+    }
+  }
+
+  private static mergeDeletedEntryRecords(input: {
+    localRecords?: AccountStorageConfig["deletedEntryRecords"]
+    remoteRecords?: AccountStorageConfig["deletedEntryRecords"]
+    includeRemoteAccounts?: boolean
+    includeRemoteBookmarks?: boolean
+  }): NonNullable<AccountStorageConfig["deletedEntryRecords"]> {
+    const records: NonNullable<AccountStorageConfig["deletedEntryRecords"]> = {}
+
+    for (const [id, record] of Object.entries(input.remoteRecords || {})) {
+      const includeRemoteRecord =
+        (record.kind === DELETED_ENTRY_KIND.ACCOUNT &&
+          input.includeRemoteAccounts !== false) ||
+        (record.kind === DELETED_ENTRY_KIND.BOOKMARK &&
+          input.includeRemoteBookmarks !== false)
+
+      if (!includeRemoteRecord) {
+        continue
+      }
+
+      records[id] = record
+    }
+
+    for (const [id, record] of Object.entries(input.localRecords || {})) {
+      const current = records[id]
+      if (!current || record.deletedAt > current.deletedAt) {
+        records[id] = record
+      }
+    }
+
+    return records
+  }
+
+  private static isEntrySuppressedByDeletionRecord(input: {
+    id: string
+    kind: DeletedEntryKind
+    entryUpdatedAt?: number
+    entryUserUpdatedAt?: number
+    deletedEntryRecords: AccountStorageConfig["deletedEntryRecords"]
+  }) {
+    const record = input.deletedEntryRecords?.[input.id]
+    if (!record || record.kind !== input.kind) {
+      return false
+    }
+
+    const entryUpdatedAt =
+      typeof input.entryUpdatedAt === "number" ? input.entryUpdatedAt : 0
+    const entryUserUpdatedAt =
+      typeof input.entryUserUpdatedAt === "number"
+        ? input.entryUserUpdatedAt
+        : entryUpdatedAt
+    const deletionBoundary = Math.max(record.deletedAt, record.entryUpdatedAt)
+    return entryUserUpdatedAt <= deletionBoundary
+  }
+
+  private static pruneResolvedDeletedEntryRecords(input: {
+    records: NonNullable<AccountStorageConfig["deletedEntryRecords"]>
+    accounts: SiteAccount[]
+    bookmarks: SiteBookmark[]
+  }) {
+    const records = { ...input.records }
+    for (const account of input.accounts) {
+      delete records[account.id]
+    }
+    for (const bookmark of input.bookmarks) {
+      delete records[bookmark.id]
+    }
+    return records
+  }
+
+  /**
+   * 立即执行一次同步
+   * @returns Result with success flag and optional message.
+   */
+  async syncNow(): Promise<{ success: boolean; message?: string }> {
+    if (this.isSyncing) {
+      return {
+        success: false,
+        message: "同步正在进行中，请稍后再试",
+      }
+    }
+
+    this.isSyncing = true
+    try {
+      logger.info("执行立即同步")
+      await this.flushPendingBestEffortUpload()
+      await this.syncWithWebdav()
+      this.lastSyncTime = Date.now()
+      this.lastSyncStatus = "success"
+      this.lastSyncError = null
+      logger.info("立即同步完成")
+      return {
+        success: true,
+        message: "同步成功",
+      }
+    } catch (error) {
+      logger.error("立即同步失败", error)
+      this.lastSyncStatus = "error"
+      this.lastSyncError = getErrorMessage(error)
+      return {
+        success: false,
+        message: getErrorMessage(error),
+      }
+    } finally {
+      this.isSyncing = false
+    }
+  }
+
+  /**
+   * 停止自动同步
+   *
+   * Clears the scheduled alarm; idempotent.
+   */
+  async stopAutoSync() {
+    const cleared = await clearAlarm(WebdavAutoSyncService.ALARM_NAME)
+    await clearAlarm(WebdavAutoSyncService.BEST_EFFORT_UPLOAD_ALARM_NAME)
+    this.isScheduled = false
+
+    if (cleared) {
+      logger.info("自动同步已停止")
+    } else {
+      logger.info("自动同步未运行或已停止")
+    }
+  }
+
+  /**
+   * 更新同步设置
+   *
+   * Persists partial webdav settings and reconfigures scheduler.
+   */
+  async updateSettings(
+    settings: {
+      autoSync?: boolean
+      syncInterval?: number
+      syncStrategy?: WebDAVSettings["syncStrategy"]
+    },
+    options?: { expectedLastUpdated?: number },
+  ): Promise<UpdateWebdavAutoSyncSettingsResult> {
+    try {
+      const savedPreferences = await userPreferences.savePreferencesWithResult(
+        {
+          webdav: settings,
+        },
+        options,
+      )
+      if (!savedPreferences) {
+        return {
+          ok: false,
+          reason: "conflict",
+        }
+      }
+
+      await this.setupAutoSync() // 重新设置调度（alarm）
+      logger.info("设置已更新", settings)
+      return {
+        ok: true,
+        savedPreferences,
+      }
+    } catch (error) {
+      logger.error("更新设置失败", error)
+      return {
+        ok: false,
+        reason: "error",
+      }
+    }
+  }
+
+  /**
+   * 获取当前状态
+   * @returns Snapshot of initialization, running, and last-sync info.
+   */
+  getStatus() {
+    return {
+      isRunning: this.isScheduled,
+      isInitialized: this.isInitialized,
+      isSyncing: this.isSyncing,
+      lastSyncTime: this.lastSyncTime,
+      lastSyncStatus: this.lastSyncStatus,
+      lastSyncError: this.lastSyncError,
+    }
+  }
+
+  /**
+   * Notify frontends about sync status updates.
+   * Silently ignores missing receivers (popup/options may be closed).
+   *
+   * Best-effort; errors are logged and swallowed to avoid breaking sync loop.
+   */
+  private notifyFrontend(type: string, data: any) {
+    try {
+      // 向所有连接的客户端发送消息
+      void sendRuntimeMessage(
+        {
+          type: "WEBDAV_AUTO_SYNC_UPDATE",
+          payload: { type, data },
+        },
+        { maxAttempts: 1 },
+      ).catch((error) => {
+        // 静默处理"没有接收者"的错误（popup可能没打开）
+        if (isMessageReceiverUnavailableError(error)) {
+          logger.debug("前端未打开，跳过通知")
+          return
+        }
+
+        logger.warn("通知前端失败", error)
+      })
+    } catch (error) {
+      // 静默处理错误，避免影响后台同步
+      logger.warn("发送消息异常，可能前端未打开", error)
+    }
+  }
+
+  /**
+   * 销毁服务
+   */
+  destroy() {
+    void this.stopAutoSync()
+    this.removeAlarmListener?.()
+    this.removeAlarmListener = null
+    this.removeStorageChangeListener?.()
+    this.removeStorageChangeListener = null
+    this.isInitialized = false
+    logger.info("服务已销毁")
+  }
+}
+
+// 创建单例实例
+export const webdavAutoSyncService = new WebdavAutoSyncService()
+
+let webdavAutoSyncMessagingCleanup: (() => void)[] | null = null
+
+/**
+ * Register typed background listeners for WebDAV auto-sync messages.
+ */
+export function setupWebdavAutoSyncMessagingListeners() {
+  if (webdavAutoSyncMessagingCleanup) {
+    return
+  }
+
+  webdavAutoSyncMessagingCleanup = [
+    onWebdavAutoSyncMessage(WebdavAutoSyncMessageTypes.Setup, () =>
+      resolveWebdavAutoSyncSetupMessage(),
+    ),
+    onWebdavAutoSyncMessage(WebdavAutoSyncMessageTypes.SyncNow, () =>
+      resolveWebdavAutoSyncSyncNowMessage(),
+    ),
+    onWebdavAutoSyncMessage(WebdavAutoSyncMessageTypes.Stop, () =>
+      resolveWebdavAutoSyncStopMessage(),
+    ),
+    onWebdavAutoSyncMessage(
+      WebdavAutoSyncMessageTypes.UpdateSettings,
+      ({ data }) => resolveWebdavAutoSyncUpdateSettingsMessage(data),
+    ),
+    onWebdavAutoSyncMessage(WebdavAutoSyncMessageTypes.GetStatus, () =>
+      resolveWebdavAutoSyncGetStatusMessage(),
+    ),
+  ]
+}
+
+/**
+ * Resolve a typed request to reapply the WebDAV auto-sync schedule.
+ */
+export async function resolveWebdavAutoSyncSetupMessage(): Promise<
+  RuntimeMessageResponse<undefined>
+> {
+  try {
+    await webdavAutoSyncService.setupAutoSync()
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error("处理消息失败", error)
+    return createRuntimeMessageFailure(getErrorMessage(error))
+  }
+}
+
+/**
+ * Resolve a typed request to run WebDAV auto-sync immediately.
+ */
+export async function resolveWebdavAutoSyncSyncNowMessage(): Promise<WebdavAutoSyncSyncNowResponse> {
+  try {
+    const result = await webdavAutoSyncService.syncNow()
+    return result.success
+      ? { success: true, data: { message: result.message } }
+      : { success: false, error: result.message ?? "" }
+  } catch (error) {
+    logger.error("处理消息失败", error)
+    return { success: false, error: getErrorMessage(error) }
+  }
+}
+
+/**
+ * Resolve a typed request to stop WebDAV auto-sync scheduling.
+ */
+export async function resolveWebdavAutoSyncStopMessage(): Promise<
+  RuntimeMessageResponse<undefined>
+> {
+  try {
+    await webdavAutoSyncService.stopAutoSync()
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error("处理消息失败", error)
+    return createRuntimeMessageFailure(getErrorMessage(error))
+  }
+}
+
+/**
+ * Resolve a typed request to persist and apply WebDAV auto-sync settings.
+ */
+export async function resolveWebdavAutoSyncUpdateSettingsMessage(
+  request: WebdavAutoSyncUpdateSettingsRequest,
+): Promise<WebdavAutoSyncMutationResponse> {
+  try {
+    const result = await webdavAutoSyncService.updateSettings(
+      request.settings,
+      typeof request.expectedLastUpdated === "number"
+        ? {
+            expectedLastUpdated: request.expectedLastUpdated,
+          }
+        : undefined,
+    )
+    return result.ok
+      ? {
+          success: true,
+          data: result.savedPreferences,
+        }
+      : {
+          success: false,
+          error:
+            result.reason === "conflict"
+              ? t("settings:messages.preferencesChangedExternally")
+              : t("settings:messages.saveSettingsFailed"),
+        }
+  } catch (error) {
+    logger.error("处理消息失败", error)
+    return createRuntimeMessageFailure(getErrorMessage(error))
+  }
+}
+
+/**
+ * Resolve a typed request for WebDAV auto-sync runtime status.
+ */
+export async function resolveWebdavAutoSyncGetStatusMessage(): Promise<WebdavAutoSyncStatusResponse> {
+  try {
+    return { success: true, data: webdavAutoSyncService.getStatus() }
+  } catch (error) {
+    logger.error("处理消息失败", error)
+    return createRuntimeMessageFailure(getErrorMessage(error))
+  }
+}

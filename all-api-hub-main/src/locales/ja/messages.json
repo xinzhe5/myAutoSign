@@ -1,0 +1,251 @@
+{
+  "accountOperations": {
+    "autoProvisionAlreadyHad": "{{accountName}} にはすでに API キーがあります。自動作成をスキップしました。",
+    "autoProvisionCreated": "{{accountName}} 用の既定 API キーを作成しました。",
+    "autoProvisionFailed": "アカウントは保存されましたが、API キーの自動作成に失敗しました。キー管理の「{{actionLabel}}」から再試行できます。",
+    "checkingApiKeys": "API キーを確認中...",
+    "createTokenFailed": "API トークンの作成に失敗しました",
+    "importingToAxonHub": "AxonHub にインポート中...",
+    "importingToClaudeCodeHub": "Claude Code Hub にインポート中...",
+    "importingToDoneHub": "Done Hub にインポート中...",
+    "importingToNewApi": "New API にインポート中...",
+    "importingToOctopus": "Octopus にインポート中...",
+    "importingToVeloera": "Veloera にインポート中...",
+    "retrying": "エラーが発生したため、再試行 #{{attempt}} を行います",
+    "tokenNotFound": "API トークンの作成または検索に失敗しました"
+  },
+  "aihubmix": {
+    "createRequiresOneTimeKeyDialog": "AIHubMix のキーは作成時に一度しか表示できません。キー管理で手動作成し、完全なキーをすぐに保存してください。",
+    "oneTimeKeyPromptCancelled": "アカウントは保存されました。あとでキー管理から AIHubMix API キーを手動作成できます。",
+    "oneTimeKeyUnavailableAfterCreate": "アカウントは保存されましたが、完全な AIHubMix API キーを取得できませんでした。AIHubMix キーは作成直後に一度だけ表示されます。キー管理で新しいキーを作成し、完全なキーをすぐに保存してください。"
+  },
+  "autodetect": {
+    "currentTabNeedsReload": "このページは拡張機能のインストールまたは更新前から開かれている可能性があり、現時点ではこのタブの情報を読み取れません。現在のページを再読み込みしてから、もう一度自動検出を試してください。",
+    "failed": "自動検出に失敗しました: {{error}}",
+    "forbidden": "アクセスが拒否されました。サイトのファイアウォールがリクエストを遮断していないか確認してください",
+    "loginThisSite": "このサイトにログイン",
+    "networkError": "ネットワーク接続に失敗しました。接続状況を確認して再試行してください",
+    "notFound": "リソースが見つかりません。入力したサイトアドレスが正しいか確認してください",
+    "notLoggedIn": "現在のサイトにログインしていないか、ログイン情報の有効期限が切れています。自動追加できません。ヘルプドキュメントを確認するか、先にログインしてください",
+    "serverError": "サーバーエラーです。しばらくしてからもう一度お試しください",
+    "timeout": "自動検出がタイムアウトしました。手動追加をお試しください",
+    "unexpectedData": "自動検出に失敗しました。サイトが予期しないデータを返しました。情報を手動入力するか、対象サイトにログインしていることを確認してください"
+  },
+  "axonhub": {
+    "channelExists": "チャネル {{channelName}} はすでに存在するため、再インポートは不要です",
+    "configMissing": "先に基本設定で AxonHub のアドレス、管理者メール、パスワードを設定してください",
+    "deleteFailed": "AxonHub チャネルの削除に失敗しました",
+    "importFailed": "インポートに失敗しました。不明なエラーが発生しました",
+    "importSuccess": "新しいチャネル {{channelName}} を正常にインポートしました",
+    "modelsMissing": "少なくとも 1 つのモデルを指定してください",
+    "noChannelsToSync": "同期するチャネルがありません",
+    "unsupportedModelSync": "このバージョンでは AxonHub の管理サイトモデル同期はサポートされていません"
+  },
+  "background": {
+    "cannotCreateWindow": "ウィンドウを作成できません",
+    "cannotCreateWindowOrTab": "ウィンドウを作成できないか、タブを取得できません",
+    "incognitoAccessRequired": "プライベート一時ウィンドウを使うにはシークレットモード権限が必要です。この拡張機能で「シークレットモードでの実行を許可」を有効にして再試行してください。",
+    "invalidFetchRequest": "無効な fetch リクエストです",
+    "pageLoadTimeout": "ページ読み込みがタイムアウトしました",
+    "windowCreationUnavailable": "この処理ではブラウザーが一時ウィンドウを開ける必要がありますが、ウィンドウ作成を利用できません。拡張機能によるウィンドウ作成を許可するか、対応しているブラウザーで再試行してください。",
+    "windowNotFound": "ウィンドウまたはタブが見つかりません"
+  },
+  "ccswitch": {
+    "attemptingRedirect": "CC Switch へリダイレクトを試行中",
+    "invalidApp": "未対応の CC Switch 対象アプリです",
+    "invalidEndpoint": "API エンドポイントが無効、または不足しています",
+    "invalidHomepage": "ホームページ URL が無効、または不足しています",
+    "missingCredentials": "必要なアカウント情報またはキー情報が不足しています",
+    "unableToOpen": "CC Switch を開けません。インストールされているか確認してください"
+  },
+  "cherryStudio": {
+    "attemptingRedirect": "Cherry Studio へリダイレクトを試行中",
+    "missingCredentials": "必要なアカウント情報またはキー情報が不足しています",
+    "unableToOpen": "開けません。Cherry Studio がインストールされているか確認してください"
+  },
+  "claudecodehub": {
+    "channelExists": "プロバイダー {{channelName}} は既に存在するため、再インポートは不要です",
+    "configMissing": "先に基本設定で Claude Code Hub のアドレスと管理者トークンを設定してください",
+    "deleteFailed": "Claude Code Hub プロバイダーの削除に失敗しました",
+    "importFailed": "インポートに失敗しました。不明なエラーが発生しました",
+    "importSuccess": "新しいプロバイダー {{channelName}} をインポートしました",
+    "modelsMissing": "少なくとも 1 つのモデルを指定してください",
+    "noChannelsToSync": "同期できるプロバイダーがありません",
+    "realProviderKeyRequired": "Claude Code Hub でプロバイダーを作成するには実際の上流キーが必要です。空またはマスク済みのキーは作成に使用できません。",
+    "unsupportedModelSync": "このバージョンでは Claude Code Hub の管理サイトモデル同期はサポートされていません",
+    "updateFailed": "Claude Code Hub プロバイダーの更新に失敗しました"
+  },
+  "claudeCodeRouter": {
+    "configMissing": "先に設定で Claude Code Router の Base URL を設定してください",
+    "importFailed": "Claude Code Router へのプロバイダーインポートに失敗しました",
+    "importSuccess": "プロバイダー {{name}} を Claude Code Router に正常にインポートしました",
+    "modelsMissing": "少なくとも 1 つのモデルを指定してください",
+    "updateSuccess": "Claude Code Router のプロバイダー {{name}} を正常に更新しました"
+  },
+  "cliproxy": {
+    "configMissing": "先に設定で CLIProxyAPI Management API の Base URL とキーを設定してください",
+    "importFailed": "CLIProxyAPI へのプロバイダーインポートに失敗しました",
+    "importSuccess": "プロバイダー {{name}} を CLIProxyAPI に正常にインポートしました",
+    "managementApiConnectionSuccess": "CLIProxyAPI Management API に接続できました",
+    "managementApiForbidden": "CLIProxyAPI がリクエストを拒否しました。管理キーの誤入力が多すぎないか、またはサーバー側でアクセス制限されていないか確認してください。",
+    "managementApiHttpError": "CLIProxyAPI Management API が想定外のステータスコードを返しました（HTTP {{status}}）",
+    "managementApiInvalidKey": "CLIProxyAPI の管理キーが無効です。設定内の管理キーを確認してください。",
+    "managementApiNotFound": "CLIProxyAPI Management API が見つかりません。Base URL が /v0/management で終わっていること、および CLIProxyAPI 側で管理キーが設定されていることを確認してください。",
+    "managementApiRemoteAccessDisabled": "CLIProxyAPI がリモート管理アクセスを拒否しました。CLIProxyAPI の設定で remote-management.allow-remote: true が有効か、または MANAGEMENT_PASSWORD によってリモート管理が有効になっているか確認してから再試行してください。",
+    "managementApiServerError": "CLIProxyAPI Management API がサーバーエラーを返しました（HTTP {{status}}）",
+    "managementApiUnreachable": "CLIProxyAPI Management API に接続できません。Base URL、サービス状態、ブラウザーからそのアドレスへのネットワーク到達性を確認してください。",
+    "updateSuccess": "CLIProxy プロバイダー {{name}} を正常に更新しました"
+  },
+  "content": {
+    "userInfoNotFound": "ユーザー情報が見つかりません。ログイン済みか確認してください",
+    "waitUserInfoTimeout": "ユーザー情報待機がタイムアウトしました。ログイン済みか確認してください"
+  },
+  "donehub": {
+    "channelExists": "チャネル {{channelName}} はすでに存在するため、再インポートは不要です",
+    "configMissing": "先に基本設定で Done Hub のアドレス、管理者トークン、ユーザー ID を設定してください",
+    "importFailed": "インポートに失敗しました。不明なエラーが発生しました",
+    "importSuccess": "新しいチャネル {{channelName}} を正常にインポートしました",
+    "noChannelsToSync": "同期するチャネルがありません"
+  },
+  "errors": {
+    "api": {
+      "invalidResponseFormat": "無効な応答形式です",
+      "onlyJsonSupported": "JSON 応答のみサポートしています",
+      "requestFailed": "リクエストに失敗しました: {{status}}"
+    },
+    "operation": {
+      "accountDataFetchTimeout": "アカウントデータの取得がタイムアウトしました（{{seconds}} 秒）",
+      "failed": "操作に失敗しました: {{error}}",
+      "saveFailed": "保存に失敗しました: {{error}}"
+    },
+    "tokenSecretUnavailable": "このプラットフォームでは完全なキーを再表示できません。作成時にコピーして保存してください。",
+    "unknown": "不明なエラー",
+    "validation": {
+      "bookmarkNameRequired": "ブックマーク名は空にできません",
+      "bookmarkUrlRequired": "ブックマーク URL は空にできません",
+      "doneHubAdminTokenRequired": "Done Hub 管理者トークンが設定されていません",
+      "doneHubBaseUrlRequired": "Done Hub Base URL が設定されていません",
+      "doneHubUserIdRequired": "Done Hub ユーザー ID が設定されていません",
+      "incompleteAccountInfo": "アカウント情報をすべて入力してください",
+      "newApiAdminTokenRequired": "New API 管理者トークンが設定されていません",
+      "newApiBaseUrlRequired": "New API Base URL が設定されていません",
+      "newApiUserIdRequired": "New API ユーザー ID が設定されていません",
+      "updateAccountFailed": "アカウントの更新に失敗しました {{error}}",
+      "urlRequired": "サイト URL は空にできません",
+      "userIdNumeric": "ユーザー ID は数値である必要があります",
+      "veloeraAdminTokenRequired": "Veloera 管理者トークンが設定されていません",
+      "veloeraBaseUrlRequired": "Veloera Base URL が設定されていません",
+      "veloeraUserIdRequired": "Veloera ユーザー ID が設定されていません"
+    }
+  },
+  "newapi": {
+    "channelExists": "チャネル {{channelName}} はすでに存在するため、再インポートは不要です",
+    "channelMatchUnresolved": "重複の可能性があるチャネルが存在しますが、確認には New API の検証手順が必要です。先に検証を完了してから再度インポートしてください。",
+    "configMissing": "先に基本設定で New API のアドレス、管理者トークン、ユーザー ID を設定してください",
+    "importFailed": "インポートに失敗しました。不明なエラーが発生しました",
+    "importSuccess": "新しいチャネル {{channelName}} を正常にインポートしました",
+    "noChannelsToSync": "同期するチャネルがありません"
+  },
+  "octopus": {
+    "channelExists": "チャネル {{channelName}} はすでに存在するため、再インポートは不要です",
+    "configMissing": "先に基本設定で Octopus のアドレス、ユーザー名、パスワードを設定してください",
+    "corsError": "これは CORS 設定が原因の可能性があります。Octopus 設定の CORS ホワイトリストを確認してください。",
+    "importFailed": "インポートに失敗しました。不明なエラーが発生しました",
+    "importSuccess": "新しいチャネル {{channelName}} を正常にインポートしました",
+    "noChannelsToSync": "同期するチャネルがありません"
+  },
+  "operations": {
+    "detection": {
+      "failed": "自動検出に失敗しました。情報を手動入力するか、対象サイトにログインしていることを確認してください",
+      "getAccessTokenFailedDetailed": "アカウントは検出されましたが、アクセストークンを取得できませんでした。API トークンを作成または表示できる権限があるか確認するか、手動で入力してください。",
+      "getInfoFailed": "ユーザー名または Access Token の取得に失敗しました",
+      "getSiteStatusFailedDetailed": "アカウントは検出されましたが、サイト状態を読み取れませんでした。時間をおいて再試行してください。解消しない場合は、先に手動で保存してください。",
+      "getUserIdFailed": "ユーザー ID を取得できませんでした",
+      "getUserIdFailedDetailed": "サイトには接続できましたが、ユーザー ID を読み取れませんでした。対象サイトにログインしていることを確認してから再試行してください。",
+      "getUsernameFailedDetailed": "アカウントは検出されましたが、サイトがユーザー名を返しませんでした。ログインしていることを確認するか、手動で入力してください。"
+    }
+  },
+  "storage": {
+    "accountDisabled": "アカウント {{id}} は無効です",
+    "accountNotFound": "アカウント {{id}} は存在しません",
+    "updateFailed": "アカウントの更新に失敗しました"
+  },
+  "sub2api": {
+    "createRequiresAvailableGroup": "このアカウントにはキー作成に使えるグループがありません。利用可能なグループ設定を確認してから再試行してください。",
+    "createRequiresGroup": "キー作成にはグループの確定が必要です。続行する前に利用可能なグループを選択してください。",
+    "createRequiresGroupSelection": "このアカウントには利用可能なグループが複数あります。キーを作成する前に 1 つ選択してください。",
+    "groupMissing": "Sub2API グループ '{{group}}' は現在利用できません。グループ一覧を更新して再試行してください。",
+    "loginRequired": "先に Sub2API ダッシュボードへログインして（拡張機能が localStorage から auth_token / auth_user を読めるようにして）、再試行してください。",
+    "refreshTokenInvalid": "Sub2API の Refresh Token が無効または更新済みです。ダッシュボードからセッションを再取り込み（推奨: シークレット / プライベートウィンドウ）するか、新しい refresh_token を貼り付けて再試行してください。"
+  },
+  "toast": {
+    "error": {
+      "copyFailed": "コピーに失敗しました",
+      "duplicateCleanupFailed": "重複アカウントの削除に失敗しました: {{error}}",
+      "externalCheckInNonePending": "本日まだ開いていない外部チェックイン先はありません。",
+      "findAccountDetailsFailed": "アカウント詳細が見つかりませんでした",
+      "operationFailed": "操作に失敗しました: {{error}}",
+      "operationFailedGeneric": "操作に失敗しました",
+      "refreshAccount": "{{accountName}} の更新に失敗しました",
+      "saveFailed": "保存に失敗しました",
+      "shareSnapshotAccountDisabled": "このアカウントは無効です",
+      "shareSnapshotNoEnabledAccounts": "共有可能な有効アカウントがありません"
+    },
+    "loading": {
+      "refreshingAccount": "{{accountName}} を更新中..."
+    },
+    "success": {
+      "accountDisabled": "{{accountName}} を無効化しました",
+      "accountEnabled": "{{accountName}} を有効化しました",
+      "accountPinned": "{{accountName}} をピン留めしました",
+      "accountSaveSuccess": "アカウントを正常に保存しました",
+      "accountsDisabled_other": "{{count}} 件のアカウントを無効化しました",
+      "accountsEnabled_other": "{{count}} 件のアカウントを有効化しました",
+      "accountUnpinned": "{{accountName}} のピン留めを解除しました",
+      "accountUpdateSuccess": "アカウントを正常に更新しました",
+      "bookmarkAdded": "ブックマーク {{name}} を正常に追加しました",
+      "bookmarkDeleted": "ブックマーク {{name}} を削除しました",
+      "bookmarkPinned": "{{name}} をピン留めしました",
+      "bookmarkUnpinned": "{{name}} のピン留めを解除しました",
+      "bookmarkUpdated": "ブックマーク {{name}} を正常に更新しました",
+      "bookmarkUrlCopied": "{{name}} の URL をクリップボードにコピーしました",
+      "duplicateCleanupSuccess_other": "{{groups}} 組の重複セットから {{count}} 件のアカウントを削除しました。",
+      "externalCheckInModeAll": "すべて",
+      "externalCheckInModeUnchecked": "未開封のみ",
+      "externalCheckInOpened_other": "{{count}} 件のアカウントで外部チェックインを開きました（{{mode}}）。",
+      "operationCompleted": "操作が完了しました",
+      "refreshAccount": "{{accountName}} を正常に更新しました",
+      "refreshSkipped": "更新間隔に達していないためスキップしました",
+      "shareSnapshotCaptionCopied": "キャプションをコピーしました",
+      "shareSnapshotCopied": "スナップショットをクリップボードにコピーしました",
+      "shareSnapshotDownloaded": "スナップショットをダウンロードしました",
+      "urlCopied": "{{accountName}} の URL をクリップボードにコピーしました"
+    }
+  },
+  "veloera": {
+    "channelExists": "チャネル {{channelName}} はすでに存在するため、再インポートは不要です",
+    "configMissing": "先に基本設定で Veloera のアドレス、管理者トークン、ユーザー ID を設定してください",
+    "importFailed": "インポートに失敗しました。不明なエラーが発生しました",
+    "importSuccess": "新しいチャネル {{channelName}} を正常にインポートしました",
+    "noChannelsToSync": "同期するチャネルがありません"
+  },
+  "warnings": {
+    "accountSavedWithoutDataRefresh": "アカウントは保存されましたが、最新の残高・クォータ・本日の使用量を取得できませんでした。現在の表示は仮の値の可能性があります。後でアカウント一覧から更新してください。",
+    "accountUpdatedWithoutDataRefresh": "アカウント設定は保存されましたが、最新の残高・クォータ・本日の使用量を更新できませんでした。現在の表示は古いままの可能性があります。後でアカウント一覧から更新してください。"
+  },
+  "webdav": {
+    "authFailed": "認証に失敗しました。ユーザー名 / パスワードを確認してください",
+    "configIncomplete": "WebDAV URL、ユーザー名、パスワードをすべて入力してください",
+    "connectionFailed": "接続に失敗しました。ステータスコード: {{status}}",
+    "decryptFailed": "バックアップの復号に失敗しました。パスワードを確認してください",
+    "decryptFailedNoPassword": "バックアップは暗号化されていますが、パスワードが設定されていません",
+    "downloadFailed": "ダウンロードに失敗しました。ステータスコード: {{status}}",
+    "encryptFailedNoPassword": "暗号化が有効ですが、パスワードが設定されていません",
+    "fileNotFound": "リモートのバックアップファイルが存在しません",
+    "invalidBackupJson": "クラウドバックアップファイルが不完全なため、同期に使用できません。破損したデータを結合しないよう、今回の同期は停止しました。この端末のローカルデータが完全な場合は、「WebDAV にアップロード」でクラウドバックアップを再作成してください。完全でない場合は、完全なデータがある別の端末からアップロードするか、完全なバックアップファイルを先にインポートしてください。",
+    "safeCommitFailed": "この WebDAV サービスではバックアップを安全に保存できませんでした。既存のクラウドバックアップは保持されています。後でもう一度試すか、ファイルの移動または名前変更に対応した WebDAV サービスを使用してください。",
+    "syncDataSelectionRequired": "同期するデータ領域を少なくとも 1 つ選択してください",
+    "uploadFailed": "アップロードに失敗しました。ステータスコード: {{status}}",
+    "uploadVerificationFailed": "アップロード後のバックアップ検証に失敗しました。クラウドサービスがファイルを完全に保存できなかった可能性があります。既存のクラウドバックアップは保持されています。"
+  }
+}

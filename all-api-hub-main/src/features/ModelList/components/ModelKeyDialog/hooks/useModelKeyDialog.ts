@@ -1,0 +1,377 @@
+import { useCallback, useEffect, useMemo, useState } from "react"
+import toast from "react-hot-toast"
+import { useTranslation } from "react-i18next"
+
+import { generateDefaultTokenRequest } from "~/services/accounts/accountKeyAutoProvisioning/ensureDefaultToken"
+import {
+  canManageDisplayAccountTokens,
+  createDisplayAccountApiContext,
+  fetchDisplayAccountTokens,
+  InvalidTokenPayloadError,
+  resolveDisplayAccountTokenForSecret,
+} from "~/services/accounts/utils/apiServiceRequest"
+import { formatOptionalSkPrefixSiteToken } from "~/services/apiService/common/apiKey"
+import { isTokenCompatibleWithModel } from "~/services/models/utils/tokenModelCompatibility"
+import { AuthTypeEnum, type ApiToken, type DisplaySiteData } from "~/types"
+import { sleep } from "~/utils/core/async"
+import { getErrorMessage } from "~/utils/core/error"
+import { createLogger } from "~/utils/core/logger"
+
+/**
+ * Logger scoped to the "model key" dialog so token loading and clipboard failures can be diagnosed safely.
+ */
+const logger = createLogger("ModelKeyDialogHook")
+const POST_CREATE_TOKEN_REFRESH_ATTEMPTS = 5
+const POST_CREATE_TOKEN_REFRESH_INTERVAL_MS = 1_000
+
+const isCreatedApiToken = (value: unknown): value is ApiToken =>
+  !!value &&
+  typeof value === "object" &&
+  typeof (value as Partial<ApiToken>).id === "number" &&
+  typeof (value as Partial<ApiToken>).key === "string"
+
+export type ModelKeyDialogCreateResult = "success" | "failure" | "skipped"
+
+/**
+ * Input params for `useModelKeyDialog`.
+ */
+type UseModelKeyDialogParams = {
+  isOpen: boolean
+  account: DisplaySiteData | null
+  modelId: string
+  modelEnableGroups: string[]
+}
+
+/**
+ * Dialog state + actions for the model→key compatibility flow.
+ */
+export function useModelKeyDialog(params: UseModelKeyDialogParams) {
+  const { isOpen, account, modelId, modelEnableGroups } = params
+  const { t } = useTranslation(["modelList", "common", "messages"])
+
+  const [tokens, setTokens] = useState<ApiToken[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [selectedTokenId, setSelectedTokenId] = useState<number | null>(null)
+
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [oneTimeToken, setOneTimeToken] = useState<ApiToken | null>(null)
+
+  const canCreateToken = useMemo(
+    () => canManageDisplayAccountTokens(account),
+    [account],
+  )
+
+  const ineligibleDescription = useMemo(() => {
+    if (!account) return null
+    if (canCreateToken) return null
+    if (account.disabled === true)
+      return t("modelList:keyDialog.ineligible.accountDisabled")
+    if (account.authType === AuthTypeEnum.None)
+      return t("modelList:keyDialog.ineligible.missingAuth")
+    return t("modelList:keyDialog.ineligible.missingCredentials")
+  }, [account, canCreateToken, t])
+
+  const fetchTokens = useCallback(async () => {
+    if (!account) return false
+
+    setIsLoading(true)
+    setError(null)
+    setCreateError(null)
+
+    try {
+      const fetchedTokens = await fetchDisplayAccountTokens(account)
+      setTokens(fetchedTokens)
+      return true
+    } catch (error) {
+      const errorMessage =
+        error instanceof InvalidTokenPayloadError
+          ? t("messages:errors.unknown")
+          : getErrorMessage(error)
+      logger.error("Failed to load token list for model key dialog", {
+        message: errorMessage,
+        accountId: account.id,
+        baseUrl: account.baseUrl,
+        siteType: account.siteType,
+        ...(error instanceof InvalidTokenPayloadError
+          ? {
+              payloadAccountId: error.accountId,
+              payloadBaseUrl: error.baseUrl,
+              payloadSiteType: error.siteType,
+              payloadResponseType: error.responseType,
+            }
+          : {}),
+      })
+      setError(t("modelList:keyDialog.loadFailed", { error: errorMessage }))
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }, [account, t])
+
+  const modelContext = useMemo(
+    () => ({ id: modelId, enableGroups: modelEnableGroups }),
+    [modelEnableGroups, modelId],
+  )
+
+  const compatibleTokens = useMemo(
+    () =>
+      tokens.filter((token) => isTokenCompatibleWithModel(token, modelContext)),
+    [modelContext, tokens],
+  )
+
+  useEffect(() => {
+    if (!isOpen || !account) {
+      setTokens([])
+      setIsLoading(false)
+      setError(null)
+      setSelectedTokenId(null)
+      setIsCreating(false)
+      setCreateError(null)
+      setOneTimeToken(null)
+      return
+    }
+
+    fetchTokens()
+  }, [account, fetchTokens, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    setSelectedTokenId((prev) => {
+      if (
+        prev !== null &&
+        compatibleTokens.some((token) => token.id === prev)
+      ) {
+        return prev
+      }
+
+      if (compatibleTokens.length === 1) {
+        return compatibleTokens[0].id
+      }
+
+      return null
+    })
+  }, [compatibleTokens, isOpen])
+
+  const selectedToken = useMemo(
+    () =>
+      selectedTokenId !== null
+        ? compatibleTokens.find((token) => token.id === selectedTokenId) ?? null
+        : null,
+    [compatibleTokens, selectedTokenId],
+  )
+
+  const fetchTokensUntilCompatibleAfterCreate = useCallback(async () => {
+    if (!account) {
+      return { refreshedTokens: [], refreshedCompatible: [] }
+    }
+
+    for (
+      let attempt = 1;
+      attempt <= POST_CREATE_TOKEN_REFRESH_ATTEMPTS;
+      attempt++
+    ) {
+      const refreshedTokens = await fetchDisplayAccountTokens(account)
+      const refreshedCompatible = refreshedTokens.filter((token) =>
+        isTokenCompatibleWithModel(token, modelContext),
+      )
+
+      if (
+        refreshedCompatible.length > 0 ||
+        attempt === POST_CREATE_TOKEN_REFRESH_ATTEMPTS
+      ) {
+        return { refreshedTokens, refreshedCompatible }
+      }
+
+      await sleep(POST_CREATE_TOKEN_REFRESH_INTERVAL_MS)
+    }
+
+    return { refreshedTokens: [], refreshedCompatible: [] }
+  }, [account, modelContext])
+
+  const copySelectedKey = useCallback(async () => {
+    if (!account || !selectedToken) return
+
+    try {
+      const resolvedToken = await resolveDisplayAccountTokenForSecret(
+        account,
+        selectedToken,
+      )
+      await navigator.clipboard.writeText(resolvedToken.key)
+      toast.success(t("modelList:keyDialog.keyCopied"))
+    } catch (error) {
+      const errorMessage = getErrorMessage(
+        error,
+        t("modelList:keyDialog.copyFailed"),
+      )
+      logger.error("Failed to copy key to clipboard from model key dialog", {
+        message: errorMessage,
+      })
+      toast.error(errorMessage)
+    }
+  }, [account, selectedToken, t])
+
+  const refreshTokensAfterCreate = useCallback(
+    async (createdToken?: ApiToken) => {
+      if (!account) return "skipped" as const
+
+      if (!canCreateToken) {
+        setCreateError(t("modelList:keyDialog.createNotSupported"))
+        return "skipped" as const
+      }
+
+      setCreateError(null)
+      setIsLoading(true)
+
+      try {
+        if (createdToken) {
+          setTokens((currentTokens) => {
+            const withoutCreated = currentTokens.filter(
+              (token) => token.id !== createdToken.id,
+            )
+            return [...withoutCreated, createdToken]
+          })
+          if (isTokenCompatibleWithModel(createdToken, modelContext)) {
+            setSelectedTokenId(createdToken.id)
+            setOneTimeToken(
+              formatOptionalSkPrefixSiteToken(createdToken, account.siteType),
+            )
+            toast.success(t("modelList:keyDialog.createSuccess"))
+            return "success" as const
+          } else {
+            setCreateError(
+              t("modelList:keyDialog.noCompatibleFoundAfterCreate", {
+                modelId,
+              }),
+            )
+            return "failure" as const
+          }
+        }
+
+        const { refreshedTokens, refreshedCompatible } =
+          await fetchTokensUntilCompatibleAfterCreate()
+        setTokens(refreshedTokens)
+
+        if (refreshedCompatible.length === 0) {
+          setCreateError(
+            t("modelList:keyDialog.noCompatibleFoundAfterCreate", { modelId }),
+          )
+          return "failure" as const
+        }
+
+        toast.success(t("modelList:keyDialog.createSuccess"))
+        return "success" as const
+      } catch (error) {
+        const errorMessage =
+          error instanceof InvalidTokenPayloadError
+            ? t("messages:errors.unknown")
+            : getErrorMessage(error)
+        logger.error(
+          "Failed to refresh token list after create (model key dialog)",
+          {
+            message: errorMessage,
+            accountId: account.id,
+            baseUrl: account.baseUrl,
+            siteType: account.siteType,
+            ...(error instanceof InvalidTokenPayloadError
+              ? {
+                  payloadAccountId: error.accountId,
+                  payloadBaseUrl: error.baseUrl,
+                  payloadSiteType: error.siteType,
+                  payloadResponseType: error.responseType,
+                }
+              : {}),
+          },
+        )
+        setCreateError(
+          t("modelList:keyDialog.createFailed", { error: errorMessage }),
+        )
+        return "failure" as const
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [
+      account,
+      canCreateToken,
+      fetchTokensUntilCompatibleAfterCreate,
+      modelContext,
+      modelId,
+      t,
+    ],
+  )
+
+  const createDefaultKey = useCallback(
+    async (group: string) => {
+      if (!account) return "skipped" as const
+
+      if (!canCreateToken) {
+        setCreateError(t("modelList:keyDialog.createNotSupported"))
+        return "skipped" as const
+      }
+
+      if (isCreating) return "skipped" as const
+
+      const normalizedGroup = typeof group === "string" ? group.trim() : ""
+      if (!normalizedGroup) {
+        setCreateError(t("modelList:keyDialog.createGroupRequired"))
+        return "skipped" as const
+      }
+
+      setIsCreating(true)
+      setCreateError(null)
+
+      try {
+        const { service, request } = createDisplayAccountApiContext(account)
+        const tokenRequest = generateDefaultTokenRequest()
+        tokenRequest.group = normalizedGroup
+        const created = await service.createApiToken(request, tokenRequest)
+        if (!created) {
+          throw new Error("create_token_failed")
+        }
+
+        return await refreshTokensAfterCreate(
+          isCreatedApiToken(created) ? created : undefined,
+        )
+      } catch (error) {
+        const errorMessage = getErrorMessage(error)
+        logger.error("Failed to create default token (model key dialog)", {
+          message: errorMessage,
+          accountId: account.id,
+          baseUrl: account.baseUrl,
+          siteType: account.siteType,
+        })
+        setCreateError(
+          t("modelList:keyDialog.createFailed", { error: errorMessage }),
+        )
+        return "failure" as const
+      } finally {
+        setIsCreating(false)
+      }
+    },
+    [account, canCreateToken, isCreating, refreshTokensAfterCreate, t],
+  )
+
+  return {
+    tokens,
+    compatibleTokens,
+    isLoading,
+    error,
+    selectedTokenId,
+    setSelectedTokenId,
+    selectedToken,
+    canCreateToken,
+    ineligibleDescription,
+    isCreating,
+    createError,
+    oneTimeToken,
+    fetchTokens,
+    copySelectedKey,
+    createDefaultKey,
+    refreshTokensAfterCreate,
+    clearOneTimeToken: () => setOneTimeToken(null),
+  }
+}

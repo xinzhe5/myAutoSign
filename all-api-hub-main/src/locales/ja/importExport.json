@@ -1,0 +1,133 @@
+{
+  "description": "拡張機能データのバックアップと復元",
+  "export": {
+    "accountData": "アカウントデータ",
+    "accountDataDescription": "アカウント情報と関連データのみをエクスポート",
+    "accountsExported": "アカウントデータを正常にエクスポートしました",
+    "dataExported": "データを正常にエクスポートしました",
+    "description": "バックアップ用にデータを JSON ファイルとしてエクスポートします",
+    "exportFailed": "エクスポートに失敗しました。もう一度お試しください",
+    "fullBackup": "完全エクスポート",
+    "fullBackupDescription": "アカウントデータとユーザー設定をエクスポートします。WebDAV 同期ではなく端末ローカル設定を移行したい場合は、手動のエクスポート / インポートを使用してください。",
+    "settingsExported": "ユーザー設定を正常にエクスポートしました",
+    "title": "データをエクスポート",
+    "userSettings": "ユーザー設定",
+    "userSettingsDescription": "画面設定と各種設定のみをエクスポート"
+  },
+  "import": {
+    "backupTime": "バックアップ時刻",
+    "containsAccountData": "アカウントデータを含む",
+    "containsApiCredentialProfiles": "API 認証情報庫を含む",
+    "containsChannelConfigs": "チャネル設定を含む",
+    "containsUserSettings": "ユーザー設定を含む",
+    "dataInvalid": "データ形式エラーです。JSON 形式を確認してください",
+    "dataPreview": "データプレビュー",
+    "dataValid": "データ形式は正しいです",
+    "description": "バックアップファイルからデータを復元します",
+    "downloadImportFailed": "WebDAV からのインポートに失敗しました",
+    "formatError": "データ形式エラーです。JSON 形式を確認してください",
+    "formatNotCorrect": "データ形式が正しくありません",
+    "importFailed": "インポートに失敗しました: {{error}}",
+    "importSuccess": "データを正常にインポートしました",
+    "noImportableData": "インポート可能なデータが見つかりません",
+    "pasteJsonData": "JSON データを貼り付けるか、上のファイル選択からインポートしてください...",
+    "selectBackupFile": "バックアップファイルを選択",
+    "selectFileImport": "インポートするファイルを選択するか、データを入力してください",
+    "title": "データをインポート"
+  },
+  "notice": {
+    "importantNotice": "重要なお知らせ",
+    "importWarning1": "インポートしたデータは同種の既存データを上書きします。慎重に操作してください",
+    "importWarning2": "インポート前に現在のデータをバックアップとしてエクスポートすることを推奨します",
+    "importWarning3": "この拡張機能からエクスポートされた JSON 形式ファイルのみをサポートします",
+    "importWarning4": "インポートデータには機密情報（アカウントトークンや API キー）が含まれる場合があります。バックアップは安全に保管し、信頼できるソースからのみインポートしてください"
+  },
+  "title": "インポート / エクスポート",
+  "webdav": {
+    "actionState": {
+      "saved": "設定は保存済みです。接続テスト、WebDAV へのアップロード、WebDAV からのインポートは現在保存済みの設定を使用します。",
+      "unsaved": "設定に未保存の変更があります。接続テスト、WebDAV へのアップロード、WebDAV からのインポートでは、先にこれらの変更を保存します。"
+    },
+    "autoSync": {
+      "actionState": {
+        "saved": "今すぐ同期は、保存済みの WebDAV 設定と自動同期設定を使用します。",
+        "unsaved": "自動同期設定に未保存の変更があります。今すぐ同期ではこれらの変更は使用されません。先に自動同期設定を保存してください。"
+      },
+      "description": "共有データの自動同期を設定します。端末ローカル設定は現在の端末に残ります。",
+      "enable": "自動同期を有効化",
+      "enableDesc": "有効にすると、共有データが設定した間隔で WebDAV に同期されます。",
+      "interval": "同期間隔（秒）",
+      "intervalDesc": "自動同期の実行間隔を設定します",
+      "intervalHint": "約 {{minutes}} 分",
+      "lastSync": "前回同期",
+      "saveSettings": "設定を保存",
+      "strategy": "同期戦略",
+      "strategyDesc": "データの同期方法を選択します",
+      "strategyLocalFirst": "ローカル優先 - ローカルデータでリモートを上書き",
+      "strategyMerge": "スマートマージ - タイムスタンプに基づいてローカルとリモートを統合",
+      "strategyRemoteFirst": "リモート優先 - リモートデータでローカルを上書き",
+      "syncNow": "今すぐ同期",
+      "title": "WebDAV 自動同期"
+    },
+    "configDesc": "共有データを同期するための WebDAV を設定します。一部の端末ローカル設定はこの端末に残り、アップロードも上書きもされません。",
+    "downloadImport": "WebDAV からインポート",
+    "downloadImportWithSave": "保存して WebDAV からインポート",
+    "encryption": {
+      "decryptAction": "復号してインポート",
+      "decryptDialogDesc": "この WebDAV 同期データは暗号化されています。パスワードを入力してインポートを試してください。",
+      "decryptDialogTitle": "WebDAV データを復号",
+      "decryptFailed": "復号に失敗しました",
+      "decryptPassword": "パスワード",
+      "decryptPrompt": "自動復号できません。パスワードを入力してください。",
+      "enableDesc": "サーバーにアップロードする WebDAV 同期データをパスワードで暗号化します。復元時にも同じパスワードが必要です。",
+      "password": "暗号化パスワード",
+      "passwordDesc": "WebDAV にアップロードするデータの暗号化と、WebDAV からダウンロードしたデータの復号に使用します。",
+      "passwordPlaceholder": "パスワードを入力",
+      "savePassword": "今後の復号用にパスワードを保存",
+      "title": "WebDAV データ暗号化"
+    },
+    "hidePassword": "パスワードを隠す",
+    "notSynced": "未同期",
+    "password": "パスワード",
+    "rebuildDialog": {
+      "cancel": "今は再作成しない",
+      "confirm": "この端末から再作成",
+      "description": "WebDAV 上のバックアップファイルが不完全です。このまま同期を続けると、データが正しく混ざらない可能性があります。この端末のデータから新しいクラウドバックアップを作成できます。",
+      "fullSelectionNote": "この再作成では、今回のアップロードに限り同期可能なすべてのデータを含めます。保存済みの同期範囲設定は変更されません。",
+      "title": "クラウドバックアップが破損している可能性があります",
+      "warningDescription": "再作成すると、WebDAV 上のバックアップがこの端末の現在のデータで置き換わります。この端末にアカウント、ブックマーク、設定が不足している場合は、完全なデータがある別の端末からアップロードするか、先に完全なバックアップをインポートしてください。",
+      "warningTitle": "この端末のデータが完全であることを確認してください"
+    },
+    "restorePolicy": {
+      "description": "WebDAV は完全な端末バックアップではなく、共有データ同期を目的としています。現在の端末の WebDAV 接続 / 暗号化設定、同期対象選択、アカウント自動更新設定はローカルに保持され、WebDAV へアップロードも上書きもされません。これらの端末ローカル設定を移行する場合は、手動のエクスポート / インポートを使用してください。",
+      "title": "同期対象に関する注意"
+    },
+    "saveConfig": "設定を保存",
+    "showPassword": "パスワードを表示",
+    "syncData": {
+      "accounts": "アカウント",
+      "apiCredentialProfiles": "API 認証情報庫",
+      "bookmarks": "ブックマーク",
+      "description": "WebDAV 同期に参加させる共有データ領域を選択します。WebDAV 設定、同期対象選択、アカウント自動更新などの端末ローカル設定はこの端末に残り、チャネル設定は互換性のため同期対象のままです。",
+      "preferences": "設定",
+      "selectionRequired": "同期するデータ領域を少なくとも 1 つ選択してください",
+      "title": "同期データ"
+    },
+    "syncError": "同期に失敗しました",
+    "syncFailed": "同期に失敗しました",
+    "syncing": "同期中",
+    "syncSuccess": "同期に成功しました",
+    "testConnection": "接続テスト",
+    "testConnectionWithSave": "保存して接続テスト",
+    "testFailed": "接続テストに失敗しました",
+    "testSuccess": "接続テストに成功しました",
+    "title": "WebDAV 同期",
+    "uploadBackup": "WebDAV にアップロード",
+    "uploadBackupWithSave": "保存して WebDAV にアップロード",
+    "uploadFailed": "WebDAV へのアップロードに失敗しました",
+    "uploadSuccess": "WebDAV にアップロードしました",
+    "username": "ユーザー名",
+    "webdavUrl": "WebDAV URL",
+    "webdavUrlExample": "例: https://dav.example.com/{{filename}} の完全ファイル URL、または WebDAV ルートディレクトリ URL"
+  }
+}

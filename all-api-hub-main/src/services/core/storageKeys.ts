@@ -1,0 +1,162 @@
+/**
+ * Shared storage key registry.
+ *
+ * Keep these constants in a standalone module to avoid circular dependencies
+ * between storage services (e.g. account storage <-> tag storage).
+ */
+
+/**
+ * localStorage key used by i18next-browser-languagedetector.
+ */
+export const I18NEXT_LANGUAGE_STORAGE_KEY = "all-api-hub-i18nextLng"
+
+export const STORAGE_LOCKS = {
+  /**
+   * Exclusive lock used for any read-modify-write sequences touching account
+   * storage and related derived blobs (e.g. global tag store).
+   */
+  ACCOUNT_STORAGE: "all-api-hub:account-storage",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching the daily
+   * balance history store.
+   */
+  DAILY_BALANCE_HISTORY: "all-api-hub:daily-balance-history",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching API credential
+   * profiles storage.
+   */
+  API_CREDENTIAL_PROFILES: "all-api-hub:api-credential-profiles",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching persisted API
+   * verification result history.
+   */
+  API_VERIFICATION_HISTORY: "all-api-hub:api-verification-history",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching user
+   * preferences storage.
+   */
+  USER_PREFERENCES: "all-api-hub:user-preferences",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching product
+   * analytics preferences and cadence state.
+   */
+  PRODUCT_ANALYTICS: "all-api-hub:product-analytics",
+  /**
+   * Best-effort lock used to serialize the WebDAV auto-sync apply/rollback
+   * section itself. Individual storage services still enforce their own
+   * storage-specific locks where applicable.
+   */
+  WEBDAV_SYNC_APPLY: "all-api-hub:webdav-sync-apply",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching the changelog
+   * on update state store.
+   */
+  CHANGELOG_ON_UPDATE: "all-api-hub:changelog-on-update",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching cached release
+   * update status.
+   */
+  RELEASE_UPDATE: "all-api-hub:release-update",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching the LDOH site
+   * lookup cache.
+   */
+  LDOH_SITE_LOOKUP: "all-api-hub:ldoh-site-lookup",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching the local site
+   * announcement cache.
+   */
+  SITE_ANNOUNCEMENTS: "all-api-hub:site-announcements",
+  /**
+   * Exclusive lock used for read-modify-write sequences touching the sponsor
+   * recommendation catalog cache.
+   */
+  SPONSOR_CATALOG: "all-api-hub:sponsor-catalog",
+} as const
+
+export const ACCOUNT_STORAGE_KEYS = {
+  ACCOUNTS: "site_accounts",
+} as const
+
+export const TAG_STORAGE_KEYS = {
+  TAG_STORE: "global_tag_store",
+} as const
+
+export const USER_PREFERENCES_STORAGE_KEYS = {
+  USER_PREFERENCES: "user_preferences",
+} as const
+
+export const PRODUCT_ANALYTICS_STORAGE_KEYS = {
+  PRODUCT_ANALYTICS_PREFERENCES: "productAnalytics_preferences_v1",
+  PRODUCT_ANALYTICS_STATE: "productAnalytics_state_v1",
+} as const
+
+const DAILY_BALANCE_HISTORY_STORAGE_KEYS = {
+  STORE: "dailyBalanceHistory_store",
+} as const
+
+export const API_CREDENTIAL_PROFILES_STORAGE_KEYS = {
+  API_CREDENTIAL_PROFILES: "api_credential_profiles",
+} as const
+
+export const API_VERIFICATION_HISTORY_STORAGE_KEYS = {
+  VERIFICATION_RESULT_HISTORY: "api_verification_result_history",
+} as const
+
+export const LDOH_SITE_LOOKUP_STORAGE_KEYS = {
+  SITE_LIST_CACHE: "ldohSiteLookup_siteListCache_v1",
+} as const
+
+export const ACCOUNT_KEY_AUTO_PROVISIONING_STORAGE_KEYS = {
+  REPAIR_PROGRESS: "accountKeyRepair_progress",
+} as const
+
+export const OPTIONS_SEARCH_STORAGE_KEYS = {
+  RECENT_ITEM_IDS: "optionsSearch_recentItemIds_v1",
+} as const
+
+const CHANGELOG_ON_UPDATE_STORAGE_KEYS = {
+  PENDING_VERSION: "changelogOnUpdate_pendingVersion",
+} as const
+
+const RELEASE_UPDATE_STORAGE_KEYS = {
+  STATUS: "releaseUpdate_status",
+} as const
+
+const SITE_ANNOUNCEMENTS_STORAGE_KEYS = {
+  STORE: "siteAnnouncements_store",
+} as const
+
+const SPONSOR_CATALOG_STORAGE_KEYS = {
+  CACHE: "sponsorCatalog_cache_v1",
+} as const
+
+const SPONSOR_ADD_ACCOUNT_INTENT_STORAGE_KEYS = {
+  PENDING_PREFILL: "sponsorAddAccount_pendingPrefill_v1",
+} as const
+
+/**
+ * Centralized storage keys registry.
+ *
+ * Prefer this export when you need to reference storage keys outside of a
+ * specific storage module so discovery and auditing remain straightforward.
+ */
+export const STORAGE_KEYS = {
+  ...ACCOUNT_STORAGE_KEYS,
+  ...TAG_STORAGE_KEYS,
+  ...API_CREDENTIAL_PROFILES_STORAGE_KEYS,
+  ...API_VERIFICATION_HISTORY_STORAGE_KEYS,
+  ...LDOH_SITE_LOOKUP_STORAGE_KEYS,
+  ...ACCOUNT_KEY_AUTO_PROVISIONING_STORAGE_KEYS,
+  ...OPTIONS_SEARCH_STORAGE_KEYS,
+  ...USER_PREFERENCES_STORAGE_KEYS,
+  ...PRODUCT_ANALYTICS_STORAGE_KEYS,
+  CHANGELOG_ON_UPDATE_PENDING_VERSION:
+    CHANGELOG_ON_UPDATE_STORAGE_KEYS.PENDING_VERSION,
+  RELEASE_UPDATE_STATUS: RELEASE_UPDATE_STORAGE_KEYS.STATUS,
+  DAILY_BALANCE_HISTORY_STORE: DAILY_BALANCE_HISTORY_STORAGE_KEYS.STORE,
+  SITE_ANNOUNCEMENTS_STORE: SITE_ANNOUNCEMENTS_STORAGE_KEYS.STORE,
+  SPONSOR_CATALOG_CACHE: SPONSOR_CATALOG_STORAGE_KEYS.CACHE,
+  SPONSOR_ADD_ACCOUNT_PENDING_PREFILL:
+    SPONSOR_ADD_ACCOUNT_INTENT_STORAGE_KEYS.PENDING_PREFILL,
+} as const

@@ -1,0 +1,242 @@
+{
+  "alerts": {
+    "loadError": {
+      "description": "{{error}}",
+      "title": "無法載入渠道"
+    }
+  },
+  "description": "在此搜尋、編輯、刪除或手動同步與你的託管站點相連的所有渠道。",
+  "dialog": {
+    "cancel": "取消",
+    "confirm": "刪除",
+    "deleteDescription": "此操作無法撤銷，所選配置將被永久刪除。",
+    "deleteTitle": "刪除渠道？",
+    "deleteTitlePlural": "刪除這些渠道？"
+  },
+  "filter": {
+    "statusLabel": "按狀態篩選"
+  },
+  "filters": {
+    "actionOptions": {
+      "exclude": "排除匹配的模型",
+      "include": "包含匹配的模型"
+    },
+    "actions": {
+      "cancel": "取消",
+      "moveDown": "下移規則",
+      "moveUp": "上移規則",
+      "save": "儲存規則"
+    },
+    "addPatternRule": "新增模式規則",
+    "addProbeRule": "新增探測規則",
+    "empty": {
+      "description": "新增包含或排除規則（可選正則）以控制同步到該渠道的模型。",
+      "title": "尚未新增規則"
+    },
+    "hints": {
+      "probesAllPass": "只有所有已選探測都通過時，模型才會符合此規則。探測會使用該渠道的基礎 URL 和解析出的渠道 key。",
+      "regex": "正則模式使用 JavaScript 語法，可實現更靈活的匹配。",
+      "substring": "普通模式將執行區分大小寫的子串匹配。",
+      "unsupportedChannelType": "此渠道類型無法映射到支援的驗證 API，因此暫不能使用探測規則。"
+    },
+    "jsonEditor": {
+      "hint": "JSON 必須是模式規則或探測規則物件陣列。模式規則使用 kind: 'pattern'、name 和 pattern；探測規則使用 kind: 'probe'、name 和 probeIds。apiKey、key、baseUrl 等憑證欄位會被忽略。",
+      "label": "高階 JSON 編輯器",
+      "placeholder": "在此貼上或編輯過濾規則物件陣列，以便在多個渠道之間快速複用同一套配置。"
+    },
+    "labels": {
+      "action": "執行動作",
+      "delete": "刪除規則",
+      "description": "描述",
+      "enabled": "啟用",
+      "name": "規則名稱",
+      "pattern": "匹配模式",
+      "probes": "驗證探測",
+      "regex": "使用正則",
+      "ruleType": "規則類型"
+    },
+    "loading": "正在載入渠道過濾規則…",
+    "messages": {
+      "jsonArrayRequired": "JSON 必須是過濾規則陣列。",
+      "jsonInvalid": "無效的過濾規則 JSON：{{error}}",
+      "jsonItemNotObject": "索引 {{index}} 處的過濾規則必須是物件。",
+      "loadFailed": "過濾規則載入失敗：{{error}}",
+      "saved": "過濾規則已儲存",
+      "saveFailed": "儲存過濾規則失敗：{{error}}",
+      "validationName": "請為每個規則填寫名稱。",
+      "validationPattern": "匹配模式不能為空。",
+      "validationProbeIds": "請為每個探測規則至少選擇一個驗證探測。",
+      "validationRegex": "無效的正規表示式：{{error}}"
+    },
+    "placeholders": {
+      "description": "可選備註",
+      "name": "如：僅允許 GPT-4",
+      "pattern": "精確字串或正規表示式",
+      "probes": "選擇探測",
+      "probeSearch": "搜尋探測"
+    },
+    "probes": {
+      "empty": "找不到探測",
+      "options": {
+        "structured-output": "結構化輸出",
+        "text-generation": "文字生成",
+        "tool-calling": "工具呼叫",
+        "web-search": "網路搜尋"
+      }
+    },
+    "ruleTypeOptions": {
+      "pattern": "模式",
+      "probe": "探測"
+    },
+    "subtitle": "為 {{channel}} 配置包含/排除規則",
+    "title": "渠道過濾規則",
+    "viewMode": {
+      "json": "JSON 編輯",
+      "label": "編輯模式",
+      "visual": "視覺化編輯"
+    }
+  },
+  "migration": {
+    "actions": {
+      "cancel": "取消",
+      "close": "關閉",
+      "refreshPreview": "重新整理預覽",
+      "running": "遷移中…",
+      "start": "開始遷移"
+    },
+    "alerts": {
+      "noTargets": {
+        "description": "請先在設定中配置另一個可用的託管站點目標，才能啟用渠道遷移。"
+      }
+    },
+    "betaBadge": "Beta",
+    "blockedReasons": {
+      "sourceKeyMissing": "缺少來源渠道金鑰，目前無法遷移此渠道。",
+      "sourceKeyResolutionFailed": "無法取得來源渠道金鑰。若剛完成驗證，請重新整理預覽後再試。"
+    },
+    "confirm": {
+      "confirm": "確認遷移",
+      "description": "將為 {{ready}} 個可遷移渠道在目標站點建立新渠道；共選取 {{total}} 個渠道。",
+      "title": "開始渠道遷移？",
+      "warningTitle": "此流程只會建立新渠道，不會同步、去重或回滾。"
+    },
+    "description": "將目前託管站點中的 {{selectedCount}} 個渠道複製到另一個已配置的託管站點。",
+    "generalWarnings": {
+      "compactSummary": "僅建立，不查重。懸停看詳情。",
+      "createOnly": "本次遷移僅在目標站點建立新渠道，不會修改來源渠道。",
+      "noDedupeOrSync": "本次遷移不會查重、覆蓋或同步目標站點中已存在的渠道。",
+      "noRollback": "本次遷移不提供自動回滾，請依結果列表手動處理後續工作。",
+      "title": "遷移限制"
+    },
+    "itemWarnings": {
+      "dropsAdvancedSettings": "高級渠道設定無法直接遷移到目標站點，將被忽略。",
+      "dropsModelMapping": "模型映射設定不會一併遷移。",
+      "dropsMultiKeyState": "多金鑰輪詢或狀態資訊不會一併遷移。",
+      "dropsStatusCodeMapping": "狀態碼映射設定不會一併遷移。",
+      "targetForcesDefaultGroup": "目標站點會改用預設分組。",
+      "targetIgnoresPriority": "目標站點不保留來源渠道的優先順序。",
+      "targetIgnoresWeight": "目標站點不保留來源渠道的權重。",
+      "targetNormalizesBaseUrl": "目標站點會對基礎 URL 做規範化處理。",
+      "targetRemapsChannelType": "目標站點會將渠道型別映射為最接近的相容型別。",
+      "targetSimplifiesStatus": "目標站點會將來源渠道狀態簡化為啟用或停用。"
+    },
+    "preview": {
+      "badges": {
+        "limitsLabel": "項限制",
+        "warningsLabel": "則警告"
+      },
+      "compare": {
+        "fieldLabel": "欄位"
+      },
+      "loadFailed": "載入遷移預覽失敗：{{error}}",
+      "loading": "正在建立遷移預覽…",
+      "selectedCount": "已選取 {{selectedCount}} 個渠道",
+      "status": {
+        "blocked": "已阻止",
+        "ready": "可遷移"
+      },
+      "summary": "預覽結果：{{ready}} 個可遷移，{{blocked}} 個已阻止，共 {{total}} 個渠道。"
+    },
+    "results": {
+      "status": {
+        "failed": "失敗",
+        "skipped": "已跳過",
+        "success": "已建立"
+      },
+      "summary": "遷移結果：成功 {{created}} 個，失敗 {{failed}} 個，跳過 {{skipped}} 個，共 {{total}} 個。",
+      "title": "遷移結果"
+    },
+    "target": {
+      "destinationLabel": "目標站點",
+      "label": "遷移目標",
+      "placeholder": "選擇託管站點目標",
+      "sourceLabel": "來源站點",
+      "unselected": "未選擇"
+    },
+    "title": "遷移渠道"
+  },
+  "statusLabels": {
+    "autoDisabled": "自動禁用",
+    "enabled": "啟用",
+    "manualPause": "手動暫停",
+    "unknown": "未知"
+  },
+  "table": {
+    "columns": {
+      "actions": "操作",
+      "group": "可用分組",
+      "id": "ID",
+      "models": "模型數量",
+      "name": "渠道",
+      "priority": "優先順序",
+      "status": "狀態",
+      "type": "型別",
+      "weight": "權重"
+    },
+    "empty": "未找到渠道，請嘗試調整篩選條件。",
+    "loading": "正在載入渠道…",
+    "noEntries": "暫無資料",
+    "paginationNext": "下一頁",
+    "paginationPrev": "上一頁",
+    "paginationSummary": "第 {{start}} - {{end}} 條 / 共 {{total}} 條",
+    "rowActions": {
+      "delete": "刪除",
+      "edit": "編輯",
+      "filters": "編輯渠道過濾規則",
+      "migrate": "遷移到其他站點",
+      "openSync": "開啟模型同步介面",
+      "sync": "立即同步模型列表",
+      "syncing": "正在同步…",
+      "view": "查看渠道"
+    },
+    "rowsPerPage": "每頁行數",
+    "selectAll": "選擇所有行",
+    "selectRow": "選擇行"
+  },
+  "title": "渠道管理",
+  "toasts": {
+    "channelDeleted": "已刪除 1 個渠道",
+    "channelSaved": "渠道已儲存",
+    "channelsDeleted_other": "已刪除 {{count}} 個渠道",
+    "channelUpdated": "渠道已更新",
+    "revealKeyFailed": "載入真實渠道 key 失敗：{{error}}",
+    "someDeletesFailed_other": "刪除 {{count}} 個渠道失敗：{{error}}",
+    "syncCompleted": "模型同步完成（{{success}}/{{total}}）",
+    "syncFailed": "模型同步失敗：{{error}}"
+  },
+  "toolbar": {
+    "addChannel": "新增渠道",
+    "clearSearch": "清除搜尋",
+    "columns": "顯示列",
+    "deleteSelected": "刪除所選",
+    "enterMigrationMode": "渠道遷移",
+    "exitMigrationMode": "退出遷移模式",
+    "migrateFiltered": "遷移目前篩選出的所有渠道",
+    "migrateSelected": "遷移所選",
+    "refresh": "重新整理",
+    "searchPlaceholder": "按名稱、URL 或分組搜尋",
+    "status": "狀態",
+    "syncSelected": "同步所選渠道模型",
+    "toggleColumns": "切換列"
+  }
+}

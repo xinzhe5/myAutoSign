@@ -1,0 +1,242 @@
+{
+  "alerts": {
+    "loadError": {
+      "description": "{{error}}",
+      "title": "チャネルを読み込めません"
+    }
+  },
+  "description": "管理対象サイトに接続されたチャネルを検索、編集、削除し、手動同期できます。",
+  "dialog": {
+    "cancel": "キャンセル",
+    "confirm": "削除",
+    "deleteDescription": "この操作は元に戻せません。選択したチャネルは完全に削除されます。",
+    "deleteTitle": "チャネルを削除しますか？",
+    "deleteTitlePlural": "チャネルを削除しますか？"
+  },
+  "filter": {
+    "statusLabel": "状態で絞り込む"
+  },
+  "filters": {
+    "actionOptions": {
+      "exclude": "一致したモデルを除外",
+      "include": "一致したモデルを含める"
+    },
+    "actions": {
+      "cancel": "キャンセル",
+      "moveDown": "フィルターを下へ移動",
+      "moveUp": "フィルターを上へ移動",
+      "save": "フィルターを保存"
+    },
+    "addPatternRule": "パターンルールを追加",
+    "addProbeRule": "プローブルールを追加",
+    "empty": {
+      "description": "必要に応じて正規表現を使った include / exclude ルールを追加し、同期モデルを制御します。",
+      "title": "まだフィルターがありません"
+    },
+    "hints": {
+      "probesAllPass": "選択したすべてのプローブに合格した場合だけ、このルールに一致します。プローブはチャネルのベース URL と解決済みチャネルキーを使用します。",
+      "regex": "正規表現ルールでは JavaScript 構文による高度な一致指定が可能です。",
+      "substring": "通常ルールではモデル名内の大文字小文字を区別する部分文字列に一致します。",
+      "unsupportedChannelType": "このチャネル種別は対応する検証 API にマッピングできないため、プローブルールを使用できません。"
+    },
+    "jsonEditor": {
+      "hint": "JSON はパターンルールまたはプローブルールのオブジェクト配列である必要があります。パターンルールは kind: 'pattern'、name、pattern を使います。プローブルールは kind: 'probe'、name、probeIds を使います。apiKey、key、baseUrl などの認証情報フィールドは無視されます。",
+      "label": "高度な JSON エディター",
+      "placeholder": "ここにフィルタールールオブジェクト配列を貼り付けるか編集して、同じ設定を複数チャネルで素早く再利用できます。"
+    },
+    "labels": {
+      "action": "動作",
+      "delete": "フィルターを削除",
+      "description": "説明",
+      "enabled": "有効",
+      "name": "フィルター名",
+      "pattern": "一致パターン",
+      "probes": "検証プローブ",
+      "regex": "正規表現モード",
+      "ruleType": "ルール種別"
+    },
+    "loading": "チャネルフィルターを読み込み中...",
+    "messages": {
+      "jsonArrayRequired": "JSON はフィルタールールの配列である必要があります。",
+      "jsonInvalid": "無効なフィルター JSON です: {{error}}",
+      "jsonItemNotObject": "インデックス {{index}} のフィルターはオブジェクトである必要があります。",
+      "loadFailed": "フィルターの読み込みに失敗しました: {{error}}",
+      "saved": "フィルターを保存しました",
+      "saveFailed": "フィルターの保存に失敗しました: {{error}}",
+      "validationName": "各フィルターに名前を入力してください。",
+      "validationPattern": "フィルターパターンは空にできません。",
+      "validationProbeIds": "各プローブルールで少なくとも 1 つの検証プローブを選択してください。",
+      "validationRegex": "無効な正規表現パターンです: {{error}}"
+    },
+    "placeholders": {
+      "description": "このルールに関する任意メモ",
+      "name": "例: GPT-4 を許可",
+      "pattern": "完全一致文字列または正規表現パターン",
+      "probes": "プローブを選択",
+      "probeSearch": "プローブを検索"
+    },
+    "probes": {
+      "empty": "プローブが見つかりません",
+      "options": {
+        "structured-output": "構造化出力",
+        "text-generation": "テキスト生成",
+        "tool-calling": "ツール呼び出し",
+        "web-search": "Web 検索"
+      }
+    },
+    "ruleTypeOptions": {
+      "pattern": "パターン",
+      "probe": "プローブ"
+    },
+    "subtitle": "{{channel}} のフィルタールールをカスタマイズ",
+    "title": "チャネルフィルター",
+    "viewMode": {
+      "json": "JSON 編集",
+      "label": "編集モード",
+      "visual": "ビジュアル編集"
+    }
+  },
+  "migration": {
+    "actions": {
+      "cancel": "キャンセル",
+      "close": "閉じる",
+      "refreshPreview": "プレビューを再読み込み",
+      "running": "移行中...",
+      "start": "移行を開始"
+    },
+    "alerts": {
+      "noTargets": {
+        "description": "チャネル移行を使う前に、設定で別の管理対象サイトを移行先として構成してください。"
+      }
+    },
+    "betaBadge": "Beta",
+    "blockedReasons": {
+      "sourceKeyMissing": "元チャネルのキーが取得できないため、このチャネルはまだ移行できません。",
+      "sourceKeyResolutionFailed": "元チャネルのキーを読み込めませんでした。確認が完了した直後であれば、プレビューを更新して再試行してください。"
+    },
+    "confirm": {
+      "confirm": "移行を確認",
+      "description": "{{total}} 件中、移行可能な {{ready}} 件のチャネルについて移行先に新しいチャネルを作成します。",
+      "title": "チャネル移行を開始しますか？",
+      "warningTitle": "このフローは新しいチャネルを作成するだけで、同期・重複解消・ロールバックは行いません。"
+    },
+    "description": "現在の管理対象サイトから {{selectedCount}} 件のチャネルを別の構成済み管理対象サイトへコピーします。",
+    "generalWarnings": {
+      "compactSummary": "新規作成のみ。ホバーで詳細を確認できます。",
+      "createOnly": "この移行は移行先サイトで新しいチャネルを作成するだけで、元チャネルは変更しません。",
+      "noDedupeOrSync": "この移行では重複検出、既存チャネルの上書き、既存移行先チャネルとの同期は行いません。",
+      "noRollback": "このフローでは自動ロールバックを提供しません。結果一覧を見て必要な手動対応を行ってください。",
+      "title": "移行の制限"
+    },
+    "itemWarnings": {
+      "dropsAdvancedSettings": "高度なプロバイダー固有設定はそのまま移行できないため破棄されます。",
+      "dropsModelMapping": "モデルマッピング設定はコピーされません。",
+      "dropsMultiKeyState": "マルチキーの実行状態はコピーされません。",
+      "dropsStatusCodeMapping": "ステータスコードマッピング設定はコピーされません。",
+      "targetForcesDefaultGroup": "移行先サイトではデフォルトグループに置き換えられます。",
+      "targetIgnoresPriority": "移行先サイトでは元チャネルの優先度を保持しません。",
+      "targetIgnoresWeight": "移行先サイトでは元チャネルの重みを保持しません。",
+      "targetNormalizesBaseUrl": "移行先サイトは作成前にベース URL を正規化します。",
+      "targetRemapsChannelType": "移行先サイトはチャネル種別を最も近い対応種別へ再マッピングします。",
+      "targetSimplifiesStatus": "移行先サイトは元チャネルの状態を有効/無効へ単純化します。"
+    },
+    "preview": {
+      "badges": {
+        "limitsLabel": "件の制限",
+        "warningsLabel": "件の警告"
+      },
+      "compare": {
+        "fieldLabel": "項目"
+      },
+      "loadFailed": "移行プレビューの読み込みに失敗しました: {{error}}",
+      "loading": "移行プレビューを構築中...",
+      "selectedCount": "{{selectedCount}} 件のチャネルを選択中",
+      "status": {
+        "blocked": "ブロック済み",
+        "ready": "移行可能"
+      },
+      "summary": "プレビュー: 移行可能 {{ready}} 件、ブロック {{blocked}} 件、合計 {{total}} 件。"
+    },
+    "results": {
+      "status": {
+        "failed": "失敗",
+        "skipped": "スキップ",
+        "success": "作成済み"
+      },
+      "summary": "結果: 作成 {{created}} 件、失敗 {{failed}} 件、スキップ {{skipped}} 件、合計 {{total}} 件。",
+      "title": "移行結果"
+    },
+    "target": {
+      "destinationLabel": "移行先サイト",
+      "label": "移行先",
+      "placeholder": "管理対象サイトを選択",
+      "sourceLabel": "元サイト",
+      "unselected": "未選択"
+    },
+    "title": "チャネル移行"
+  },
+  "statusLabels": {
+    "autoDisabled": "自動無効",
+    "enabled": "有効",
+    "manualPause": "手動停止",
+    "unknown": "不明"
+  },
+  "table": {
+    "columns": {
+      "actions": "操作",
+      "group": "利用可能グループ",
+      "id": "ID",
+      "models": "モデル",
+      "name": "チャネル",
+      "priority": "優先度",
+      "status": "状態",
+      "type": "種別",
+      "weight": "重み"
+    },
+    "empty": "チャネルが見つかりません。フィルター条件を調整してください。",
+    "loading": "チャネルを読み込み中...",
+    "noEntries": "エントリがありません",
+    "paginationNext": "次のページ",
+    "paginationPrev": "前のページ",
+    "paginationSummary": "{{total}} 件中 {{start}} - {{end}}",
+    "rowActions": {
+      "delete": "削除",
+      "edit": "編集",
+      "filters": "チャネルのフィルタールールを編集",
+      "migrate": "別サイトへ移行",
+      "openSync": "モデル同期画面を開く",
+      "sync": "モデル一覧を今すぐ同期",
+      "syncing": "同期中...",
+      "view": "チャネルを表示"
+    },
+    "rowsPerPage": "1 ページあたりの行数",
+    "selectAll": "すべての行を選択",
+    "selectRow": "行を選択"
+  },
+  "title": "チャネル管理",
+  "toasts": {
+    "channelDeleted": "チャネルを削除しました",
+    "channelSaved": "チャネルを保存しました",
+    "channelsDeleted_other": "{{count}} 個のチャネルを削除しました",
+    "channelUpdated": "チャネルを更新しました",
+    "revealKeyFailed": "実際のチャネルキーの読み込みに失敗しました: {{error}}",
+    "someDeletesFailed_other": "{{count}} 個のチャネル削除に失敗しました: {{error}}",
+    "syncCompleted": "モデル同期が完了しました ({{success}}/{{total}})",
+    "syncFailed": "モデル同期に失敗しました: {{error}}"
+  },
+  "toolbar": {
+    "addChannel": "チャネルを追加",
+    "clearSearch": "検索をクリア",
+    "columns": "列",
+    "deleteSelected": "選択項目を削除",
+    "enterMigrationMode": "チャネル移行",
+    "exitMigrationMode": "移行モードを終了",
+    "migrateFiltered": "絞り込み中のチャネルをすべて移行",
+    "migrateSelected": "選択項目を移行",
+    "refresh": "更新",
+    "searchPlaceholder": "名前、URL、またはグループで検索",
+    "status": "状態",
+    "syncSelected": "選択チャネルのモデルを同期",
+    "toggleColumns": "列の表示切替"
+  }
+}

@@ -1,0 +1,225 @@
+{
+  "accountGroupFilterAllIncluded": "このアカウントの全グループを対象にする",
+  "accountGroupFilterClearAll": "すべて解除",
+  "accountGroupFilterDescription": "価格比較から、各アカウント固有のグループを除外できます。初期状態では各アカウントの利用可能グループをすべて含みます。",
+  "accountGroupFilterNoGroups": "現在、絞り込めるアカウントグループはありません。",
+  "accountGroupFilterNoGroupsIncluded": "このアカウントで対象のグループがありません",
+  "accountGroupFilterResetAll": "すべてリセット",
+  "accountGroupFilterSelectAll": "すべて選択",
+  "accountGroupFilterSelectedSummary": "{{selected}} / {{total}} を選択",
+  "accountGroupFilterTitle": "アカウントグループ絞り込み",
+  "accountGroupFilterTrigger": "アカウントグループを絞り込む",
+  "accountGroupFilterTriggerCount_other": "{{count}} 件のアカウントを絞り込み中",
+  "accountSummary": {
+    "incompatible": "形式非互換",
+    "loadFailed": "読み込み失敗",
+    "loading": "読み込み中",
+    "models_other": "{{count}} モデル",
+    "title": "アカウント概要"
+  },
+  "actions": {
+    "copyModelName": "モデル名をコピー",
+    "keyForModel": "このモデル用のキー",
+    "verifyApi": "API を検証",
+    "verifyCliSupport": "CLI 対応を検証"
+  },
+  "aihubmixCatalogFallbackNotice": {
+    "description": "このアカウントで実際に利用できるモデル範囲を確認できなかったため、AIHubMix の完全なモデルカタログを表示しています。一部のモデルはこのアカウントでは呼び出せない可能性があります。サイト側のアカウント権限と実際の検証結果を最終的な判断基準にしてください。",
+    "title": "AIHubMix の完全なモデルカタログへフォールバックしました"
+  },
+  "allAccounts": "すべてのアカウント",
+  "allBillingModes": "すべての課金方式",
+  "allGroups": "すべてのグループ",
+  "allProviders": "すべてのプロバイダー",
+  "available": "利用可能",
+  "availableGroups": "利用可能なグループ",
+  "batchVerify": {
+    "actions": {
+      "open": "一括テスト",
+      "rerun": "再度一括テスト",
+      "start": "一括テストを開始",
+      "stop": "テストを停止"
+    },
+    "apiType": {
+      "auto": "自動判定",
+      "label": "API 種別"
+    },
+    "counts": {
+      "fail": "失敗 {{value}}",
+      "pass": "成功 {{value}}",
+      "skipped": "スキップ {{value}}",
+      "total": "合計 {{value}}"
+    },
+    "idleHint": "選択したテスト項目で、現在フィルターされたモデルを一括検証します。",
+    "messages": {
+      "noApplicableProbes": "選択したテスト項目はこのモデルに適用できません。",
+      "noCompatibleToken": "このモデルに対応する有効なトークンが見つかりません。",
+      "notSelected": "このモデルは選択されていないため、今回の一括テストではスキップされました。",
+      "pending": "テスト待ち",
+      "probeSummary_other": "{{count}} 件実行、成功 {{pass}}、失敗 {{fail}}、非対応 {{unsupported}}",
+      "stopped": "このモデルのテスト開始前に停止しました。",
+      "unexpected": "テストに失敗しました"
+    },
+    "modelSelection": {
+      "clearAll": "選択をクリア",
+      "label": "実行するモデル",
+      "noneSelected": "テストするモデルを少なくとも 1 つ選択してください。",
+      "selectAll": "すべてのモデルを選択",
+      "selectedSummary_other": "{{selected}} / {{total}} 件を選択",
+      "toggle": "モデル {{model}} を選択"
+    },
+    "probes": {
+      "label": "テスト項目",
+      "noneSelected": "少なくとも 1 つのテスト項目を選択してください。"
+    },
+    "status": {
+      "fail": "失敗",
+      "pass": "成功",
+      "pending": "保留中",
+      "running": "テスト中",
+      "skipped": "スキップ"
+    },
+    "subtitle_other": "フィルター済み {{count}} モデル",
+    "summary_other": "完了 {{completed}} / {{count}}、成功 {{pass}}、失敗 {{fail}}、スキップ {{skipped}}",
+    "title": "モデルを一括テスト",
+    "tokenUsed": "トークン: {{name}}",
+    "warning": "一括テストは、各モデルで解決された API 種別に応じて選択項目を実行します。適用できない項目は自動的にスキップされます。結果は参考情報です。最終確認は実際のツール呼び出しで行ってください。"
+  },
+  "billingMode": "課金方式",
+  "clickSwitchGroup": "{{group}} グループへ切り替える",
+  "collapseDetails": "詳細を折りたたむ",
+  "copyAllNames": "すべてのモデル名をコピー",
+  "description": "利用可能な AI モデルを確認・管理します",
+  "detailedPricing": "詳細料金",
+  "displayOptions": "表示オプション:",
+  "endpointType": "エンドポイント種別",
+  "endpointTypes": "エンドポイント種別",
+  "expandDetails": "詳細を展開",
+  "fallbackSourceNotice": {
+    "description": "このカタログは現在アカウントキーのフォールバック経由で読み込まれているため、モデル検出と検証のみ利用できます。[データを更新] を押すと直接のアカウント経路を再試行します。",
+    "title": "アカウントキーフォールバックのカタログ"
+  },
+  "groupRatioTooltip": "グループ {{group}} の倍率: {{ratio}}x",
+  "groupSelectionHint": "未選択なら全グループ対象です。価格ソートは選択済みグループ範囲内の最安値を使います",
+  "input": "入力:",
+  "input1MTokens": "入力（100 万トークン）",
+  "keyDialog": {
+    "copyFailed": "コピーに失敗しました",
+    "createAnotherKey": "別のキーを作成",
+    "createCustomKey": "カスタムキーを作成",
+    "createDisabledTitle": "キー作成は利用できません",
+    "createErrorTitle": "キーを作成できませんでした",
+    "createFailed": "作成に失敗しました: {{error}}",
+    "createGroupHint": "グループを選択してください。このモデルに対応するグループのみ表示されます。",
+    "createGroupLabel": "新しいキーのグループ",
+    "createGroupPlaceholder": "グループを選択",
+    "createGroupRequired": "キーを作成するにはグループを選択してください。",
+    "createKey": "キーを作成",
+    "createNotSupported": "このアカウントではキー作成を利用できません。",
+    "createSuccess": "キーを作成しました",
+    "getFailed": "キーの読み込みに失敗しました",
+    "ineligible": {
+      "accountDisabled": "このアカウントは無効です。",
+      "missingAuth": "このアカウントには認証設定がありません。",
+      "missingCredentials": "このアカウントには必要な認証情報が不足しています。"
+    },
+    "keyCopied": "キーをコピーしました",
+    "loadFailed": "キーの読み込みに失敗しました: {{error}}",
+    "loading": "キーを読み込み中...",
+    "noCompatibleDescription": "このモデル用のキーを作成するか、既存キーのモデル制限を調整してください。",
+    "noCompatibleFoundAfterCreate": "キーは作成されましたが、{{modelId}} に対応するキーは見つかりませんでした。",
+    "noCompatibleTitle": "{{modelId}} に対応するキーがありません",
+    "openKeyManagement": "{{accountName}} のキー管理を開く",
+    "selectHint": "このモデルに使用するキーを選択してください。",
+    "selectLabel": "対応キー",
+    "selectPlaceholder": "キーを選択",
+    "subtitle": "アカウント: {{accountName}} · モデル: {{modelId}}",
+    "title": "モデル用キー"
+  },
+  "lowestPrice": "最安値",
+  "lowestPriceWithinAccountFilters": "現在のアカウント絞り込み内で、この行は同じ課金方式の中で最安です",
+  "lowestPriceWithinBillingMode": "この行は同じ課金方式の中で最安です",
+  "messages": {
+    "copyFailed": "コピーに失敗しました",
+    "modelNameCopied": "モデル名をコピーしました",
+    "modelNamesCopied": "モデル名をコピーしました"
+  },
+  "noMatchingModels": "一致するモデルが見つかりません",
+  "noSourcesDescription": "モデル一覧を表示するには、先にサイトアカウントまたは API 認証情報を追加してください。",
+  "noSourcesTitle": "利用できるデータソースがありません",
+  "optimalGroup": "最安グループ: {{group}}",
+  "optimalGroupLowestPriceWithinAccountFilters": "現在のアカウントグループ絞り込み内での最適グループ: {{group}}。さらに同じ課金方式内で最安です",
+  "optimalGroupLowestPriceWithinBillingMode": "選択中のグループ内での最適グループ: {{group}}。さらに同じ課金方式内で最安です",
+  "optimalGroupWithinAccountFilters": "現在のアカウントグループ絞り込み内での最適グループ: {{group}}",
+  "optimalGroupWithinSelectedGroups": "選択中のグループ内での最適グループ: {{group}}",
+  "output": "出力:",
+  "output1MTokens": "出力（100 万トークン）",
+  "perCall": "1 回あたり:",
+  "pleaseSelectFirst": "モデル一覧を表示するには、先にアカウントまたは API 認証情報を選択してください",
+  "pleaseSelectSource": "ソースを選択してください",
+  "pricingDescription": "料金情報はサイトが提供する API インターフェースから取得されます。実際の費用は各サイトが公開している価格に従います。従量課金モデルの価格は 100 万トークンあたりで表示され、コール課金モデルは 1 回あたりの価格を表示します。",
+  "pricingNote": "モデル料金に関する注意",
+  "profileSourceNotice": {
+    "description": "保存済みの API 認証情報では、モデル検出と検証のみ利用できます。このソースでは、料金、グループフィルター、アカウント概要、キー互換性は利用できません。",
+    "title": "プロファイル由来のモデルカタログ"
+  },
+  "providerTabs": {
+    "scrollLeft": "プロバイダータブを左にスクロール",
+    "scrollRight": "プロバイダータブを右にスクロール"
+  },
+  "ratio": "倍率:",
+  "realAmount": "実際のチャージ額",
+  "refreshData": "データを更新",
+  "searchModels": "モデルを検索",
+  "searchPlaceholder": "モデル名または説明を入力...",
+  "selectSource": "ソースを選択",
+  "selectSourceToContinue": "上のデータソースを選択してから、モデル一覧を表示してください。",
+  "showing_other": "{{count}} モデルを表示中",
+  "showRatio": "倍率を表示",
+  "sortBy": "並び順",
+  "sortOptions": {
+    "default": "デフォルト順",
+    "modelCheapestFirst": "同一モデルの最安値を優先",
+    "priceAsc": "価格の安い順",
+    "priceDesc": "価格の高い順"
+  },
+  "sourceLabels": {
+    "profileBadge": "プロファイル: {{name}} · {{host}}",
+    "profileOption": "API 認証情報: {{name}} · {{host}}"
+  },
+  "status": {
+    "dataLoaded": "モデルデータを正常に読み込みました",
+    "fallback": {
+      "catalogLoadFailedTitle": "選択したキーでモデルを読み込めませんでした",
+      "description": "アカウントの料金エンドポイントが一時的に使えない場合は、このアカウントのキーを使って閲覧専用のカタログを読み込めます。",
+      "loadingKeys": "アカウントキーを読み込み中...",
+      "loadKeysFailed": "アカウントキーの読み込みに失敗しました: {{errorMessage}}",
+      "loadKeysFailedFallback": "アカウントキーの読み込みに失敗しました。しばらくしてからもう一度お試しください。",
+      "loadModelsFailedFallback": "選択したキーでモデルを読み込めませんでした。しばらくしてからもう一度お試しください。",
+      "loadWithKey": "選択したキーで読み込む",
+      "noKeysDescription": "このアカウントには、フォールバック読み込みに使える有効なキーがありません。",
+      "noKeysTitle": "利用可能なキーが見つかりません",
+      "reloadKeys": "キーを再読み込み",
+      "retryLoadWithKey": "選択したキーで再試行",
+      "selectHint": "このアカウントには利用可能なキーが複数あります。フォールバックカタログを読み込む前に使うキーを選択してください。",
+      "selectLabel": "フォールバック読み込みに使うキー",
+      "selectPlaceholder": "キーを選択",
+      "title": "アカウントキーでモデルを読み込む",
+      "tokensLoadFailedTitle": "アカウントキーの読み込みに失敗しました"
+    },
+    "formatNotStandard": "現在のサイトのモデルデータ形式は標準仕様に準拠していません。サイトの料金ページを手動で確認してください",
+    "genericLoadFailedTitle": "モデルデータの読み込みに失敗しました",
+    "goToSitePricing": "サイトで料金情報を見る",
+    "incompatibleDesc": "現在のサイトのモデルデータインターフェースは標準仕様に準拠していません。サイト側の二次開発が原因の可能性があり、このサイトのモデル料金情報は現時点で解析できません。",
+    "incompatibleFormat": "データ形式に互換性がありません",
+    "loadFailed": "モデルデータの読み込みに失敗しました。しばらくしてからもう一度お試しください",
+    "loading": "モデルデータを読み込み中...",
+    "profileLoadFailed": "この API 認証情報のモデル読み込みに失敗しました: {{errorMessage}}",
+    "profileLoadFailedTitle": "この API 認証情報のモデル読み込みに失敗しました",
+    "retryLoad": "再読み込み"
+  },
+  "title": "モデル一覧",
+  "totalModels_other": "合計 {{count}} モデル",
+  "unavailable": "利用不可",
+  "userGroup": "ユーザーグループ"
+}

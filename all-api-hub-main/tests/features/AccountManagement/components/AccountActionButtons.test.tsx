@@ -1,0 +1,2549 @@
+import { screen, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { SITE_TYPES } from "~/constants/siteType"
+import AccountActionButtons from "~/features/AccountManagement/components/AccountActionButtons"
+import type { UserPreferences } from "~/services/preferences/userPreferences"
+import {
+  PRODUCT_ANALYTICS_ACTION_IDS,
+  PRODUCT_ANALYTICS_ENTRYPOINTS,
+  PRODUCT_ANALYTICS_ERROR_CATEGORIES,
+  PRODUCT_ANALYTICS_FEATURE_IDS,
+  PRODUCT_ANALYTICS_RESULTS,
+  PRODUCT_ANALYTICS_STATUS_KINDS,
+  PRODUCT_ANALYTICS_SURFACE_IDS,
+  PRODUCT_ANALYTICS_TARGET_STATES,
+} from "~/services/productAnalytics/events"
+import { AutoCheckinMessageTypes } from "~/services/runtimeMessaging/messageTypes"
+import { CHECKIN_RESULT_STATUS } from "~/types/autoCheckin"
+import { buildDisplaySiteData } from "~~/tests/test-utils/factories"
+import { render } from "~~/tests/test-utils/render"
+
+const {
+  mockHandleSetAccountDisabled,
+  mockTogglePinAccount,
+  fetchAccountTokensMock,
+  getManagedSiteServiceMock,
+  openManagedSiteChannelsForChannelMock,
+  openManagedSiteChannelsPageMock,
+  sendRuntimeMessageMock,
+  loadAccountDataMock,
+  exportShareSnapshotWithToastMock,
+  userPreferencesContextValue,
+  accountDataContextValue,
+  toastDismissMock,
+  toastLoadingMock,
+  toastSuccessMock,
+  toastErrorMock,
+  toastCustomMock,
+  hasValidManagedSiteConfigMock,
+  clipboardWriteTextMock,
+  trackStartedMock,
+  startProductAnalyticsActionMock,
+  completeProductAnalyticsActionMock,
+  resolveProductAnalyticsErrorCategoryFromErrorMock,
+} = vi.hoisted(() => ({
+  mockHandleSetAccountDisabled: vi.fn(),
+  mockTogglePinAccount: vi.fn(),
+  fetchAccountTokensMock: vi.fn(),
+  getManagedSiteServiceMock: vi.fn(),
+  openManagedSiteChannelsForChannelMock: vi.fn(),
+  openManagedSiteChannelsPageMock: vi.fn(),
+  sendRuntimeMessageMock: vi.fn(),
+  loadAccountDataMock: vi.fn(),
+  exportShareSnapshotWithToastMock: vi.fn(),
+  userPreferencesContextValue: {
+    currencyType: "USD",
+    showTodayCashflow: true,
+    preferences: {
+      managedSiteType: "new-api",
+      newApi: {
+        baseUrl: "https://admin.example",
+        adminToken: "t",
+        userId: "1",
+      },
+    } as Partial<UserPreferences>,
+  },
+  accountDataContextValue: {
+    isAccountPinned: vi.fn(() => false),
+    togglePinAccount: vi.fn(),
+    isPinFeatureEnabled: false,
+    loadAccountData: vi.fn(),
+  },
+  toastDismissMock: vi.fn(),
+  toastLoadingMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+  toastCustomMock: vi.fn(),
+  hasValidManagedSiteConfigMock: vi.fn(() => true),
+  clipboardWriteTextMock: vi.fn(),
+  trackStartedMock: vi.fn(),
+  startProductAnalyticsActionMock: vi.fn(),
+  completeProductAnalyticsActionMock: vi.fn(),
+  resolveProductAnalyticsErrorCategoryFromErrorMock: vi.fn(),
+}))
+
+vi.mock("react-hot-toast", () => ({
+  default: {
+    dismiss: toastDismissMock,
+    loading: toastLoadingMock,
+    success: toastSuccessMock,
+    error: toastErrorMock,
+    custom: toastCustomMock,
+  },
+}))
+
+vi.mock("~/services/apiService", () => ({
+  getApiService: () => ({
+    fetchAccountTokens: fetchAccountTokensMock,
+    resolveApiTokenKey: async (_request: unknown, token: { key: string }) =>
+      token.key,
+  }),
+}))
+
+vi.mock("~/services/managedSites/managedSiteService", () => ({
+  getManagedSiteService: getManagedSiteServiceMock,
+  hasValidManagedSiteConfig: hasValidManagedSiteConfigMock,
+}))
+
+vi.mock("~/utils/browser/browserApi", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("~/utils/browser/browserApi")>()
+  return {
+    ...actual,
+    sendRuntimeMessage: sendRuntimeMessageMock,
+  }
+})
+
+vi.mock("~/services/checkin/autoCheckin/messaging", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("~/services/checkin/autoCheckin/messaging")
+    >()
+
+  return {
+    ...actual,
+    sendAutoCheckinMessage: (type: string, data?: Record<string, unknown>) =>
+      sendRuntimeMessageMock(type, data),
+  }
+})
+
+vi.mock("~/features/AccountManagement/hooks/AccountActionsContext", () => ({
+  useAccountActionsContext: () => ({
+    refreshingAccountId: null,
+    handleRefreshAccount: vi.fn(),
+    handleSetAccountDisabled: mockHandleSetAccountDisabled,
+  }),
+}))
+
+vi.mock("~/features/AccountManagement/hooks/AccountDataContext", () => ({
+  useAccountDataContext: () => accountDataContextValue,
+}))
+
+vi.mock("~/features/AccountManagement/hooks/DialogStateContext", () => ({
+  useDialogStateContext: () => ({
+    openEditAccount: vi.fn(),
+  }),
+}))
+
+vi.mock("~/contexts/UserPreferencesContext", () => ({
+  UserPreferencesProvider: ({ children }: { children: any }) => children,
+  useUserPreferencesContext: () => userPreferencesContextValue,
+}))
+
+vi.mock("~/utils/navigation", () => ({
+  openKeysPage: vi.fn(),
+  openManagedSiteChannelsForChannel: openManagedSiteChannelsForChannelMock,
+  openManagedSiteChannelsPage: openManagedSiteChannelsPageMock,
+  openModelsPage: vi.fn(),
+  openRedeemPage: vi.fn(),
+  openUsagePage: vi.fn(),
+}))
+
+vi.mock("~/features/ShareSnapshots/utils/exportShareSnapshotWithToast", () => ({
+  exportShareSnapshotWithToast: exportShareSnapshotWithToastMock,
+}))
+
+vi.mock("~/services/productAnalytics/actions", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("~/services/productAnalytics/actions")>()
+
+  return {
+    ...actual,
+    trackProductAnalyticsActionStarted: trackStartedMock,
+    startProductAnalyticsAction: (...args: unknown[]) =>
+      startProductAnalyticsActionMock(...args),
+    resolveProductAnalyticsErrorCategoryFromError:
+      resolveProductAnalyticsErrorCategoryFromErrorMock,
+  }
+})
+
+vi.mock("~/services/accounts/utils/apiServiceRequest", () => ({
+  resolveDisplayAccountTokenForSecret: vi.fn(
+    async (_site: unknown, token: { key: string }) => token,
+  ),
+}))
+
+describe("AccountActionButtons", () => {
+  beforeEach(() => {
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteTextMock,
+      },
+    })
+
+    mockTogglePinAccount.mockResolvedValue(true)
+    accountDataContextValue.isAccountPinned.mockReturnValue(false)
+    accountDataContextValue.togglePinAccount = mockTogglePinAccount
+    accountDataContextValue.isPinFeatureEnabled = false
+    accountDataContextValue.loadAccountData = loadAccountDataMock
+    clipboardWriteTextMock.mockResolvedValue(undefined)
+    trackStartedMock.mockResolvedValue(undefined)
+    startProductAnalyticsActionMock.mockReturnValue({
+      complete: completeProductAnalyticsActionMock,
+    })
+    resolveProductAnalyticsErrorCategoryFromErrorMock.mockReturnValue(
+      PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+    )
+    completeProductAnalyticsActionMock.mockResolvedValue(undefined)
+    exportShareSnapshotWithToastMock.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    userPreferencesContextValue.preferences = {
+      managedSiteType: "new-api",
+      newApi: {
+        baseUrl: "https://admin.example",
+        adminToken: "t",
+        userId: "1",
+      },
+    } as Partial<UserPreferences>
+    userPreferencesContextValue.showTodayCashflow = true
+    hasValidManagedSiteConfigMock.mockReturnValue(true)
+  })
+
+  it("tracks controlled analytics for primary account action buttons", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-single" }])
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-primary-actions",
+          disabled: false,
+          name: "Private Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "account:actions.copyUrl" }),
+    )
+    await user.click(
+      screen.getByRole("button", { name: "account:actions.copyKey" }),
+    )
+    await user.click(
+      screen.getByRole("button", { name: "account:actions.edit" }),
+    )
+
+    await waitFor(() => {
+      expect(trackStartedMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.CopyAccountSiteUrl,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(startProductAnalyticsActionMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.CopyApiKey,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(trackStartedMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.OpenUpdateAccountDialog,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(trackStartedMock).not.toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.UpdateAccount,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+    })
+  })
+
+  it("tracks controlled analytics for account action menu entries", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin")
+    sendRuntimeMessageMock
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          perAccount: {
+            "acc-menu-actions": {
+              status: CHECKIN_RESULT_STATUS.SUCCESS,
+              messageKey: "autoCheckin:providerFallback.checkinSuccessful",
+            },
+          },
+        },
+      })
+    const user = userEvent.setup()
+    const onDeleteAccount = vi.fn()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-menu-actions",
+          disabled: false,
+          name: "Menu Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={onDeleteAccount}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    let menu = await screen.findByRole("menu")
+    const redeemButton = (
+      await within(menu).findByText("account:actions.redeemPage")
+    ).closest("button")
+    expect(redeemButton).not.toBeNull()
+    await user.click(redeemButton!)
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+    menu = await screen.findByRole("menu")
+    const usageButton = (
+      await within(menu).findByText("account:actions.usageLog")
+    ).closest("button")
+    expect(usageButton).not.toBeNull()
+    await user.click(usageButton!)
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+    menu = await screen.findByRole("menu")
+    const quickCheckinButton = (
+      await within(menu).findByText("account:actions.quickCheckin")
+    ).closest("button")
+    expect(quickCheckinButton).not.toBeNull()
+    await user.click(quickCheckinButton!)
+
+    await waitFor(() => {
+      expect(trackStartedMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.OpenRedeemPage,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(trackStartedMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.UsageAnalytics,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.OpenAccountUsageLog,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(startProductAnalyticsActionMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AutoCheckin,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.RunQuickCheckin,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+    })
+  })
+
+  it("does not track analytics for disabled account action menu entries", async () => {
+    userPreferencesContextValue.preferences = {
+      managedSiteType: SITE_TYPES.VELOERA,
+      veloera: {
+        baseUrl: "https://veloera-admin.example",
+        adminToken: "veloera-admin-token",
+        userId: "1",
+      },
+    } as Partial<UserPreferences>
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-disabled-menu-action",
+          disabled: false,
+          name: "Disabled Menu Site",
+          baseUrl: "https://api.example.com/v1/",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    expect(trackStartedMock).not.toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ManagedSiteChannels,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.LocateManagedSiteChannel,
+      surfaceId:
+        PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+  })
+
+  it("shows Enable and Delete actions when account is disabled", async () => {
+    const user = userEvent.setup()
+    const onDeleteAccount = vi.fn()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-1",
+          disabled: true,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={onDeleteAccount}
+      />,
+    )
+
+    expect(
+      screen.getByRole("button", { name: "account:actions.copyUrl" }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole("button", { name: "account:actions.copyKey" }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole("button", { name: "account:actions.edit" }),
+    ).toBeDisabled()
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const enableLabel = await within(menu).findByText(
+      "account:actions.enableAccount",
+    )
+    const deleteLabel = await within(menu).findByText("account:actions.delete")
+    const enableButton = enableLabel.closest("button")
+    const deleteButton = deleteLabel.closest("button")
+    expect(enableButton).not.toBeNull()
+    expect(deleteButton).not.toBeNull()
+
+    expect(enableButton!).toBeInTheDocument()
+    expect(enableButton!).toHaveClass("text-emerald-600")
+    expect(deleteButton!).toBeInTheDocument()
+    expect(deleteButton!).toHaveClass("text-red-600")
+    expect(
+      screen.queryByRole("button", { name: "account:actions.disableAccount" }),
+    ).toBeNull()
+    expect(Array.from(menu.querySelectorAll("button"))).toEqual([
+      enableButton!,
+      deleteButton!,
+    ])
+
+    await user.click(enableButton!)
+    expect(mockHandleSetAccountDisabled).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "acc-1" }),
+      false,
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByRole("menu")).toBeNull()
+    })
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const reopenedMenu = await screen.findByRole("menu")
+    const reopenedDeleteLabel = await within(reopenedMenu).findByText(
+      "account:actions.delete",
+    )
+    const reopenedDeleteButton = reopenedDeleteLabel.closest("button")
+    expect(reopenedDeleteButton).not.toBeNull()
+
+    await user.click(reopenedDeleteButton!)
+    expect(onDeleteAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "acc-1" }),
+    )
+    expect(trackStartedMock).not.toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.DeleteAccount,
+      surfaceId:
+        PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+  })
+
+  it("shows Disable action when account is enabled", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-2",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const disableLabel = await within(menu).findByText(
+      "account:actions.disableAccount",
+    )
+    const deleteLabel = await within(menu).findByText("account:actions.delete")
+    const disableButton = disableLabel.closest("button")
+    const deleteButton = deleteLabel.closest("button")
+    expect(disableButton).not.toBeNull()
+    expect(deleteButton).not.toBeNull()
+
+    expect(disableButton!).toBeInTheDocument()
+    expect(disableButton!).toHaveClass("text-amber-600")
+    expect(deleteButton!).toBeInTheDocument()
+
+    const menuButtons = Array.from(menu.querySelectorAll("button"))
+    const disableIndex = menuButtons.indexOf(disableButton!)
+    const deleteIndex = menuButtons.indexOf(deleteButton!)
+    expect(deleteIndex - disableIndex).toBe(1)
+    expect(
+      screen.queryByRole("button", { name: "account:actions.enableAccount" }),
+    ).toBeNull()
+  })
+
+  it("closes the menu after clicking Disable to avoid showing Enable immediately", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-3",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const disableLabel = await within(menu).findByText(
+      "account:actions.disableAccount",
+    )
+    const disableButton = disableLabel.closest("button")
+    expect(disableButton).not.toBeNull()
+
+    await user.click(disableButton!)
+
+    expect(mockHandleSetAccountDisabled).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "acc-3" }),
+      true,
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByRole("menu")).toBeNull()
+    })
+  })
+
+  it("opens CopyKeyDialog when smart copy finds zero tokens", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([])
+
+    const user = userEvent.setup()
+    const onCopyKey = vi.fn()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-4",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={onCopyKey}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "account:actions.copyKey" }),
+    )
+
+    await waitFor(() => {
+      expect(onCopyKey).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "acc-4" }),
+      )
+    })
+
+    expect(toastErrorMock).not.toHaveBeenCalledWith(
+      "account:actions.noKeyFound",
+    )
+    expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+      PRODUCT_ANALYTICS_RESULTS.Skipped,
+      {
+        insights: {
+          itemCount: 0,
+        },
+      },
+    )
+  })
+
+  it("copies a single token directly when smart copy finds exactly one key", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-single" }])
+
+    const user = userEvent.setup()
+    const onCopyKey = vi.fn()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-single-key",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={onCopyKey}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "account:actions.copyKey" }),
+    )
+
+    await waitFor(() => {
+      expect(fetchAccountTokensMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accountId: "acc-single-key",
+        }),
+      )
+      expect(toastSuccessMock).toHaveBeenCalledWith("account:actions.keyCopied")
+    })
+    expect(onCopyKey).not.toHaveBeenCalled()
+    expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+      PRODUCT_ANALYTICS_RESULTS.Success,
+      {
+        insights: {
+          itemCount: 1,
+        },
+      },
+    )
+  })
+
+  it("shows a fetch-info error when the token probe returns a non-array payload", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce({ invalid: true } as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-non-array",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "account:actions.copyKey" }),
+    )
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "account:actions.fetchKeyInfoFailed",
+      )
+    })
+    expect(clipboardWriteTextMock).not.toHaveBeenCalled()
+    expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+      PRODUCT_ANALYTICS_RESULTS.Failure,
+      {
+        errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+      },
+    )
+  })
+
+  it("falls back to the copy dialog when the token probe throws", async () => {
+    const tokenLoadError = { statusCode: 401, message: "private auth text" }
+    fetchAccountTokensMock.mockRejectedValueOnce(tokenLoadError)
+    resolveProductAnalyticsErrorCategoryFromErrorMock.mockReturnValueOnce(
+      PRODUCT_ANALYTICS_ERROR_CATEGORIES.Auth,
+    )
+
+    const user = userEvent.setup()
+    const onCopyKey = vi.fn()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-probe-failed",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={onCopyKey}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "account:actions.copyKey" }),
+    )
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "account:actions.fetchKeyListFailed",
+      )
+      expect(onCopyKey).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "acc-probe-failed" }),
+      )
+    })
+    expect(
+      resolveProductAnalyticsErrorCategoryFromErrorMock,
+    ).toHaveBeenCalledWith(tokenLoadError)
+    expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+      PRODUCT_ANALYTICS_RESULTS.Failure,
+      { errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Auth },
+    )
+  })
+
+  it("tracks completion when toggling account disabled succeeds", async () => {
+    mockHandleSetAccountDisabled.mockResolvedValueOnce(true)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-disable-success",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const disableButton = (
+      await within(menu).findByText("account:actions.disableAccount")
+    ).closest("button")
+    expect(disableButton).not.toBeNull()
+
+    await user.click(disableButton!)
+
+    await waitFor(() => {
+      expect(startProductAnalyticsActionMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.ToggleAccountDisabled,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Success,
+        {
+          insights: {
+            targetState: PRODUCT_ANALYTICS_TARGET_STATES.Disabled,
+          },
+        },
+      )
+    })
+  })
+
+  it("tracks completion when toggling account disabled fails", async () => {
+    mockHandleSetAccountDisabled.mockRejectedValueOnce(new Error("failed"))
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-disable-failure",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const disableButton = (
+      await within(menu).findByText("account:actions.disableAccount")
+    ).closest("button")
+    expect(disableButton).not.toBeNull()
+
+    await user.click(disableButton!)
+
+    await waitFor(() => {
+      expect(startProductAnalyticsActionMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.ToggleAccountDisabled,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          insights: {
+            targetState: PRODUCT_ANALYTICS_TARGET_STATES.Disabled,
+          },
+        },
+      )
+    })
+  })
+
+  it("tracks failure when toggling account disabled is rejected by storage", async () => {
+    mockHandleSetAccountDisabled.mockResolvedValueOnce(false)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-disable-storage-failure",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const disableButton = (
+      await within(menu).findByText("account:actions.disableAccount")
+    ).closest("button")
+    expect(disableButton).not.toBeNull()
+
+    await user.click(disableButton!)
+
+    await waitFor(() => {
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          insights: {
+            targetState: PRODUCT_ANALYTICS_TARGET_STATES.Disabled,
+          },
+        },
+      )
+    })
+  })
+
+  it("tracks completion when toggling account pin succeeds", async () => {
+    accountDataContextValue.isPinFeatureEnabled = true
+    mockTogglePinAccount.mockResolvedValueOnce(true)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-pin-success",
+          disabled: false,
+          name: "Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const pinButton = (
+      await within(menu).findByText("account:actions.pin")
+    ).closest("button")
+    expect(pinButton).not.toBeNull()
+
+    await user.click(pinButton!)
+
+    await waitFor(() => {
+      expect(startProductAnalyticsActionMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AccountManagement,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.ToggleAccountPin,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Success,
+      )
+    })
+  })
+
+  it("sends a targeted autoCheckin:runNow payload when Quick check-in is clicked", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin")
+    sendRuntimeMessageMock
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          perAccount: {
+            "acc-5": {
+              status: CHECKIN_RESULT_STATUS.SUCCESS,
+              messageKey: "autoCheckin:providerFallback.checkinSuccessful",
+            },
+          },
+        },
+      })
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-5",
+          disabled: false,
+          name: "Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    expect(toastLoadingMock).toHaveBeenCalledWith(
+      "autoCheckin:messages.loading.running",
+    )
+    await waitFor(() => {
+      expect(sendRuntimeMessageMock).toHaveBeenNthCalledWith(
+        1,
+        AutoCheckinMessageTypes.RunNow,
+        { accountIds: ["acc-5"] },
+      )
+      expect(sendRuntimeMessageMock).toHaveBeenNthCalledWith(
+        2,
+        AutoCheckinMessageTypes.GetStatus,
+        undefined,
+      )
+      expect(toastDismissMock).toHaveBeenCalledWith("toast-quick-checkin")
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Site: autoCheckin:providerFallback.checkinSuccessful",
+      )
+      expect(loadAccountDataMock).toHaveBeenCalled()
+      expect(startProductAnalyticsActionMock).toHaveBeenCalledWith({
+        featureId: PRODUCT_ANALYTICS_FEATURE_IDS.AutoCheckin,
+        actionId: PRODUCT_ANALYTICS_ACTION_IDS.RunQuickCheckin,
+        surfaceId:
+          PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+        entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      })
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Success,
+        {
+          insights: {
+            statusKind: PRODUCT_ANALYTICS_STATUS_KINDS.Healthy,
+          },
+        },
+      )
+    })
+  })
+
+  it("shows a failure toast when quick check-in finishes without a per-account result", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-fallback")
+    sendRuntimeMessageMock
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ success: true, data: { perAccount: {} } })
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-fallback",
+          disabled: false,
+          name: "Fallback Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledWith(
+        "toast-quick-checkin-fallback",
+      )
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "autoCheckin:messages.error.runFailed",
+      )
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          insights: {
+            statusKind: PRODUCT_ANALYTICS_STATUS_KINDS.Error,
+          },
+        },
+      )
+    })
+  })
+
+  it("shows a failure toast when quick check-in status lookup fails", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-status-failed")
+    sendRuntimeMessageMock
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ success: false, error: "status unavailable" })
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-status-failed",
+          disabled: false,
+          name: "Status Failed Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledWith(
+        "toast-quick-checkin-status-failed",
+      )
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "autoCheckin:messages.error.runFailed",
+      )
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          insights: {
+            statusKind: PRODUCT_ANALYTICS_STATUS_KINDS.Error,
+          },
+        },
+      )
+    })
+  })
+
+  it("shows a quick-checkin failure toast when the background run fails", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-error")
+    sendRuntimeMessageMock.mockResolvedValueOnce({
+      success: false,
+      error: "background failed",
+    })
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-failed",
+          disabled: false,
+          name: "Failed Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledWith("toast-quick-checkin-error")
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "autoCheckin:messages.error.runFailed",
+      )
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        { errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown },
+      )
+    })
+  })
+
+  it("tracks quick-checkin failure analytics when the run request throws", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-throw")
+    sendRuntimeMessageMock.mockRejectedValueOnce(
+      new Error("background blew up"),
+    )
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-throw",
+          disabled: false,
+          name: "Thrown Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(toastDismissMock).toHaveBeenCalledWith("toast-quick-checkin-throw")
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "autoCheckin:messages.error.runFailed",
+      )
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        { errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown },
+      )
+    })
+    expect(loadAccountDataMock).not.toHaveBeenCalled()
+  })
+
+  it("tracks quick-checkin runtime failures with the shared safe error category", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-structured-error")
+    const structuredError = { statusCode: 403, message: "private auth text" }
+    sendRuntimeMessageMock.mockRejectedValueOnce(structuredError)
+    resolveProductAnalyticsErrorCategoryFromErrorMock.mockReturnValueOnce(
+      PRODUCT_ANALYTICS_ERROR_CATEGORIES.Auth,
+    )
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-structured-error",
+          disabled: false,
+          name: "Structured Error Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(
+        resolveProductAnalyticsErrorCategoryFromErrorMock,
+      ).toHaveBeenCalledWith(structuredError)
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        { errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Auth },
+      )
+    })
+    expect(loadAccountDataMock).not.toHaveBeenCalled()
+  })
+
+  it("tracks skipped quick-checkin completion when the account result is skipped", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-skipped")
+    sendRuntimeMessageMock
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          perAccount: {
+            "acc-quick-skipped": {
+              status: CHECKIN_RESULT_STATUS.SKIPPED,
+              messageKey: "autoCheckin:providerFallback.checkinSkipped",
+            },
+          },
+        },
+      })
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-skipped",
+          disabled: false,
+          name: "Skipped Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Skipped,
+        {
+          insights: {
+            statusKind: PRODUCT_ANALYTICS_STATUS_KINDS.Warning,
+          },
+        },
+      )
+    })
+  })
+
+  it("tracks failed quick-checkin completion with status kind context", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-failed-status")
+    sendRuntimeMessageMock
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          perAccount: {
+            "acc-quick-failed-status": {
+              status: CHECKIN_RESULT_STATUS.FAILED,
+              messageKey: "autoCheckin:providerFallback.checkinFailed",
+            },
+          },
+        },
+      })
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-failed-status",
+          disabled: false,
+          name: "Failed Status Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Validation,
+          insights: {
+            statusKind: PRODUCT_ANALYTICS_STATUS_KINDS.Error,
+          },
+        },
+      )
+    })
+  })
+
+  it("tracks unsupported quick-checkin endpoint failures with a safe category", async () => {
+    toastLoadingMock.mockReturnValue("toast-quick-checkin-unsupported")
+    sendRuntimeMessageMock
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          perAccount: {
+            "acc-quick-unsupported": {
+              status: CHECKIN_RESULT_STATUS.FAILED,
+              messageKey: "autoCheckin:providerFallback.endpointNotSupported",
+            },
+          },
+        },
+      })
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-quick-unsupported",
+          disabled: false,
+          name: "Unsupported Site",
+          checkIn: { enableDetection: true },
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.quickCheckin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unsupported,
+          insights: {
+            statusKind: PRODUCT_ANALYTICS_STATUS_KINDS.Error,
+          },
+        },
+      )
+    })
+  })
+
+  it("shows a pin toggle when the feature is enabled and confirms successful pinning", async () => {
+    accountDataContextValue.isPinFeatureEnabled = true
+    accountDataContextValue.isAccountPinned.mockReturnValue(false)
+    mockTogglePinAccount.mockResolvedValueOnce(true)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-pin",
+          disabled: false,
+          name: "Pinned Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.pin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(mockTogglePinAccount).toHaveBeenCalledWith("acc-pin")
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "messages:toast.success.accountPinned",
+      )
+    })
+  })
+
+  it("tracks an unknown failure when pinning does not change state", async () => {
+    accountDataContextValue.isPinFeatureEnabled = true
+    accountDataContextValue.isAccountPinned.mockReturnValue(false)
+    mockTogglePinAccount.mockResolvedValueOnce(false)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-pin-false",
+          disabled: false,
+          name: "Pin Failure Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText("account:actions.pin")
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(mockTogglePinAccount).toHaveBeenCalledWith("acc-pin-false")
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        { errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown },
+      )
+    })
+    expect(toastSuccessMock).not.toHaveBeenCalledWith(
+      "messages:toast.success.accountPinned",
+    )
+  })
+
+  it("shares a sanitized snapshot using only visible cashflow data", async () => {
+    userPreferencesContextValue.showTodayCashflow = false
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-share",
+          disabled: false,
+          name: "Share Site",
+          baseUrl: "https://api.example.com/v1/chat/completions",
+          balance: { USD: 12, CNY: 0 },
+          todayIncome: { USD: 8, CNY: 0 },
+          todayConsumption: { USD: 4, CNY: 0 },
+          last_sync_time: 0,
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "shareSnapshots:actions.shareAccountSnapshot",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(exportShareSnapshotWithToastMock).toHaveBeenCalledTimes(1)
+    })
+
+    const payload = exportShareSnapshotWithToastMock.mock.calls[0]?.[0]?.payload
+    expect(payload).toEqual(
+      expect.objectContaining({
+        siteName: "Share Site",
+        originUrl: "https://api.example.com",
+        currencyType: "USD",
+        balance: 12,
+      }),
+    )
+    expect(payload).not.toHaveProperty("todayIncome")
+    expect(payload).not.toHaveProperty("todayOutcome")
+    expect(startProductAnalyticsActionMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ShareSnapshots,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.ShareAccountSnapshot,
+      surfaceId:
+        PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+    expect(trackStartedMock).not.toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ShareSnapshots,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.ShareAccountSnapshot,
+      surfaceId:
+        PRODUCT_ANALYTICS_SURFACE_IDS.OptionsAccountManagementRowActions,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+    expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+      PRODUCT_ANALYTICS_RESULTS.Success,
+    )
+  })
+
+  it("tracks share snapshot failures with an unknown error category", async () => {
+    exportShareSnapshotWithToastMock.mockRejectedValueOnce(
+      new Error("export failed"),
+    )
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-share-failure",
+          disabled: false,
+          name: "Share Failure Site",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "shareSnapshots:actions.shareAccountSnapshot",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(completeProductAnalyticsActionMock).toHaveBeenCalledWith(
+        PRODUCT_ANALYTICS_RESULTS.Failure,
+        { errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown },
+      )
+    })
+  })
+
+  it("navigates to managed site channels focused by channelId when an exact match is found", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-1" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4"],
+        key: "sk-1",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 123,
+            name: "Managed Channel 123",
+            base_url: "https://api.example.com",
+            models: "gpt-4",
+            key: "sk-1",
+          },
+        ],
+        total: 1,
+        type_counts: {},
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-6",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsForChannelMock).toHaveBeenCalledWith(123)
+    })
+    expect(openManagedSiteChannelsPageMock).not.toHaveBeenCalled()
+  })
+
+  it("uses a secondary exact-model explanation when the account key is blank", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4"],
+        key: "",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 456,
+            name: "Managed Channel 456",
+            base_url: "https://api.example.com",
+            models: "gpt-4",
+            key: "",
+          },
+        ],
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-6b",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com/v1/openai",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateSecondaryExactModels",
+      )
+    })
+
+    expect(fetchAccountTokensMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseUrl: "https://api.example.com/v1/openai",
+      }),
+    )
+    expect(openManagedSiteChannelsForChannelMock).not.toHaveBeenCalled()
+  })
+
+  it("falls back to a fuzzy URL-only explanation when no secondary match exists", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-1" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4"],
+        key: "sk-1",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 456,
+            name: "Managed Channel 456",
+            base_url: "https://api.example.com",
+            models: "claude-3",
+            key: "",
+          },
+        ],
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-7",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateFuzzyUrlOnly",
+      )
+    })
+    expect(openManagedSiteChannelsForChannelMock).not.toHaveBeenCalled()
+  })
+
+  it("shows a key-match-only explanation when the key matches but models do not", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-1" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4"],
+        key: "sk-1",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 456,
+            name: "Managed Channel 456",
+            base_url: "https://api.example.com",
+            models: "claude-3",
+            key: "sk-1",
+          },
+        ],
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-7k",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateKeyMatchOnly",
+      )
+    })
+  })
+
+  it("shows a same-channel drift explanation when key and approximate models point to the same channel", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-1" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4", "gpt-4o"],
+        key: "sk-1",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 458,
+            name: "Managed Channel 458",
+            base_url: "https://api.example.com",
+            models: "gpt-4,gpt-4o,gpt-4.1",
+            key: "sk-1",
+          },
+        ],
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-7k-drift",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateKeyMatchedModelsDrifted",
+      )
+    })
+    expect(openManagedSiteChannelsForChannelMock).not.toHaveBeenCalled()
+  })
+
+  it("shows a conflict explanation when key and model signals point to different channels", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-1" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4", "gpt-4o"],
+        key: "sk-1",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 459,
+            name: "Managed Channel 459",
+            base_url: "https://api.example.com",
+            models: "claude-3",
+            key: "sk-1",
+          },
+          {
+            id: 460,
+            name: "Managed Channel 460",
+            base_url: "https://api.example.com",
+            models: "gpt-4,gpt-4o,gpt-4.1",
+            key: "sk-2",
+          },
+        ],
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-7k-conflict",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateSignalsConflict",
+      )
+    })
+    expect(openManagedSiteChannelsForChannelMock).not.toHaveBeenCalled()
+  })
+
+  it("uses a secondary model-similarity explanation when the closest candidate only overlaps by similarity", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-1" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4", "gpt-4o", "gemini-2.0"],
+        key: "sk-1",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [
+          {
+            id: 457,
+            name: "Managed Channel 457",
+            base_url: "https://api.example.com",
+            models: "gpt-4,gpt-4o,claude-3",
+            key: "",
+          },
+        ],
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-7c",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateSecondaryModelsSimilar",
+      )
+    })
+  })
+
+  it("shows a no-key fallback when the account has no API tokens", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn(),
+      searchChannel: vi.fn(),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-7b",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastCustomMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          duration: 5000,
+        }),
+      )
+    })
+    expect(toastSuccessMock).not.toHaveBeenCalled()
+    expect(managedService.prepareChannelFormData).not.toHaveBeenCalled()
+  })
+
+  it("shows an unresolved message when no ranked channel can be confirmed", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([{ key: "sk-1" }])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn().mockResolvedValue({
+        base_url: "https://api.example.com",
+        models: ["gpt-4"],
+        key: "sk-1",
+      }),
+      searchChannel: vi.fn().mockResolvedValue({
+        items: [],
+        total: 0,
+        type_counts: {},
+      }),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-7d",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateUnresolved",
+      )
+    })
+  })
+
+  it("falls back to base URL search when multiple keys are present", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce([
+      { key: "sk-1" },
+      { key: "sk-2" },
+    ])
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn(),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-8",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com/v1/",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastCustomMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          duration: 5000,
+        }),
+      )
+    })
+    expect(toastSuccessMock).not.toHaveBeenCalled()
+    expect(managedService.prepareChannelFormData).not.toHaveBeenCalled()
+  })
+
+  it("shows an actionable locate action for providers with reliable base-url lookup", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-8b",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com/v1/",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+    expect(button!).toBeEnabled()
+    expect(
+      within(menu).queryByText(
+        "account:actions.locateManagedSiteChannelUnsupportedHint",
+      ),
+    ).toBeNull()
+  })
+
+  it.each([
+    [
+      "Veloera",
+      {
+        managedSiteType: SITE_TYPES.VELOERA,
+        veloera: {
+          baseUrl: "https://veloera-admin.example",
+          adminToken: "veloera-admin-token",
+          userId: "1",
+        },
+      },
+      "Veloera Site",
+    ],
+  ])(
+    "shows a disabled locate action with visible unsupported guidance for %s",
+    async (_label, preferences, siteName) => {
+      userPreferencesContextValue.preferences =
+        preferences as Partial<UserPreferences>
+
+      const user = userEvent.setup()
+
+      render(
+        <AccountActionButtons
+          site={buildDisplaySiteData({
+            id: "acc-8c",
+            disabled: false,
+            name: siteName,
+            baseUrl: "https://api.example.com/v1/",
+          })}
+          onCopyKey={vi.fn()}
+          onDeleteAccount={vi.fn()}
+        />,
+      )
+
+      await user.click(
+        screen.getByRole("button", { name: "common:actions.more" }),
+      )
+
+      const menu = await screen.findByRole("menu")
+      const label = await within(menu).findByText(
+        "account:actions.locateManagedSiteChannel",
+      )
+      const button = label.closest("button")
+      expect(button).not.toBeNull()
+      expect(button!).toBeDisabled()
+      const hint = within(menu).getByText(
+        "account:actions.locateManagedSiteChannelUnsupportedHint",
+      )
+      expect(hint).toBeInTheDocument()
+      const description = within(menu).getByText(
+        "account:actions.locateManagedSiteChannelUnsupported",
+      )
+      expect(button!).toHaveAttribute(
+        "title",
+        "account:actions.locateManagedSiteChannelUnsupported",
+      )
+      expect(button!).toHaveAttribute("aria-describedby", description.id)
+
+      await user.click(button!)
+
+      expect(getManagedSiteServiceMock).not.toHaveBeenCalled()
+      expect(openManagedSiteChannelsPageMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it("shows an actionable locate action for Claude Code Hub", async () => {
+    userPreferencesContextValue.preferences = {
+      managedSiteType: SITE_TYPES.CLAUDE_CODE_HUB,
+      claudeCodeHub: {
+        baseUrl: "https://cch-admin.example",
+        adminToken: "cch-admin-token",
+      },
+    } as Partial<UserPreferences>
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-8d",
+          disabled: false,
+          name: "Claude Code Hub Site",
+          baseUrl: "https://api.example.com/v1/",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+    expect(button!).toBeEnabled()
+    expect(
+      within(menu).queryByText(
+        "account:actions.locateManagedSiteChannelUnsupportedHint",
+      ),
+    ).toBeNull()
+  })
+
+  it("hides the locate action when managed site config is missing", async () => {
+    hasValidManagedSiteConfigMock.mockReturnValue(false)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-9",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com/v1/",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = within(menu).queryByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    expect(label).toBeNull()
+    expect(hasValidManagedSiteConfigMock).toHaveBeenCalledWith(
+      userPreferencesContextValue.preferences,
+    )
+    expect(getManagedSiteServiceMock).not.toHaveBeenCalled()
+  })
+
+  it("shows the account-specific config-missing fallback when admin config disappears at click-time", async () => {
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue(null),
+      prepareChannelFormData: vi.fn(),
+      searchChannel: vi.fn(),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-9b",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com/v1/",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+      expect(toastCustomMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({
+          duration: 5000,
+        }),
+      )
+    })
+    expect(toastSuccessMock).not.toHaveBeenCalled()
+    expect(fetchAccountTokensMock).not.toHaveBeenCalled()
+    expect(managedService.prepareChannelFormData).not.toHaveBeenCalled()
+  })
+
+  it("falls back to base URL search when token response is not an array", async () => {
+    fetchAccountTokensMock.mockResolvedValueOnce({} as any)
+
+    const managedService = {
+      messagesKey: "newapi",
+      getConfig: vi.fn().mockResolvedValue({
+        baseUrl: "https://admin.example",
+        token: "t",
+        userId: "1",
+      }),
+      prepareChannelFormData: vi.fn(),
+    }
+
+    getManagedSiteServiceMock.mockResolvedValueOnce(managedService as any)
+
+    const user = userEvent.setup()
+
+    render(
+      <AccountActionButtons
+        site={buildDisplaySiteData({
+          id: "acc-10",
+          disabled: false,
+          name: "Site",
+          baseUrl: "https://api.example.com/v1/",
+        })}
+        onCopyKey={vi.fn()}
+        onDeleteAccount={vi.fn()}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "common:actions.more" }),
+    )
+
+    const menu = await screen.findByRole("menu")
+    const label = await within(menu).findByText(
+      "account:actions.locateManagedSiteChannel",
+    )
+    const button = label.closest("button")
+    expect(button).not.toBeNull()
+
+    await user.click(button!)
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "account:actions.channelLocateFailed",
+      )
+      expect(openManagedSiteChannelsPageMock).toHaveBeenCalledWith({
+        search: "https://api.example.com",
+      })
+    })
+    expect(managedService.prepareChannelFormData).not.toHaveBeenCalled()
+  })
+})

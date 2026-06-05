@@ -1,0 +1,209 @@
+{
+  "description": "在每天的指定时间窗口内，自动为符合条件的账号执行签到；下方结果列表显示已执行的签到记录，不是待签到队列。",
+  "execution": {
+    "actions": {
+      "devModeHint": "开发模式：为便于测试，操作按钮将始终显示。",
+      "openFailedManual": "打开失败账号的手动签到页",
+      "openManual": "手动签到",
+      "openSite": "打开网站",
+      "retryAccount": "重新尝试"
+    },
+    "debug": {
+      "evaluateUiOpenPretrigger": "开发：解释“打开界面时提前触发今日签到”是否满足条件",
+      "resetLastDailyRunDay": "开发：清除“今天已执行过每日签到”标记",
+      "scheduleDailyAlarmForToday": "开发：将每日签到的闹钟设为今天稍后时间",
+      "triggerDailyAlarmNow": "开发：立即运行每日自动签到（模拟每日签到闹钟回调）",
+      "triggerRetryAlarmNow": "开发：立即运行重试签到（模拟签到重试闹钟回调）",
+      "triggerUiOpenPretrigger": "开发：立即尝试“打开界面时提前触发今日签到",
+      "uiOpenPretriggerDiagnosticsDesc": "展示是否满足条件，以及用于判断的输入信息。",
+      "uiOpenPretriggerDiagnosticsTitle": "打开界面时提前触发今日签到"
+    },
+    "empty": {
+      "addAccount": "添加账号",
+      "noAccounts": "先添加账号后才能自动签到",
+      "noAccountsDesc": "自动签到需要至少一个已启用账号，添加账号后才能执行。",
+      "noDetectionAccounts": "为账号启用签到检测",
+      "noDetectionAccountsDesc": "现有账号还没有启用签到检测。打开账号管理，为需要参与自动签到的账号启用签到检测。",
+      "noHistory": "暂无执行历史",
+      "noHistoryDesc": "当前还没有签到执行记录。点击“立即执行”后，符合条件的账号会开始签到，完成后才会出现在结果列表中。",
+      "noResults": "没有匹配的结果",
+      "noResultsDesc": "尝试修改筛选条件或搜索关键字",
+      "openAccounts": "打开账号管理"
+    },
+    "filters": {
+      "all": "全部",
+      "failed": "失败",
+      "searchPlaceholder": "搜索账号名称或消息...",
+      "skipped": "已跳过",
+      "success": "成功"
+    },
+    "hints": {
+      "invalidAccessToken": "解决方案：Access Token 可能已失效。请重新登录该站点，然后在「账号管理 → 编辑账号」中重新自动识别/刷新 Access Token；如自动识别后仍出现此问题，请手动获取并修改 Access Token。",
+      "manualVerificationRequired": "建议先点击“打开网站”，在站点页面完成登录、Turnstile/PoW 等基础验证，让浏览器建立有效会话后再重试自动签到。如果完成验证后仍多次失败，可能是当前自动签到流程尚未适配该站点，请暂时改用手动签到。",
+      "noTabWithId": "提示：请不要关闭扩展自动创建的标签页/窗口，扩展会在一段时间后自动关闭。如需手动关闭，请至少等待 1 分钟后再关闭。",
+      "openFailedManualNewWindow": "提示：按住 Shift 点击“打开失败账号的手动签到页”，可在新窗口中打开。",
+      "siteTypeCheckinUnsupported": "解决方案：先在「账号管理 → 编辑账号」中检查“站点类型”是否与实际站点一致；如果此前是自动识别得到的结果，可在目标站点重新登录后重新识别一次。若确认站点类型无误但仍提示不支持，说明该站点当前可能未适配自动签到，请改用“打开网站”或“手动签到”处理。"
+    },
+    "refresh": "刷新",
+    "runNow": "立即执行",
+    "statistics": {
+      "result": "执行结果"
+    },
+    "status": {
+      "alreadyChecked": "已签到",
+      "failed": "失败",
+      "skipped": "已跳过",
+      "success": "成功"
+    },
+    "table": {
+      "accountName": "账号名称",
+      "actions": "操作",
+      "message": "消息",
+      "status": "状态",
+      "time": "时间"
+    },
+    "title": "自动签到"
+  },
+  "messages": {
+    "error": {
+      "accountDisabled": "账号已禁用",
+      "dailyAlarmScheduleForTodayFailed": "计划今日每日闹钟失败：{{error}}",
+      "dailyAlarmTriggerFailed": "触发每日闹钟失败：{{error}}",
+      "deterministicTimeOutsideWindow": "固定时间必须位于配置的时间窗口内。",
+      "invalidDeterministicTime": "请输入合法的 HH:mm 格式时间。",
+      "invalidNumber": "请输入有效的正数。",
+      "invalidTimeWindow": "无效的时间窗口，开始时间和结束时间不能相同。",
+      "lastDailyRunDayResetFailed": "重置每日执行标记失败：{{error}}",
+      "openFailedManualFailed": "{{failedCount}} 个失败账号的手动签到页均打开失败。",
+      "openFailedManualNone": "没有可打开手动签到页的失败账号。",
+      "openFailedManualPartial": "已打开 {{openedCount}} 个失败账号的页面，另有 {{failedCount}} 个打开失败。",
+      "openManualFailed": "打开手动签到页面失败：{{error}}",
+      "openSiteFailed": "打开网站页面失败：{{error}}",
+      "retryAlarmTriggerFailed": "触发重试闹钟失败：{{error}}",
+      "retryFailed": "重新尝试失败：{{error}}",
+      "runFailed": "执行自动签到失败：{{error}}",
+      "uiOpenPretriggerDidNotStart": "界面打开预触发未启动：{{reason}}",
+      "uiOpenPretriggerEvaluationFailed": "评估界面打开预触发失败：{{error}}",
+      "uiOpenPretriggerIneligible": "界面打开预触发条件不满足：{{reason}}",
+      "uiOpenPretriggerTriggerFailed": "触发界面打开预触发失败：{{error}}"
+    },
+    "loading": {
+      "evaluatingUiOpenPretrigger": "正在评估界面打开预触发...",
+      "openingFailedManual": "正在为 {{count}} 个失败账号打开手动签到页...",
+      "resettingLastDailyRunDay": "正在重置每日执行标记...",
+      "running": "正在执行自动签到...",
+      "schedulingDailyAlarmForToday": "正在计划今日每日闹钟...",
+      "triggeringDailyAlarm": "正在触发每日闹钟...",
+      "triggeringRetryAlarm": "正在触发重试闹钟...",
+      "triggeringUiOpenPretrigger": "正在触发界面打开预触发..."
+    },
+    "success": {
+      "dailyAlarmScheduledForToday": "已计划今日每日闹钟。",
+      "dailyAlarmTriggered": "已触发每日闹钟执行。",
+      "lastDailyRunDayReset": "已重置每日执行标记。",
+      "openFailedManualCompleted": "已打开 {{count}} 个失败账号的手动签到页。",
+      "pretriggerStarted": "已提前触发自动签到。",
+      "retryAlarmTriggered": "已触发重试闹钟执行。",
+      "retryCompleted": "重新尝试已完成。",
+      "runCompleted": "自动签到已完成。",
+      "settingsSaved": "自动签到设置已保存。",
+      "uiOpenPretriggerEligible": "界面打开预触发条件满足。"
+    }
+  },
+  "providerFallback": {
+    "alreadyCheckedToday": "今日已签到",
+    "checkinFailed": "签到失败",
+    "checkinSuccessful": "签到成功",
+    "endpointNotSupported": "不支持该签到接口，请检查账号的站点类型与实际站点是否相同",
+    "turnstileIncognitoAccessRequired": "需要允许扩展在无痕模式运行，才能在无痕页面获取 Turnstile Token（多账号场景）。请在扩展管理页开启“允许在无痕模式运行”后重试；或手动打开签到页面完成验证：{{checkInUrl}}",
+    "turnstileManualRequired": "需要完成 Cloudflare Turnstile 验证，请打开签到页面完成验证：{{checkInUrl}}",
+    "unknownError": "发生未知错误"
+  },
+  "providerWong": {
+    "checkinDisabled": "该站点未开启签到功能"
+  },
+  "settings": {
+    "deterministicTimeDesc": "启用固定模式时，选择开始签到的具体时间（HH:mm）。",
+    "deterministicTimeTitle": "固定时间",
+    "enable": "启用自动签到",
+    "enableDesc": "控制全局自动签到功能开关，关闭后不会执行任何自动签到任务。",
+    "notifyUiOnCompletion": "自动签到完成后刷新数据和界面",
+    "notifyUiOnCompletionDesc": "当自动签到执行完成后，立即刷新签到账号的数据并刷新相关界面。",
+    "pretriggerDailyOnUiOpen": "打开界面时提前触发今日签到",
+    "pretriggerDailyOnUiOpenDesc": "当你在今日时间窗口内打开扩展界面且今日每日计划尚未执行时，立即触发一次每日自动签到。",
+    "retryDesc": "在同一天内自动重试失败的账号。",
+    "retryInterval": "重试间隔（分钟）",
+    "retryIntervalDesc": "每次重试之间等待的时间。",
+    "retryMaxAttempts": "每日最大尝试次数",
+    "retryMaxAttemptsDesc": "每个账号每天允许的最大尝试次数（首次 + 重试）。",
+    "retryTitle": "重试策略",
+    "scheduleModeDesc": "选择在时间窗口内如何计算下一次运行时间。",
+    "scheduleModeDeterministic": "固定时间",
+    "scheduleModeRandom": "随机",
+    "scheduleModeTitle": "计划模式",
+    "title": "自动签到",
+    "viewExecution": "查看签到历史",
+    "viewExecutionButton": "打开记录",
+    "viewExecutionDesc": "查看已执行的自动签到结果、跳过原因和账号准备状态；这里不是待签到账号列表。",
+    "windowEnd": "时间窗口结束",
+    "windowEndDesc": "允许每日自动签到开始的最晚本地时间。",
+    "windowStart": "时间窗口开始",
+    "windowStartDesc": "允许每日自动签到开始的最早本地时间。"
+  },
+  "skipReasons": {
+    "account_disabled": "账号已禁用",
+    "already_checked_today": "今日已签到",
+    "auto_checkin_disabled": "自动签到已关闭",
+    "detection_disabled": "检测已关闭",
+    "no_provider": "账号所属站点类型暂不支持签到",
+    "provider_not_ready": "账号配置暂不支持签到"
+  },
+  "snapshot": {
+    "badges": {
+      "disabled": "未启用",
+      "enabled": "已启用",
+      "pending": "待执行",
+      "providerAvailable": "可用",
+      "providerUnavailable": "不可用"
+    },
+    "description": "列出所有已启用检测的账号及其准备状态。处于待执行状态的账号会在点击“立即执行”或到达计划时间后参与签到。",
+    "table": {
+      "autoCheckin": "自动签到",
+      "detection": "检测",
+      "lastResult": "最近结果",
+      "provider": "提供方",
+      "skipReason": "跳过原因",
+      "status": "状态"
+    },
+    "title": "账号检测状态"
+  },
+  "status": {
+    "disabled": "已禁用",
+    "lastRun": "最近运行",
+    "nextDaily": "下次每日计划",
+    "nextRetry": "下次重试计划",
+    "noPendingRetry": "无待重试",
+    "notScheduled": "未计划",
+    "pendingRetry": "等待重试",
+    "result": {
+      "failed": "失败",
+      "partial": "部分成功",
+      "success": "成功"
+    },
+    "retryDisabled": "重试未启用",
+    "summary": {
+      "eligible": "可参与",
+      "executed": "已执行",
+      "failed": "失败",
+      "skipped": "跳过",
+      "success": "成功",
+      "title": "执行统计"
+    }
+  },
+  "uiOpenPretrigger": {
+    "close": "关闭",
+    "dialogDescription": "打开扩展界面时触发了今日计划的自动签到。",
+    "dialogTitle": "自动签到已完成",
+    "viewDetails": "查看详情"
+  }
+}

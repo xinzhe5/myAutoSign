@@ -1,0 +1,403 @@
+import type { TFunction } from "i18next"
+import { FormEvent, useEffect, useMemo, useState } from "react"
+import toast from "react-hot-toast"
+import { useTranslation } from "react-i18next"
+
+import { CCSwitchIcon } from "~/components/icons/CCSwitchIcon"
+import {
+  Button,
+  Input,
+  Label,
+  Modal,
+  SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui"
+import { resolveDisplayAccountTokenForSecret } from "~/services/accounts/utils/apiServiceRequest"
+import { fetchOpenAICompatibleModelIds } from "~/services/aiApi/openaiCompatible"
+import {
+  CCSWITCH_APPS,
+  openInCCSwitch,
+  type CCSwitchApp,
+} from "~/services/integrations/ccSwitch"
+import {
+  startProductAnalyticsAction,
+  type ProductAnalyticsActionContext,
+} from "~/services/productAnalytics/actions"
+import {
+  PRODUCT_ANALYTICS_ACTION_IDS,
+  PRODUCT_ANALYTICS_ENTRYPOINTS,
+  PRODUCT_ANALYTICS_ERROR_CATEGORIES,
+  PRODUCT_ANALYTICS_FEATURE_IDS,
+  PRODUCT_ANALYTICS_RESULTS,
+  PRODUCT_ANALYTICS_SURFACE_IDS,
+} from "~/services/productAnalytics/events"
+import type { ApiToken, DisplaySiteData } from "~/types"
+import { isTestMode } from "~/utils/core/environment"
+import { getErrorMessage } from "~/utils/core/error"
+import { createLogger } from "~/utils/core/logger"
+import {
+  coerceBaseUrlToPathSuffix,
+  normalizeHttpUrl,
+  stripTrailingOpenAIV1,
+} from "~/utils/core/url"
+
+interface CCSwitchExportDialogProps {
+  isOpen: boolean
+  onClose: () => void
+  account: DisplaySiteData
+  token: ApiToken
+  analyticsContext?: ProductAnalyticsActionContext
+}
+
+/**
+ * Unified logger scoped to the CC Switch export dialog.
+ */
+const logger = createLogger("CCSwitchExportDialog")
+
+const DEFAULT_APP: CCSwitchApp = "claude"
+const APP_LIMITATION_NOTICE_ID = "ccswitch-app-limitation"
+// Preserve the real debounce in dev/prod so endpoint edits do not spam model-list
+// requests, but skip the wall-clock delay in Vitest.
+const UPSTREAM_MODEL_FETCH_DEBOUNCE_MS = isTestMode() ? 0 : 300
+
+const getCCSwitchAppLabel = (t: TFunction, app: CCSwitchApp) => {
+  switch (app) {
+    case "claude":
+      return t("ui:dialog.ccswitch.appOptions.claude")
+    case "codex":
+      return t("ui:dialog.ccswitch.appOptions.codex")
+    case "gemini":
+      return t("ui:dialog.ccswitch.appOptions.gemini")
+    case "opencode":
+      return t("ui:dialog.ccswitch.appOptions.opencode")
+    case "openclaw":
+      return t("ui:dialog.ccswitch.appOptions.openclaw")
+  }
+}
+
+const getCCSwitchLimitationNotice = (t: TFunction, app: CCSwitchApp) => {
+  switch (app) {
+    case "opencode":
+      return t("ui:dialog.ccswitch.notices.opencode")
+    case "openclaw":
+      return t("ui:dialog.ccswitch.notices.openclaw")
+    default:
+      return null
+  }
+}
+
+/**
+ * Presents a modal for exporting an account token into CCSwitch-compatible apps.
+ * Prefills provider metadata and lets the user tweak app, endpoint, model, and helper notes.
+ * @param props Component props bundle.
+ * @param props.isOpen Whether the dialog is visible.
+ * @param props.onClose Callback invoked when the dialog should close.
+ * @param props.account Account metadata used to prefill the form.
+ * @param props.token API token exported through CCSwitch.
+ */
+export function CCSwitchExportDialog(props: CCSwitchExportDialogProps) {
+  const { isOpen, onClose, account, token, analyticsContext } = props
+  const { t } = useTranslation(["ui", "common"])
+  const [app, setApp] = useState<CCSwitchApp>(DEFAULT_APP)
+  const [model, setModel] = useState("")
+  const [notes, setNotes] = useState("")
+  const [providerName, setProviderName] = useState(account.name)
+  const [homepage, setHomepage] = useState(account.baseUrl)
+  const [endpoint, setEndpoint] = useState(account.baseUrl)
+  const [isEndpointCustomized, setIsEndpointCustomized] = useState(false)
+  const [upstreamModelOptions, setUpstreamModelOptions] = useState<
+    { value: string; label: string }[]
+  >([])
+  const [isLoadingModels, setIsLoadingModels] = useState(false)
+  const formId = useMemo(() => `ccswitch-export-form-${token.id}`, [token.id])
+  const limitationNotice = getCCSwitchLimitationNotice(t, app)
+
+  useEffect(() => {
+    if (isOpen) {
+      setApp(DEFAULT_APP)
+      setModel("")
+      setNotes(token.note ?? "")
+      setProviderName(account.name)
+      setHomepage(account.baseUrl)
+      setEndpoint(account.baseUrl)
+      setIsEndpointCustomized(false)
+      setUpstreamModelOptions([])
+      setIsLoadingModels(false)
+    }
+  }, [account.baseUrl, account.id, account.name, isOpen, token.id, token.note])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (isEndpointCustomized) return
+
+    // CC Switch expects Codex exports to default to an OpenAI-style /v1 endpoint,
+    // while OpenCode/OpenClaw should keep the stored base URL unless the user overrides it.
+    const defaultEndpoint =
+      app === "codex"
+        ? coerceBaseUrlToPathSuffix(account.baseUrl, "/v1")
+        : account.baseUrl
+    setEndpoint(defaultEndpoint)
+  }, [account.baseUrl, app, isEndpointCustomized, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const normalizedEndpoint = normalizeHttpUrl(endpoint)
+    const upstreamBaseUrl = normalizedEndpoint
+      ? stripTrailingOpenAIV1(normalizedEndpoint)
+      : ""
+    if (!upstreamBaseUrl) {
+      setUpstreamModelOptions([])
+      return
+    }
+
+    let isMounted = true
+    const handle = setTimeout(() => {
+      void (async () => {
+        try {
+          setIsLoadingModels(true)
+          const resolvedToken = await resolveDisplayAccountTokenForSecret(
+            account,
+            token,
+          )
+          const modelIds = await fetchOpenAICompatibleModelIds({
+            baseUrl: upstreamBaseUrl,
+            apiKey: resolvedToken.key,
+          })
+          const normalized = modelIds
+            .map((item) => (typeof item === "string" ? item.trim() : ""))
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b))
+            .map((id) => ({ value: id, label: id }))
+
+          if (isMounted) {
+            setUpstreamModelOptions(normalized)
+          }
+        } catch (error) {
+          logger.warn("Failed to fetch upstream model list", error)
+          if (isMounted) {
+            setUpstreamModelOptions([])
+          }
+        } finally {
+          if (isMounted) {
+            setIsLoadingModels(false)
+          }
+        }
+      })()
+    }, UPSTREAM_MODEL_FETCH_DEBOUNCE_MS)
+
+    return () => {
+      isMounted = false
+      clearTimeout(handle)
+    }
+  }, [account, endpoint, isOpen, token])
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    void (async () => {
+      const tracker = startProductAnalyticsAction(
+        analyticsContext ?? {
+          featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ImportExport,
+          actionId: PRODUCT_ANALYTICS_ACTION_IDS.ExportAccountTokenToCCSwitch,
+          surfaceId:
+            PRODUCT_ANALYTICS_SURFACE_IDS.AccountTokenThirdPartyExportDialog,
+          entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+        },
+      )
+
+      try {
+        const resolvedToken = await resolveDisplayAccountTokenForSecret(
+          account,
+          token,
+        )
+        const opened = openInCCSwitch({
+          account,
+          token: resolvedToken,
+          app,
+          model: model.trim() || undefined,
+          notes: notes.trim() || undefined,
+          name: providerName,
+          homepage,
+          endpoint,
+        })
+
+        if (opened) {
+          tracker.complete(PRODUCT_ANALYTICS_RESULTS.Success)
+          onClose()
+        } else {
+          tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure)
+        }
+      } catch (error) {
+        tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+          errorCategory: PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+        })
+        logger.warn("Failed to resolve token for CC Switch export", error)
+        toast.error(
+          t("messages:errors.operation.failed", {
+            error: getErrorMessage(error),
+          }),
+        )
+      }
+    })()
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      header={
+        <div className="flex items-center gap-2">
+          <CCSwitchIcon size="lg" />
+          <div>
+            <div className="dark:text-dark-text-primary text-base font-semibold text-gray-900">
+              {t("ui:dialog.ccswitch.title")}
+            </div>
+            <p className="dark:text-dark-text-secondary text-sm text-gray-500">
+              {t("ui:dialog.ccswitch.description")}
+            </p>
+          </div>
+        </div>
+      }
+      footer={
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" type="button" onClick={onClose}>
+            {t("common:actions.cancel")}
+          </Button>
+          <Button type="submit" form={formId}>
+            {t("ui:dialog.ccswitch.actions.export")}
+          </Button>
+        </div>
+      }
+    >
+      <form className="space-y-4" id={formId} onSubmit={handleSubmit}>
+        <div>
+          <Label htmlFor="ccswitch-app">
+            {t("ui:dialog.ccswitch.fields.app")}
+          </Label>
+          <Select
+            value={app ?? ""}
+            onValueChange={(value) => setApp(value as CCSwitchApp)}
+          >
+            <SelectTrigger
+              id="ccswitch-app"
+              className="mt-1"
+              aria-describedby={
+                limitationNotice ? APP_LIMITATION_NOTICE_ID : undefined
+              }
+            >
+              <SelectValue placeholder={t("ui:dialog.ccswitch.fields.app")} />
+            </SelectTrigger>
+            <SelectContent>
+              {CCSWITCH_APPS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {getCCSwitchAppLabel(t, value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {limitationNotice ? (
+          <div
+            id={APP_LIMITATION_NOTICE_ID}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800/80 dark:bg-amber-950/30 dark:text-amber-100"
+          >
+            {limitationNotice}
+          </div>
+        ) : null}
+
+        <div>
+          <Label htmlFor="ccswitch-name">
+            {t("ui:dialog.ccswitch.fields.name")}
+          </Label>
+          <Input
+            id="ccswitch-name"
+            value={providerName}
+            className="mt-1"
+            placeholder={t("ui:dialog.ccswitch.placeholders.name")}
+            onChange={(event) => setProviderName(event.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="ccswitch-homepage">
+            {t("ui:dialog.ccswitch.fields.homepage")}
+          </Label>
+          <Input
+            id="ccswitch-homepage"
+            value={homepage}
+            className="mt-1"
+            placeholder={t("ui:dialog.ccswitch.placeholders.homepage")}
+            onChange={(event) => setHomepage(event.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="ccswitch-endpoint">
+            {t("ui:dialog.ccswitch.fields.endpoint")}
+          </Label>
+          <Input
+            id="ccswitch-endpoint"
+            value={endpoint}
+            className="mt-1"
+            placeholder={t("ui:dialog.ccswitch.placeholders.endpoint")}
+            onChange={(event) => {
+              setIsEndpointCustomized(true)
+              setEndpoint(event.target.value)
+            }}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="ccswitch-model">
+            {t("ui:dialog.ccswitch.fields.model")}
+          </Label>
+          <SearchableSelect
+            id="ccswitch-model"
+            className="mt-1"
+            value={model}
+            onChange={setModel}
+            placeholder={
+              isLoadingModels
+                ? t("common:status.loading")
+                : t("ui:dialog.ccswitch.placeholders.model")
+            }
+            options={[
+              {
+                value: "",
+                label: t("ui:dialog.ccswitch.modelOptions.none"),
+              },
+              ...upstreamModelOptions,
+            ]}
+            allowCustomValue
+            disabled={isLoadingModels}
+          />
+          <p className="dark:text-dark-text-secondary mt-1 text-xs text-gray-500">
+            {t("ui:dialog.ccswitch.descriptions.model")}
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="ccswitch-notes">
+            {t("ui:dialog.ccswitch.fields.notes")}
+          </Label>
+          <Input
+            id="ccswitch-notes"
+            value={notes}
+            className="mt-1"
+            placeholder={t("ui:dialog.ccswitch.placeholders.notes")}
+            onChange={(event) => setNotes(event.target.value)}
+          />
+        </div>
+      </form>
+    </Modal>
+  )
+}

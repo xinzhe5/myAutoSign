@@ -1,0 +1,450 @@
+import { Storage } from "@plasmohq/storage"
+
+import { RuntimeMessageTypes } from "~/constants/runtimeActions"
+import { SITE_TYPES } from "~/constants/siteType"
+import { accountStorage } from "~/services/accounts/accountStorage"
+import { ACCOUNT_KEY_AUTO_PROVISIONING_STORAGE_KEYS } from "~/services/core/storageKeys"
+import type { DisplaySiteData, SiteAccount } from "~/types"
+import { AuthTypeEnum } from "~/types"
+import type {
+  AccountKeyRepairAccountResult,
+  AccountKeyRepairProgress,
+  AccountKeyRepairSkipReason,
+} from "~/types/accountKeyAutoProvisioning"
+import { sendRuntimeMessage } from "~/utils/browser/browserApi"
+import { getErrorMessage } from "~/utils/core/error"
+import { safeRandomUUID } from "~/utils/core/identifier"
+import { createLogger } from "~/utils/core/logger"
+import { normalizeUrlForOriginKey } from "~/utils/core/urlParsing"
+
+import { ensureDefaultApiTokenForAccount } from "./ensureDefaultToken"
+import {
+  AccountKeyRepairMessageTypes,
+  onAccountKeyRepairMessage,
+} from "./messaging"
+import { runPerKeySequential } from "./perOriginQueue"
+
+const logger = createLogger("AccountKeyRepair")
+
+/**
+ * Creates a default idle progress snapshot used when no repair job has started
+ * yet (or when the stored progress blob is missing).
+ * @returns Idle `AccountKeyRepairProgress` payload.
+ */
+function createIdleProgress(): AccountKeyRepairProgress {
+  return {
+    jobId: "idle",
+    state: "idle",
+    totals: {
+      enabledAccounts: 0,
+      eligibleAccounts: 0,
+      processedAccounts: 0,
+      processedEligibleAccounts: 0,
+    },
+    summary: {
+      created: 0,
+      alreadyHad: 0,
+      skipped: 0,
+      failed: 0,
+    },
+    results: [],
+  }
+}
+
+/**
+ * Derives a stable queue key for a site URL so accounts on the same origin are
+ * processed sequentially.
+ * @param siteUrl - Raw site URL string.
+ * @returns Lowercased origin when parsable, otherwise the trimmed input.
+ */
+function getOriginKey(siteUrl: string): string {
+  return normalizeUrlForOriginKey(siteUrl, {
+    lowerCase: true,
+    stripTrailingSlashes: false,
+  })
+}
+
+/**
+ * Computes whether an account should be skipped by the repair runner.
+ * @param account - Stored account record.
+ * @returns A skip reason when the account is ineligible, otherwise `null`.
+ */
+function getSkipReason(
+  account: SiteAccount,
+): AccountKeyRepairSkipReason | null {
+  if (account.site_type === SITE_TYPES.SUB2API) {
+    return "sub2api"
+  }
+
+  if (account.site_type === SITE_TYPES.AIHUBMIX) {
+    return "aihubmixOneTimeKey"
+  }
+
+  if (account.authType === AuthTypeEnum.None) {
+    return "noneAuth"
+  }
+
+  return null
+}
+
+class AccountKeyRepairRunner {
+  private storage: Storage
+  private currentProgress: AccountKeyRepairProgress | null = null
+  private currentRun: Promise<void> | null = null
+  private progressQueue: Promise<void> = Promise.resolve()
+
+  constructor() {
+    this.storage = new Storage({ area: "local" })
+  }
+
+  async getProgress(): Promise<AccountKeyRepairProgress> {
+    if (this.currentProgress) {
+      return this.currentProgress
+    }
+
+    const stored = (await this.storage.get(
+      ACCOUNT_KEY_AUTO_PROVISIONING_STORAGE_KEYS.REPAIR_PROGRESS,
+    )) as AccountKeyRepairProgress | undefined
+
+    if (!stored) {
+      return createIdleProgress()
+    }
+
+    this.currentProgress = stored
+    return stored
+  }
+
+  async start(): Promise<AccountKeyRepairProgress> {
+    if (this.currentRun) {
+      return await this.getProgress()
+    }
+
+    const now = Date.now()
+    const progress: AccountKeyRepairProgress = {
+      jobId: safeRandomUUID("accountKeyRepair"),
+      state: "running",
+      startedAt: now,
+      updatedAt: now,
+      totals: {
+        enabledAccounts: 0,
+        eligibleAccounts: 0,
+        processedAccounts: 0,
+        processedEligibleAccounts: 0,
+      },
+      summary: {
+        created: 0,
+        alreadyHad: 0,
+        skipped: 0,
+        failed: 0,
+      },
+      results: [],
+    }
+
+    this.currentProgress = progress
+    await this.persistAndNotify()
+
+    this.currentRun = this.run(progress.jobId).finally(() => {
+      this.currentRun = null
+    })
+
+    return progress
+  }
+
+  private async run(jobId: string): Promise<void> {
+    try {
+      const allAccounts = await accountStorage.getAllAccounts()
+      const enabledAccounts = allAccounts.filter(
+        (account) => account.disabled !== true,
+      )
+      const displaySiteDataById = new Map(
+        accountStorage
+          .convertToDisplayData(allAccounts, allAccounts)
+          .map((account) => [account.id, account] as const),
+      )
+
+      const eligibleAccounts: SiteAccount[] = []
+
+      this.updateProgress((prev) => ({
+        ...prev,
+        totals: {
+          ...prev.totals,
+          enabledAccounts: enabledAccounts.length,
+        },
+      }))
+      await this.persistAndNotify()
+
+      for (const account of enabledAccounts) {
+        const skipReason = getSkipReason(account)
+        if (skipReason) {
+          await this.recordResult({
+            accountId: account.id,
+            accountName:
+              displaySiteDataById.get(account.id)?.name ?? account.site_name,
+            siteType: account.site_type,
+            siteUrlOrigin: getOriginKey(account.site_url),
+            outcome: "skipped",
+            skipReason,
+            finishedAt: Date.now(),
+          })
+          continue
+        }
+
+        eligibleAccounts.push(account)
+      }
+
+      this.updateProgress((prev) => ({
+        ...prev,
+        totals: {
+          ...prev.totals,
+          eligibleAccounts: eligibleAccounts.length,
+        },
+      }))
+      await this.persistAndNotify()
+
+      await runPerKeySequential({
+        items: eligibleAccounts,
+        getKey: (account) => getOriginKey(account.site_url),
+        worker: async (account) => {
+          await this.processEligibleAccount(
+            account,
+            displaySiteDataById.get(account.id)?.name ?? account.site_name,
+            displaySiteDataById,
+          )
+        },
+      })
+
+      this.updateProgress((prev) => ({
+        ...prev,
+        state: "completed",
+        finishedAt: Date.now(),
+      }))
+      await this.persistAndNotify()
+    } catch (error) {
+      logger.error("Repair run failed", error)
+      this.updateProgress((prev) => ({
+        ...prev,
+        state: "failed",
+        finishedAt: Date.now(),
+        lastError: getErrorMessage(error),
+      }))
+      await this.persistAndNotify()
+    } finally {
+      const current = await this.getProgress()
+      if (current.jobId !== jobId) {
+        logger.warn("Repair runner jobId mismatch; possible concurrent start", {
+          jobId,
+          currentJobId: current.jobId,
+        })
+      }
+    }
+  }
+
+  private async processEligibleAccount(
+    account: SiteAccount,
+    accountName: string,
+    displaySiteDataById: ReadonlyMap<string, DisplaySiteData>,
+  ): Promise<void> {
+    const originKey = getOriginKey(account.site_url)
+    try {
+      const displaySiteData: DisplaySiteData =
+        displaySiteDataById.get(account.id) ??
+        accountStorage.convertToDisplayData(account)
+      const hasToken =
+        typeof displaySiteData?.token === "string" &&
+        displaySiteData.token.trim().length > 0
+      const hasCookie =
+        typeof displaySiteData?.cookieAuthSessionCookie === "string" &&
+        displaySiteData.cookieAuthSessionCookie.trim().length > 0
+      if (
+        typeof displaySiteData?.id !== "string" ||
+        displaySiteData.id.trim().length === 0 ||
+        typeof displaySiteData?.baseUrl !== "string" ||
+        displaySiteData.baseUrl.trim().length === 0 ||
+        typeof displaySiteData?.siteType !== "string" ||
+        displaySiteData.siteType.trim().length === 0 ||
+        displaySiteData.authType === AuthTypeEnum.None ||
+        typeof displaySiteData.userId !== "string" ||
+        displaySiteData.userId.trim().length === 0 ||
+        (displaySiteData.authType === AuthTypeEnum.AccessToken && !hasToken) ||
+        (displaySiteData.authType === AuthTypeEnum.Cookie &&
+          !hasToken &&
+          !hasCookie)
+      ) {
+        throw new Error("invalid_display_site_data")
+      }
+
+      const result = await ensureDefaultApiTokenForAccount({
+        account,
+        displaySiteData,
+      })
+
+      await this.recordResult({
+        accountId: account.id,
+        accountName,
+        siteType: account.site_type,
+        siteUrlOrigin: originKey,
+        outcome: result.created ? "created" : "alreadyHad",
+        finishedAt: Date.now(),
+      })
+    } catch (error) {
+      await this.recordResult({
+        accountId: account.id,
+        accountName,
+        siteType: account.site_type,
+        siteUrlOrigin: originKey,
+        outcome: "failed",
+        errorMessage: getErrorMessage(error),
+        finishedAt: Date.now(),
+      })
+    }
+  }
+
+  private updateProgress(
+    updater: (progress: AccountKeyRepairProgress) => AccountKeyRepairProgress,
+  ) {
+    const base = this.currentProgress ?? createIdleProgress()
+    this.currentProgress = {
+      ...updater(base),
+      updatedAt: Date.now(),
+    }
+  }
+
+  private async recordResult(
+    result: AccountKeyRepairAccountResult,
+  ): Promise<void> {
+    await this.queueProgressUpdate((prev) => {
+      const nextResults = [...prev.results, result]
+
+      const nextSummary = { ...prev.summary }
+      switch (result.outcome) {
+        case "created":
+          nextSummary.created += 1
+          break
+        case "alreadyHad":
+          nextSummary.alreadyHad += 1
+          break
+        case "skipped":
+          nextSummary.skipped += 1
+          break
+        case "failed":
+          nextSummary.failed += 1
+          break
+        default:
+          break
+      }
+
+      const isEligibleOutcome = result.outcome !== "skipped"
+      const nextProcessedEligibleAccounts = isEligibleOutcome
+        ? (prev.totals.processedEligibleAccounts ??
+            prev.totals.processedAccounts) + 1
+        : prev.totals.processedEligibleAccounts ?? prev.totals.processedAccounts
+
+      return {
+        ...prev,
+        results: nextResults,
+        summary: nextSummary,
+        totals: {
+          ...prev.totals,
+          processedAccounts: isEligibleOutcome
+            ? prev.totals.processedAccounts + 1
+            : prev.totals.processedAccounts,
+          processedEligibleAccounts: nextProcessedEligibleAccounts,
+        },
+      }
+    })
+  }
+
+  private async queueProgressUpdate(
+    updater: (progress: AccountKeyRepairProgress) => AccountKeyRepairProgress,
+  ): Promise<void> {
+    this.progressQueue = this.progressQueue
+      .then(async () => {
+        this.updateProgress(updater)
+        await this.persistAndNotify()
+      })
+      .catch((error) => {
+        logger.error("Failed to persist repair progress update", error)
+      })
+
+    await this.progressQueue
+  }
+
+  private async persistAndNotify(): Promise<void> {
+    const progress = this.currentProgress ?? createIdleProgress()
+    await this.storage.set(
+      ACCOUNT_KEY_AUTO_PROVISIONING_STORAGE_KEYS.REPAIR_PROGRESS,
+      progress,
+    )
+
+    try {
+      void sendRuntimeMessage(
+        {
+          type: RuntimeMessageTypes.AccountKeyRepairProgress,
+          payload: progress,
+        },
+        { maxAttempts: 1 },
+      ).catch(() => {
+        // Silent: UI might not be open
+      })
+    } catch {
+      // Silent: UI might not be open
+    }
+  }
+}
+
+export const accountKeyRepairRunner = new AccountKeyRepairRunner()
+
+/**
+ * Start a background repair job for missing account API keys.
+ */
+export async function startAccountKeyRepair() {
+  const progress = await accountKeyRepairRunner.start()
+  return { success: true as const, data: progress }
+}
+
+/**
+ * Read the latest account-key repair progress snapshot.
+ */
+export async function getAccountKeyRepairProgress() {
+  const progress = await accountKeyRepairRunner.getProgress()
+  return { success: true as const, data: progress }
+}
+
+/**
+ * Convert account-key repair listener errors into runtime responses.
+ */
+function toAccountKeyRepairFailure(error: unknown) {
+  logger.error("Message handling failed", error)
+  return { success: false as const, error: getErrorMessage(error) }
+}
+
+let accountKeyRepairMessagingCleanup: (() => void)[] | null = null
+
+/**
+ * Register typed background listeners for account-key repair messages.
+ */
+export function setupAccountKeyRepairMessagingListeners() {
+  if (accountKeyRepairMessagingCleanup) {
+    return
+  }
+
+  accountKeyRepairMessagingCleanup = [
+    onAccountKeyRepairMessage(AccountKeyRepairMessageTypes.Start, async () => {
+      try {
+        return await startAccountKeyRepair()
+      } catch (error) {
+        return toAccountKeyRepairFailure(error)
+      }
+    }),
+    onAccountKeyRepairMessage(
+      AccountKeyRepairMessageTypes.GetProgress,
+      async () => {
+        try {
+          return await getAccountKeyRepairProgress()
+        } catch (error) {
+          return toAccountKeyRepairFailure(error)
+        }
+      },
+    ),
+  ]
+}

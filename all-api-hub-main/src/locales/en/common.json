@@ -1,0 +1,59 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "close": "Close",
+    "copyKey": "Copy Key",
+    "delete": "Delete",
+    "edit": "Edit",
+    "export": "Export",
+    "goToSettings": "Go to Settings",
+    "import": "Import",
+    "more": "More",
+    "openSidePanel": "Open in SidePanel",
+    "refresh": "Refresh",
+    "reset": "Reset",
+    "retry": "Retry",
+    "save": "Save"
+  },
+  "currency": {
+    "clickToSwitch": "Click to switch to {{currency}}",
+    "cny": "CNY",
+    "usd": "USD"
+  },
+  "labels": {
+    "apiKey": "API Key",
+    "notAvailable": "N/A",
+    "settings": "Settings",
+    "token": "Token",
+    "unknown": "Unknown"
+  },
+  "quota": {
+    "unlimited": "Unlimited"
+  },
+  "status": {
+    "configurationRequired": "Configuration required",
+    "creating": "Creating...",
+    "disabled": "Disabled",
+    "enabled": "Enabled",
+    "error": "Error",
+    "exporting": "Exporting...",
+    "failed": "Failed",
+    "importing": "Importing...",
+    "loading": "Loading...",
+    "processing": "Processing...",
+    "refreshing": "Refreshing...",
+    "resetting": "Resetting...",
+    "saving": "Saving...",
+    "success": "Success",
+    "testing": "Testing...",
+    "updating": "Updating...",
+    "uploading": "Uploading..."
+  },
+  "time": {
+    "neverExpires": "Never Expires",
+    "seconds": "seconds",
+    "updatedAt": "Updated at {{time}}"
+  },
+  "total": "Total"
+}

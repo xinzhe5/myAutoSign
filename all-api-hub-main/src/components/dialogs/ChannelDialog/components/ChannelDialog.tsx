@@ -1,0 +1,834 @@
+import { useEffect, useRef, useState } from "react"
+import toast from "react-hot-toast"
+import { useTranslation } from "react-i18next"
+
+import type { ChannelDialogAdvisoryWarning } from "~/components/dialogs/ChannelDialog/context/ChannelDialogContext"
+import { useChannelDialogContext } from "~/components/dialogs/ChannelDialog/context/ChannelDialogContext"
+import { useChannelForm } from "~/components/dialogs/ChannelDialog/hooks/useChannelForm"
+import {
+  buildChannelDialogAdvisoryWarning,
+  CHANNEL_DIALOG_ADVISORY_WARNING_KINDS,
+} from "~/components/dialogs/ChannelDialog/utils/advisoryWarning"
+import { ManagedSiteChannelAssessmentSignalsRow } from "~/components/ManagedSiteChannelAssessmentSignals"
+import {
+  Alert,
+  Button,
+  CompactMultiSelect,
+  Input,
+  Label,
+  Modal,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui"
+import {
+  AxonHubChannelTypeOptions,
+  isAxonHubChannelType,
+} from "~/constants/axonHub"
+import {
+  ClaudeCodeHubProviderTypeOptions,
+  isClaudeCodeHubProviderType,
+} from "~/constants/claudeCodeHub"
+import { DIALOG_MODES, type DialogMode } from "~/constants/dialogModes"
+import { ChannelType, ChannelTypeOptions } from "~/constants/managedSite"
+import { OctopusOutboundTypeOptions } from "~/constants/octopus"
+import { SITE_TYPES } from "~/constants/siteType"
+import { useUserPreferencesContext } from "~/contexts/UserPreferencesContext"
+import { NewApiManagedVerificationDialog } from "~/features/ManagedSiteVerification/NewApiManagedVerificationDialog"
+import { useNewApiManagedVerification } from "~/features/ManagedSiteVerification/useNewApiManagedVerification"
+import { toManagedSiteChannelAssessmentSignals } from "~/services/managedSites/channelAssessmentSignals"
+import { getManagedSiteChannelExactMatch } from "~/services/managedSites/channelMatch"
+import { resolveManagedSiteChannelMatch } from "~/services/managedSites/channelMatchResolver"
+import { getManagedSiteService } from "~/services/managedSites/managedSiteService"
+import {
+  hasNewApiAuthenticatedBrowserSession,
+  hasNewApiLoginAssistCredentials,
+  isNewApiVerifiedSessionActive,
+} from "~/services/managedSites/providers/newApiSession"
+import { getManagedSiteConfigMissingMessage } from "~/services/managedSites/utils/managedSite"
+import {
+  CHANNEL_STATUS,
+  type ChannelFormData,
+  type ChannelStatus,
+  type ManagedSiteChannel,
+} from "~/types/managedSite"
+import { OctopusOutboundType } from "~/types/octopus"
+
+export interface ChannelDialogProps {
+  isOpen: boolean
+  onClose: () => void
+  mode?: DialogMode
+  channel?: ManagedSiteChannel | null
+  onSuccess?: (channel: any) => void
+  initialValues?: Partial<ChannelFormData>
+  initialModels?: string[]
+  initialGroups?: string[]
+  showModelPrefillWarning?: boolean
+  advisoryWarning?: ChannelDialogAdvisoryWarning | null
+  onRequestRealKey?: (options: {
+    setKey: (key: string) => void
+  }) => Promise<void>
+  onMutationOutcome?: Parameters<typeof useChannelForm>[0]["onMutationOutcome"]
+}
+
+/**
+ * Full channel create/edit dialog for the New API feature.
+ * Handles form state, validation, and submission via useChannelForm.
+ * @param props Component props bundle.
+ * @param props.isOpen Whether the dialog is visible.
+ * @param props.onClose Callback invoked when the dialog should close.
+ * @param props.mode Dialog mode (add/edit) controlling UX copy.
+ * @param props.channel Existing channel for edit mode.
+ * @param props.onSuccess Callback fired after successful mutation.
+ * @param props.initialValues Pre-filled form values when reusing data.
+ * @param props.initialModels Models to seed multi-select state.
+ * @param props.initialGroups Groups to seed multi-select state.
+ * @param props.showModelPrefillWarning Whether to show a non-blocking warning that automatic model prefill failed.
+ * @param props.advisoryWarning Optional non-blocking duplicate-risk warning shown above the form.
+ * @param props.onRequestRealKey Optional edit-mode hook that can load the real
+ * managed-site key into the dialog when the list payload only provides a masked value.
+ * @param props.onMutationOutcome Optional opt-in callback for callers that track real save outcomes.
+ */
+export function ChannelDialog({
+  isOpen,
+  onClose,
+  mode = DIALOG_MODES.ADD,
+  channel = null,
+  onSuccess,
+  initialValues,
+  initialModels,
+  initialGroups,
+  showModelPrefillWarning = false,
+  advisoryWarning,
+  onRequestRealKey,
+  onMutationOutcome,
+}: ChannelDialogProps) {
+  const { t } = useTranslation(["channelDialog", "common", "messages"])
+  const { requestDuplicateChannelWarning } = useChannelDialogContext()
+  const [showKey, setShowKey] = useState(false)
+  const [isLoadingRealKey, setIsLoadingRealKey] = useState(false)
+  const [currentAdvisoryWarning, setCurrentAdvisoryWarning] = useState(
+    advisoryWarning ?? null,
+  )
+  const [canRecoverManagedVerification, setCanRecoverManagedVerification] =
+    useState(false)
+  const requestIdRef = useRef(0)
+  const verification = useNewApiManagedVerification()
+  const {
+    managedSiteType,
+    newApiBaseUrl,
+    newApiUserId,
+    newApiUsername,
+    newApiPassword,
+    newApiTotpSecret,
+  } = useUserPreferencesContext()
+  const isOctopus = managedSiteType === SITE_TYPES.OCTOPUS
+  const isAxonHub = managedSiteType === SITE_TYPES.AXON_HUB
+  const isClaudeCodeHub = managedSiteType === SITE_TYPES.CLAUDE_CODE_HUB
+  const canRunManagedVerification =
+    managedSiteType === SITE_TYPES.NEW_API && canRecoverManagedVerification
+  const isAddMode = mode === DIALOG_MODES.ADD
+  const isViewMode = mode === DIALOG_MODES.VIEW
+
+  const {
+    formData,
+    updateField,
+    handleTypeChange,
+    handleSubmit,
+    isFormValid,
+    isSaving,
+    isLoadingGroups,
+    isLoadingModels,
+    availableGroups,
+    availableModels,
+    isKeyFieldRequired,
+    isBaseUrlRequired,
+  } = useChannelForm({
+    mode,
+    channel,
+    isOpen,
+    onClose,
+    onSuccess,
+    initialValues,
+    initialModels,
+    initialGroups,
+    onMutationOutcome,
+  })
+
+  const channelTypeOptions = isClaudeCodeHub
+    ? ClaudeCodeHubProviderTypeOptions
+    : isAxonHub
+      ? AxonHubChannelTypeOptions
+      : isOctopus
+        ? OctopusOutboundTypeOptions
+        : ChannelTypeOptions
+  const shouldShowUnknownStringType =
+    (isAxonHub || isClaudeCodeHub) &&
+    typeof formData.type === "string" &&
+    formData.type.trim() &&
+    !isAxonHubChannelType(formData.type) &&
+    !isClaudeCodeHubProviderType(formData.type)
+
+  const handleSelectAllModels = () => {
+    updateField(
+      "models",
+      availableModels.map((m) => m.value),
+    )
+  }
+
+  const handleInverseModels = () => {
+    const currentModels = new Set(formData.models)
+    const invertedModels = availableModels
+      .map((m) => m.value)
+      .filter((value) => !currentModels.has(value))
+    updateField("models", invertedModels)
+  }
+
+  const handleDeselectAllModels = () => {
+    updateField("models", [])
+  }
+
+  useEffect(() => {
+    requestIdRef.current += 1
+    setIsLoadingRealKey(false)
+  }, [channel?.id, isOpen, mode])
+
+  useEffect(() => {
+    setCurrentAdvisoryWarning(advisoryWarning ?? null)
+  }, [advisoryWarning, isOpen, mode, channel?.id])
+
+  useEffect(() => {
+    let cancelled = false
+    const managedBaseUrl = newApiBaseUrl.trim()
+
+    if (
+      !isOpen ||
+      managedSiteType !== SITE_TYPES.NEW_API ||
+      currentAdvisoryWarning?.kind !==
+        CHANNEL_DIALOG_ADVISORY_WARNING_KINDS.VERIFICATION_REQUIRED ||
+      !managedBaseUrl
+    ) {
+      setCanRecoverManagedVerification(false)
+      return
+    }
+
+    if (
+      hasNewApiLoginAssistCredentials({
+        username: newApiUsername,
+        password: newApiPassword,
+      }) ||
+      isNewApiVerifiedSessionActive(managedBaseUrl)
+    ) {
+      setCanRecoverManagedVerification(true)
+      return
+    }
+
+    setCanRecoverManagedVerification(false)
+
+    void hasNewApiAuthenticatedBrowserSession({
+      baseUrl: managedBaseUrl,
+      userId: newApiUserId,
+    })
+      .then((authenticatedBrowserSessionExists) => {
+        if (!cancelled) {
+          setCanRecoverManagedVerification(authenticatedBrowserSessionExists)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCanRecoverManagedVerification(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    currentAdvisoryWarning?.kind,
+    isOpen,
+    managedSiteType,
+    newApiBaseUrl,
+    newApiPassword,
+    newApiUserId,
+    newApiUsername,
+  ])
+
+  const handleLoadRealKey = async () => {
+    if (isViewMode || !onRequestRealKey) return
+
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+    let resolvedKey: string | null = null
+
+    setIsLoadingRealKey(true)
+    try {
+      await onRequestRealKey({
+        setKey: (key) => {
+          resolvedKey = key
+        },
+      })
+
+      if (requestId !== requestIdRef.current || resolvedKey === null) {
+        return
+      }
+
+      updateField("key", resolvedKey)
+      setShowKey(true)
+    } catch (error) {
+      toast.error(
+        t("channelDialog:messages.loadRealKeyFailed", {
+          error: error instanceof Error ? error.message : String(error ?? ""),
+        }),
+      )
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setIsLoadingRealKey(false)
+      }
+    }
+  }
+
+  const reassessDuplicateWarning = async (options?: {
+    resolveHiddenKeys?: boolean
+  }) => {
+    const service = await getManagedSiteService()
+    const managedConfig = await service.getConfig()
+
+    if (!managedConfig) {
+      throw new Error(
+        getManagedSiteConfigMissingMessage(t, service.messagesKey),
+      )
+    }
+
+    const resolution = await resolveManagedSiteChannelMatch({
+      service,
+      managedConfig,
+      accountBaseUrl: formData.base_url,
+      models: formData.models,
+      key: formData.key,
+      resolveHiddenKeys: options?.resolveHiddenKeys,
+    })
+    const exactMatch = getManagedSiteChannelExactMatch(resolution)
+
+    if (exactMatch) {
+      return {
+        exactDuplicateChannelName: exactMatch.name,
+        advisoryWarning: null,
+        assessment: toManagedSiteChannelAssessmentSignals(resolution),
+      }
+    }
+
+    if (
+      service.messagesKey === "newapi" &&
+      resolution.searchCompleted &&
+      resolution.url.matched &&
+      !resolution.key.comparable
+    ) {
+      return {
+        exactDuplicateChannelName: null,
+        advisoryWarning: buildChannelDialogAdvisoryWarning(
+          t,
+          CHANNEL_DIALOG_ADVISORY_WARNING_KINDS.VERIFICATION_REQUIRED,
+          {
+            assessment: toManagedSiteChannelAssessmentSignals(resolution),
+          },
+        ),
+        assessment: toManagedSiteChannelAssessmentSignals(resolution),
+      }
+    }
+
+    if (
+      resolution.searchCompleted &&
+      (resolution.url.matched ||
+        resolution.key.matched ||
+        resolution.models.matched)
+    ) {
+      return {
+        exactDuplicateChannelName: null,
+        advisoryWarning: buildChannelDialogAdvisoryWarning(
+          t,
+          CHANNEL_DIALOG_ADVISORY_WARNING_KINDS.REVIEW_SUGGESTED,
+          {
+            assessment: toManagedSiteChannelAssessmentSignals(resolution),
+          },
+        ),
+        assessment: toManagedSiteChannelAssessmentSignals(resolution),
+      }
+    }
+
+    return {
+      exactDuplicateChannelName: null,
+      advisoryWarning: null,
+      assessment: toManagedSiteChannelAssessmentSignals(resolution),
+    }
+  }
+
+  const handleRunVerification = () => {
+    if (
+      !canRunManagedVerification ||
+      currentAdvisoryWarning?.kind !==
+        CHANNEL_DIALOG_ADVISORY_WARNING_KINDS.VERIFICATION_REQUIRED
+    ) {
+      return
+    }
+
+    verification.openNewApiManagedVerification({
+      kind: "channel",
+      label: formData.name.trim() || t("channelDialog:title.add"),
+      config: {
+        baseUrl: newApiBaseUrl,
+        userId: newApiUserId,
+        username: newApiUsername,
+        password: newApiPassword,
+        totpSecret: newApiTotpSecret,
+      },
+      onVerified: async () => {
+        const duplicateState = await reassessDuplicateWarning({
+          resolveHiddenKeys: true,
+        })
+
+        if (duplicateState.exactDuplicateChannelName) {
+          const shouldContinue = await requestDuplicateChannelWarning({
+            existingChannelName: duplicateState.exactDuplicateChannelName,
+          })
+
+          if (!shouldContinue) {
+            setCurrentAdvisoryWarning(
+              buildChannelDialogAdvisoryWarning(
+                t,
+                CHANNEL_DIALOG_ADVISORY_WARNING_KINDS.EXACT_DUPLICATE,
+                {
+                  assessment: duplicateState.assessment,
+                  channelName: duplicateState.exactDuplicateChannelName,
+                },
+              ),
+            )
+            return
+          }
+        }
+
+        setCurrentAdvisoryWarning(duplicateState.advisoryWarning)
+      },
+    })
+  }
+
+  const header = (
+    <div>
+      <h3 className="dark:text-dark-text-primary text-lg font-semibold text-gray-900">
+        {isAddMode
+          ? t("channelDialog:title.add")
+          : isViewMode
+            ? t("channelDialog:title.view")
+            : t("channelDialog:title.edit")}
+      </h3>
+      <p className="dark:text-dark-text-secondary mt-1 text-sm text-gray-500">
+        {isAddMode
+          ? t("channelDialog:description.add")
+          : isViewMode
+            ? t("channelDialog:description.view")
+            : t("channelDialog:description.edit")}
+      </p>
+    </div>
+  )
+
+  const footer = (
+    <div className="flex justify-end gap-3">
+      <Button
+        variant="outline"
+        onClick={onClose}
+        disabled={isSaving}
+        type="button"
+      >
+        {isViewMode ? t("common:actions.close") : t("common:actions.cancel")}
+      </Button>
+      {!isViewMode && (
+        <Button
+          onClick={handleSubmit}
+          disabled={!isFormValid || isSaving}
+          loading={isSaving}
+          type="submit"
+        >
+          {isAddMode
+            ? t("channelDialog:actions.create")
+            : t("channelDialog:actions.update")}
+        </Button>
+      )}
+    </div>
+  )
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      header={header}
+      footer={footer}
+      size="lg"
+      closeOnBackdropClick={!isSaving}
+      closeOnEsc={!isSaving}
+    >
+      {currentAdvisoryWarning ? (
+        <Alert
+          variant="warning"
+          title={currentAdvisoryWarning.title}
+          description={currentAdvisoryWarning.description}
+          className="mb-4"
+        >
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            {currentAdvisoryWarning.assessment ? (
+              <ManagedSiteChannelAssessmentSignalsRow
+                assessment={currentAdvisoryWarning.assessment}
+                managedSiteType={managedSiteType}
+                className="min-w-0"
+              />
+            ) : null}
+            {currentAdvisoryWarning.kind ===
+              CHANNEL_DIALOG_ADVISORY_WARNING_KINDS.VERIFICATION_REQUIRED &&
+            canRunManagedVerification ? (
+              <div className="sm:ml-auto">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRunVerification}
+                  disabled={verification.dialogState.isBusy}
+                >
+                  {t(
+                    "channelDialog:warnings.verificationRequired.actions.verifyNow",
+                  )}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </Alert>
+      ) : null}
+      <form
+        onSubmit={isViewMode ? (event) => event.preventDefault() : handleSubmit}
+        className="space-y-4"
+      >
+        {/* Channel Name */}
+        <div>
+          <Label htmlFor="channel-name" required={!isViewMode}>
+            {t("channelDialog:fields.name.label")}
+          </Label>
+          <Input
+            id="channel-name"
+            type="text"
+            value={formData.name}
+            onChange={(e) => updateField("name", e.target.value)}
+            placeholder={t("channelDialog:fields.name.placeholder")}
+            disabled={isSaving}
+            readOnly={isViewMode}
+            required={!isViewMode}
+          />
+        </div>
+
+        {/* Channel Type */}
+        <div>
+          <Label htmlFor="channel-type" required={!isViewMode}>
+            {t("channelDialog:fields.type.label")}
+          </Label>
+          <Select
+            value={
+              formData.type === undefined || formData.type === null
+                ? ""
+                : String(formData.type)
+            }
+            onValueChange={(value) =>
+              handleTypeChange(
+                // AxonHub and Claude Code Hub use backend-owned string
+                // channel/provider types, so keep them out of numeric coercion.
+                isAxonHub || isClaudeCodeHub
+                  ? value
+                  : (Number(value) as ChannelType | OctopusOutboundType),
+              )
+            }
+            disabled={isSaving || !isAddMode}
+            required={!isViewMode}
+          >
+            <SelectTrigger id="channel-type">
+              <SelectValue
+                placeholder={t("channelDialog:fields.type.placeholder")}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {shouldShowUnknownStringType ? (
+                <SelectItem value={String(formData.type)}>
+                  {String(formData.type)}
+                </SelectItem>
+              ) : null}
+              {channelTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={String(option.value)}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="dark:text-dark-text-secondary mt-1 text-xs text-gray-500">
+            {t("channelDialog:fields.type.hint")}
+          </p>
+        </div>
+
+        {/* API Key */}
+        <div>
+          <Label
+            htmlFor="channel-key"
+            required={!isViewMode && isKeyFieldRequired}
+          >
+            {t("channelDialog:fields.key.label")}
+          </Label>
+          <Input
+            id="channel-key"
+            type="password"
+            revealable
+            revealed={showKey}
+            onRevealedChange={setShowKey}
+            revealLabels={{
+              show: t("channelDialog:actions.showKey"),
+              hide: t("channelDialog:actions.hideKey"),
+            }}
+            value={formData.key}
+            onChange={(e) => updateField("key", e.target.value)}
+            placeholder={t("channelDialog:fields.key.placeholder")}
+            disabled={isSaving}
+            readOnly={isViewMode}
+            required={!isViewMode && isKeyFieldRequired}
+          />
+          {!isAddMode && !isViewMode && onRequestRealKey ? (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="dark:text-dark-text-secondary text-xs text-gray-500">
+                {t("channelDialog:fields.key.realKeyHint")}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void handleLoadRealKey()}
+                disabled={isSaving || isLoadingRealKey}
+              >
+                {isLoadingRealKey
+                  ? t("channelDialog:actions.loadingRealKey")
+                  : t("channelDialog:actions.loadRealKey")}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Base URL */}
+        <div>
+          <Label
+            htmlFor="channel-base-url"
+            required={!isViewMode && isBaseUrlRequired}
+          >
+            {t("channelDialog:fields.baseUrl.label")}
+          </Label>
+          <Input
+            id="channel-base-url"
+            type="url"
+            value={formData.base_url}
+            onChange={(e) => updateField("base_url", e.target.value)}
+            placeholder={t("channelDialog:fields.baseUrl.placeholder")}
+            disabled={isSaving}
+            readOnly={isViewMode}
+            required={!isViewMode && isBaseUrlRequired}
+          />
+        </div>
+
+        {/* Models */}
+        <div>
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Label className="mb-0">
+              {t("channelDialog:fields.models.label")}
+            </Label>
+            {!isViewMode && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAllModels}
+                  disabled={
+                    isSaving || isLoadingModels || availableModels.length === 0
+                  }
+                  type="button"
+                >
+                  {t("channelDialog:actions.selectAll")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInverseModels}
+                  disabled={
+                    isSaving || isLoadingModels || availableModels.length === 0
+                  }
+                  type="button"
+                >
+                  {t("channelDialog:actions.inverse")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeselectAllModels}
+                  disabled={
+                    isSaving || isLoadingModels || formData.models.length === 0
+                  }
+                  type="button"
+                >
+                  {t("channelDialog:actions.deselectAll")}
+                </Button>
+              </div>
+            )}
+          </div>
+          {showModelPrefillWarning ? (
+            <Alert
+              variant="warning"
+              title={t("channelDialog:warnings.modelsPrefillFailed.title")}
+              description={t(
+                "channelDialog:warnings.modelsPrefillFailed.description",
+              )}
+              className="mb-3"
+            />
+          ) : null}
+          <CompactMultiSelect
+            options={availableModels}
+            selected={formData.models}
+            onChange={(models) => updateField("models", models)}
+            placeholder={
+              isLoadingModels
+                ? t("channelDialog:fields.models.loading")
+                : t("channelDialog:fields.models.placeholder")
+            }
+            disabled={isViewMode || isSaving || isLoadingModels}
+            allowCustom
+          />
+          <p className="dark:text-dark-text-secondary mt-1 text-xs text-gray-500">
+            {t("channelDialog:fields.models.hint")}
+          </p>
+        </div>
+
+        {/* Groups - Octopus/AxonHub do not expose New API group semantics here. */}
+        {!isOctopus && !isAxonHub && (
+          <div>
+            <CompactMultiSelect
+              label={t("channelDialog:fields.groups.label")}
+              options={availableGroups}
+              selected={formData.groups}
+              onChange={(groups) => updateField("groups", groups)}
+              placeholder={
+                isLoadingGroups
+                  ? t("channelDialog:fields.groups.loading")
+                  : t("channelDialog:fields.groups.placeholder")
+              }
+              disabled={isViewMode || isSaving || isLoadingGroups}
+              allowCustom
+            />
+            <p className="dark:text-dark-text-secondary mt-1 text-xs text-gray-500">
+              {t("channelDialog:fields.groups.hint")}
+            </p>
+          </div>
+        )}
+
+        {/* Advanced Settings */}
+        <details className="dark:border-dark-bg-tertiary rounded-lg border border-gray-200 p-3">
+          <summary className="dark:text-dark-text-primary cursor-pointer text-sm font-medium text-gray-700">
+            {t("channelDialog:sections.advanced")}
+          </summary>
+          <div className="mt-3 space-y-4">
+            {/* Priority - Octopus/AxonHub do not expose New API priority semantics here. */}
+            {!isOctopus && !isAxonHub && (
+              <div>
+                <Label htmlFor="channel-priority">
+                  {t("channelDialog:fields.priority.label")}
+                </Label>
+                <Input
+                  id="channel-priority"
+                  type="number"
+                  value={formData.priority}
+                  onChange={(e) =>
+                    updateField("priority", parseInt(e.target.value) || 0)
+                  }
+                  placeholder="0"
+                  disabled={isSaving}
+                  readOnly={isViewMode}
+                  min="0"
+                />
+                <p className="dark:text-dark-text-secondary mt-1 text-xs text-gray-500">
+                  {t("channelDialog:fields.priority.hint")}
+                </p>
+              </div>
+            )}
+
+            {/* Weight - Octopus/AxonHub do not expose New API weight semantics here. */}
+            {!isOctopus && !isAxonHub && (
+              <div>
+                <Label htmlFor="channel-weight">
+                  {t("channelDialog:fields.weight.label")}
+                </Label>
+                <Input
+                  id="channel-weight"
+                  type="number"
+                  value={formData.weight}
+                  onChange={(e) =>
+                    updateField("weight", parseInt(e.target.value) || 0)
+                  }
+                  placeholder="0"
+                  disabled={isSaving}
+                  readOnly={isViewMode}
+                  min="0"
+                />
+                <p className="dark:text-dark-text-secondary mt-1 text-xs text-gray-500">
+                  {t("channelDialog:fields.weight.hint")}
+                </p>
+              </div>
+            )}
+
+            {/* Status */}
+            <div>
+              <Label htmlFor="channel-status">
+                {t("channelDialog:fields.status.label")}
+              </Label>
+              <Select
+                value={
+                  formData.status === undefined || formData.status === null
+                    ? ""
+                    : String(formData.status)
+                }
+                onValueChange={(value) =>
+                  updateField("status", Number(value) as ChannelStatus)
+                }
+                disabled={isViewMode || isSaving}
+              >
+                <SelectTrigger id="channel-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={String(CHANNEL_STATUS.Enable)}>
+                    {t("channelDialog:fields.status.enabled")}
+                  </SelectItem>
+                  <SelectItem value={String(CHANNEL_STATUS.ManuallyDisabled)}>
+                    {t("channelDialog:fields.status.disabled")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </details>
+      </form>
+
+      <NewApiManagedVerificationDialog
+        isOpen={verification.dialogState.isOpen}
+        step={verification.dialogState.step}
+        request={verification.dialogState.request}
+        code={verification.dialogState.code}
+        errorMessage={verification.dialogState.errorMessage}
+        isBusy={verification.dialogState.isBusy}
+        busyMessage={verification.dialogState.busyMessage}
+        onCodeChange={verification.setCode}
+        onClose={verification.closeDialog}
+        onSubmit={verification.submitCode}
+        onRetry={verification.retryVerification}
+        onOpenSite={verification.openBaseUrl}
+        onUpdateRequestConfig={verification.patchRequestConfig}
+      />
+    </Modal>
+  )
+}

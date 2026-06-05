@@ -1,0 +1,41 @@
+import { SITE_TYPES } from "~/constants/siteType"
+import { newApiProvider } from "~/services/checkin/autoCheckin/providers/newApi"
+import type { AutoCheckinProviderResult } from "~/services/checkin/autoCheckin/providers/types"
+import type { SiteAccount } from "~/types"
+
+import { AnyrouterCheckInParams, anyrouterProvider } from "./anyrouter"
+import { veloeraProvider } from "./veloera"
+import { wongGongyiProvider } from "./wong"
+
+/**
+ * Auto check-in provider contract.
+ *
+ * Providers are selected by `SiteAccount.site_type` and should:
+ * - Quickly decide eligibility via `canCheckIn`.
+ * - Perform the check-in flow via `checkIn` and return a normalized result.
+ */
+export interface AutoCheckinProvider {
+  canCheckIn(account: SiteAccount): boolean
+  checkIn(
+    account: SiteAccount | AnyrouterCheckInParams,
+  ): Promise<AutoCheckinProviderResult>
+}
+
+const providers: Record<string, AutoCheckinProvider> = {
+  [SITE_TYPES.ANYROUTER]: anyrouterProvider,
+  [SITE_TYPES.VELOERA]: veloeraProvider,
+  [SITE_TYPES.WONG_GONGYI]: wongGongyiProvider,
+  [SITE_TYPES.NEW_API]: newApiProvider,
+}
+
+/**
+ * Resolve the auto check-in provider based on the site type of the given account
+ * @param account - The site account to resolve the provider for
+ * @returns The resolved auto check-in provider, or null if no provider is found
+ */
+export function resolveAutoCheckinProvider(
+  account: SiteAccount,
+): AutoCheckinProvider | null {
+  const provider = providers[account.site_type]
+  return provider ?? null
+}

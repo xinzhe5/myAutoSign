@@ -1,0 +1,351 @@
+import dayjs from "dayjs"
+import relativeTime from "dayjs/plugin/relativeTime"
+
+import { CURRENCY_SYMBOLS, UI_CONSTANTS } from "~/constants/ui"
+import type {
+  AccountStats,
+  ApiToken,
+  CurrencyType,
+  DisplaySiteData,
+  SortOrder,
+} from "~/types"
+import { formatMoneyFixed } from "~/utils/core/money"
+import { t } from "~/utils/i18n/core"
+
+// 初始化 dayjs
+dayjs.extend(relativeTime)
+
+/**
+ * 格式化 Token 数量
+ */
+export const formatTokenCount = (count: number): string => {
+  if (count >= UI_CONSTANTS.TOKEN.MILLION_THRESHOLD) {
+    return (count / UI_CONSTANTS.TOKEN.MILLION_THRESHOLD).toFixed(1) + "M"
+  } else if (count >= UI_CONSTANTS.TOKEN.THOUSAND_THRESHOLD) {
+    return (count / UI_CONSTANTS.TOKEN.THOUSAND_THRESHOLD).toFixed(1) + "K"
+  }
+  return count.toString()
+}
+
+export function normalizeToMs(input: number | string | Date): number | null
+export function normalizeToMs(input: null | undefined): null
+export function normalizeToMs(
+  input: number | string | Date | null | undefined,
+): number | null
+/**
+ * 自动修正时间输入为毫秒级时间戳
+ * 支持输入秒级/毫秒级时间戳、Date 对象、字符串
+ * @param input - 时间输入，可以是 number | string | Date | null | undefined
+ * @returns number | null  返回标准毫秒时间戳，无法识别时返回 null
+ */
+export function normalizeToMs(
+  input: string | number | Date | null | undefined,
+) {
+  if (input == null) return null
+
+  if (input instanceof Date) {
+    const time = input.getTime()
+    return Number.isNaN(time) ? null : time
+  }
+
+  if (typeof input === "string") {
+    const trimmed = input.trim()
+    if (!trimmed) return null
+
+    const ts = Number(trimmed)
+    if (Number.isFinite(ts)) {
+      if (ts < 1e12) {
+        return ts * 1000
+      }
+
+      return Math.round(ts)
+    }
+
+    const date = new Date(trimmed)
+    const time = date.getTime()
+    return Number.isNaN(time) ? null : time
+  }
+
+  if (!Number.isFinite(input)) return null
+
+  // 判断是否为秒级时间戳（1e12 毫秒 ≈ 2001 年）
+  if (input < 1e12) {
+    return input * 1000
+  }
+
+  return Math.round(input)
+}
+
+export function normalizeToDate(input: number | string | Date): Date | null
+export function normalizeToDate(input: null | undefined): null
+export function normalizeToDate(
+  input: number | string | Date | null | undefined,
+): Date | null
+
+/**
+ * 将任意输入标准化为 Date 对象
+ * @param input - 时间输入（支持多种类型）
+ * @returns Date | null
+ */
+export function normalizeToDate(
+  input: number | string | Date | null | undefined,
+): Date | null {
+  const ms = normalizeToMs(input)
+  return ms == null ? null : new Date(ms)
+}
+
+/**
+ * Best-effort locale datetime formatter for timestamps (seconds/ms), Date
+ * objects, and ISO/date strings.
+ */
+export const formatLocaleDateTime = (
+  input: number | string | Date | null | undefined,
+  fallback: string = t("common:labels.notAvailable"),
+): string => {
+  const date = normalizeToDate(input)
+  if (!date || Number.isNaN(date.getTime()) || date.getTime() <= 0) {
+    return fallback
+  }
+
+  try {
+    return date.toLocaleString()
+  } catch {
+    return fallback
+  }
+}
+
+/**
+ * Format a numeric timestamp for key expiration fields.
+ * Falls back to localized "never expires" copy when timestamp is <= 0.
+ */
+export const formatKeyTime = (timestamp: number) => {
+  if (timestamp <= 0) return t("keyManagement:keyDetails.neverExpires")
+
+  const date = normalizeToDate(timestamp)
+  if (!date) return t("common:labels.notAvailable")
+
+  return date.toLocaleDateString()
+}
+
+/**
+ * 格式化相对时间
+ */
+export const formatRelativeTime = (date: Date | undefined): string => {
+  if (!date) {
+    return ""
+  }
+  return dayjs(date).fromNow()
+}
+
+/**
+ * 格式化具体时间
+ */
+export const formatFullTime = (date: Date | undefined): string => {
+  if (!date) {
+    return ""
+  }
+  return dayjs(date).format("YYYY/MM/DD HH:mm:ss")
+}
+
+/**
+ * 计算总消耗
+ */
+export const calculateTotalConsumption = (
+  stats: AccountStats,
+  accounts: any[],
+) => {
+  const usdAmount =
+    stats.today_total_consumption / UI_CONSTANTS.EXCHANGE_RATE.CONVERSION_FACTOR
+  const cnyAmount = accounts.reduce(
+    (sum, acc) =>
+      sum +
+      (acc.account_info.today_quota_consumption /
+        UI_CONSTANTS.EXCHANGE_RATE.CONVERSION_FACTOR) *
+        acc.exchange_rate,
+    0,
+  )
+
+  return {
+    USD: usdAmount,
+    CNY: cnyAmount,
+  }
+}
+
+/**
+ * 计算总余额
+ *
+ * Total Balance excludes:
+ * - disabled accounts ({@link DisplaySiteData.disabled})
+ * - enabled but explicitly excluded accounts ({@link DisplaySiteData.excludeFromTotalBalance})
+ */
+export const calculateTotalBalance = (displayData: DisplaySiteData[]) => {
+  const enabledSites = displayData.filter(
+    (site) => !site.disabled && site.excludeFromTotalBalance !== true,
+  )
+  return {
+    USD: enabledSites.reduce((sum, site) => sum + site.balance.USD, 0),
+    CNY: enabledSites.reduce((sum, site) => sum + site.balance.CNY, 0),
+  }
+}
+
+/**
+ * Convenience wrapper to derive aggregate balances from a subset of sites.
+ * Delegates to {@link calculateTotalBalance} for the actual sum logic.
+ */
+export const calculateTotalBalanceForSites = (sites: DisplaySiteData[]) =>
+  calculateTotalBalance(sites)
+
+/**
+ * Sum per-site consumption metrics into global USD/CNY totals.
+ * @param sites Display-ready site collection containing `todayConsumption`.
+ */
+export const calculateTotalConsumptionForSites = (sites: DisplaySiteData[]) => {
+  const enabledSites = sites.filter((site) => !site.disabled)
+  const usd = enabledSites.reduce(
+    (sum, site) => sum + site.todayConsumption.USD,
+    0,
+  )
+  const cny = enabledSites.reduce(
+    (sum, site) => sum + site.todayConsumption.CNY,
+    0,
+  )
+
+  return {
+    USD: usd,
+    CNY: cny,
+  }
+}
+
+/**
+ * Sum per-site income metrics into global USD/CNY totals.
+ *
+ * Today Income excludes:
+ * - disabled accounts ({@link DisplaySiteData.disabled})
+ * - enabled but explicitly excluded accounts ({@link DisplaySiteData.excludeFromTodayIncome})
+ */
+export const calculateTotalIncomeForSites = (sites: DisplaySiteData[]) => {
+  const enabledSites = sites.filter(
+    (site) => !site.disabled && site.excludeFromTodayIncome !== true,
+  )
+  const usd = enabledSites.reduce((sum, site) => sum + site.todayIncome.USD, 0)
+  const cny = enabledSites.reduce((sum, site) => sum + site.todayIncome.CNY, 0)
+
+  return {
+    USD: usd,
+    CNY: cny,
+  }
+}
+
+/**
+ * 获取货币符号
+ */
+export const getCurrencySymbol = (currencyType: CurrencyType): string => {
+  return CURRENCY_SYMBOLS[currencyType]
+}
+
+/**
+ * 获取货币显示名称
+ */
+export const getCurrencyDisplayName = (currencyType: CurrencyType): string => {
+  return currencyType === "USD"
+    ? t("common:currency.usd")
+    : t("common:currency.cny")
+}
+
+/**
+ * 获取切换后的货币类型
+ */
+export const getOppositeCurrency = (
+  currencyType: CurrencyType,
+): CurrencyType => {
+  return currencyType === "USD" ? "CNY" : "USD"
+}
+
+/**
+ * 生成排序比较函数
+ */
+export const createSortComparator = <T>(field: keyof T, order: SortOrder) => {
+  return (a: T, b: T): number => {
+    const aValue = a[field]
+    const bValue = b[field]
+
+    if (order === "asc") {
+      return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+    } else {
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+    }
+  }
+}
+
+/**
+ * 格式化额度显示
+ */
+export const formatQuota = (token: ApiToken) => {
+  if (token.unlimited_quota || token.remain_quota < 0) {
+    return t("common:quota.unlimited")
+  }
+
+  // 使用CONVERSION_FACTOR转换真实额度
+  const realQuota =
+    token.remain_quota / UI_CONSTANTS.EXCHANGE_RATE.CONVERSION_FACTOR
+  return `$${formatMoneyFixed(realQuota)}`
+}
+
+/**
+ * 格式化已用额度
+ */
+export const formatUsedQuota = (token: ApiToken) => {
+  const realUsedQuota =
+    token.used_quota / UI_CONSTANTS.EXCHANGE_RATE.CONVERSION_FACTOR
+  return `$${formatMoneyFixed(realUsedQuota)}`
+}
+
+/**
+ * 格式化时间戳
+ */
+export const formatTimestamp = (timestamp: number) => {
+  if (timestamp <= 0) {
+    return t("common:time.neverExpires")
+  }
+
+  const date = normalizeToDate(timestamp)
+  if (!date) return t("common:labels.notAvailable")
+
+  return date.toLocaleDateString()
+}
+
+/**
+ * 获取组别徽章样式
+ */
+export const getGroupBadgeStyle = (group: string) => {
+  // 处理可能为空或未定义的 group
+  const groupName = group || "default"
+
+  // 根据组别名称生成不同的颜色主题
+  const hash = groupName.split("").reduce((a, b) => {
+    a = (a << 5) - a + b.charCodeAt(0)
+    return a & a
+  }, 0)
+
+  const colors = [
+    "bg-blue-100 text-blue-800 border-blue-200",
+    "bg-green-100 text-green-800 border-green-200",
+    "bg-purple-100 text-purple-800 border-purple-200",
+    "bg-orange-100 text-orange-800 border-orange-200",
+    "bg-pink-100 text-pink-800 border-pink-200",
+    "bg-indigo-100 text-indigo-800 border-indigo-200",
+    "bg-teal-100 text-teal-800 border-teal-200",
+    "bg-yellow-100 text-yellow-800 border-yellow-200",
+  ]
+
+  return colors[Math.abs(hash) % colors.length]
+}
+
+/**
+ * 获取状态徽章样式
+ */
+export const getStatusBadgeStyle = (status: number) => {
+  return status === 1
+    ? "bg-green-100 text-green-800 border-green-200"
+    : "bg-red-100 text-red-800 border-red-200"
+}

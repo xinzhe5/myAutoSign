@@ -1,0 +1,724 @@
+import toast from "react-hot-toast"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+import { MODEL_LIST_BILLING_MODES } from "~/features/ModelList/billingModes"
+import { ControlPanel } from "~/features/ModelList/components/ControlPanel"
+import { createProfileSource } from "~/features/ModelList/modelManagementSources"
+import { MODEL_LIST_SORT_MODES } from "~/features/ModelList/sortModes"
+import {
+  PRODUCT_ANALYTICS_ACTION_IDS,
+  PRODUCT_ANALYTICS_ENTRYPOINTS,
+  PRODUCT_ANALYTICS_FEATURE_IDS,
+  PRODUCT_ANALYTICS_MODE_IDS,
+  PRODUCT_ANALYTICS_RESULTS,
+  PRODUCT_ANALYTICS_SURFACE_IDS,
+  PRODUCT_ANALYTICS_TARGET_KINDS,
+} from "~/services/productAnalytics/events"
+import { API_TYPES } from "~/services/verification/aiApiVerification"
+import { fireEvent, render, screen, waitFor } from "~~/tests/test-utils/render"
+
+const {
+  toastErrorMock,
+  toastSuccessMock,
+  trackProductAnalyticsActionStartedMock,
+  trackProductAnalyticsActionCompletedMock,
+} = vi.hoisted(() => ({
+  toastErrorMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  trackProductAnalyticsActionStartedMock: vi.fn(),
+  trackProductAnalyticsActionCompletedMock: vi.fn(),
+}))
+
+vi.mock("react-hot-toast", () => ({
+  default: {
+    error: toastErrorMock,
+    success: toastSuccessMock,
+  },
+}))
+
+vi.mock("~/services/productAnalytics/actions", () => ({
+  trackProductAnalyticsActionStarted: (...args: any[]) =>
+    trackProductAnalyticsActionStartedMock(...args),
+  trackProductAnalyticsActionCompleted: (...args: any[]) =>
+    trackProductAnalyticsActionCompletedMock(...args),
+}))
+
+describe("ControlPanel profile capabilities", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    })
+  })
+
+  it("hides account-only pricing and group controls for profile-backed sources", async () => {
+    const profileSource = createProfileSource({
+      id: "profile-1",
+      name: "Reusable Key",
+      apiType: API_TYPES.OPENAI_COMPATIBLE,
+      baseUrl: "https://profile.example.com",
+      apiKey: "sk-secret",
+      tagIds: [],
+      notes: "",
+      createdAt: 1,
+      updatedAt: 2,
+    })
+
+    render(
+      <ControlPanel
+        selectedSource={profileSource}
+        sourceCapabilities={profileSource.capabilities}
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={vi.fn()}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={["default", "vip"]}
+        pricingData={{ group_ratio: { default: 1, vip: 2 } }}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={2}
+        filteredModels={[
+          { model: { model_name: "gpt-4o-mini" } },
+          { model: { model_name: "claude-3-5-sonnet" } },
+        ]}
+      />,
+    )
+
+    expect(
+      await screen.findByText("modelList:profileSourceNotice.title"),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByText("modelList:profileSourceNotice.description"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("modelList:userGroup")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:realAmount")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:showRatio")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:sortBy")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:billingMode")).not.toBeInTheDocument()
+    expect(
+      await screen.findByText("modelList:endpointTypes"),
+    ).toBeInTheDocument()
+  })
+
+  it("hides pricing and group controls for catalog-only account capabilities", async () => {
+    render(
+      <ControlPanel
+        selectedSource={
+          { kind: "account", account: { name: "AIHubMix" } } as any
+        }
+        sourceCapabilities={{
+          supportsPricing: false,
+          supportsRatioDisplay: false,
+          supportsGroupFiltering: false,
+          supportsAccountSummary: false,
+          supportsTokenCompatibility: false,
+          supportsCredentialVerification: true,
+          supportsBatchCredentialVerification: true,
+          supportsCliVerification: true,
+        }}
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={vi.fn()}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={["default"]}
+        pricingData={{ group_ratio: { default: 1 } }}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={1}
+        filteredModels={[{ model: { model_name: "gpt-aihubmix" } }]}
+      />,
+    )
+
+    expect(
+      await screen.findByText("modelList:searchModels"),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("modelList:userGroup")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:sortBy")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:billingMode")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:realAmount")).not.toBeInTheDocument()
+    expect(screen.queryByText("modelList:showRatio")).not.toBeInTheDocument()
+  })
+
+  it("keeps pricing controls but hides the ratio toggle when ratio display is unsupported", async () => {
+    render(
+      <ControlPanel
+        selectedSource={
+          { kind: "account", account: { name: "AIHubMix" } } as any
+        }
+        sourceCapabilities={{
+          supportsPricing: true,
+          supportsRatioDisplay: false,
+          supportsGroupFiltering: false,
+          supportsAccountSummary: false,
+          supportsTokenCompatibility: false,
+          supportsCredentialVerification: false,
+          supportsBatchCredentialVerification: false,
+          supportsCliVerification: false,
+        }}
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={vi.fn()}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={["default"]}
+        pricingData={{ group_ratio: {} }}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={1}
+        filteredModels={[{ model: { model_name: "gpt-aihubmix" } }]}
+      />,
+    )
+
+    expect(await screen.findByText("modelList:billingMode")).toBeInTheDocument()
+    expect(screen.getByText("modelList:realAmount")).toBeInTheDocument()
+    expect(screen.queryByText("modelList:showRatio")).not.toBeInTheDocument()
+  })
+
+  it("renders group ratio labels, uses the group fallback ratio, and copies visible model names", async () => {
+    const setSearchTerm = vi.fn()
+    const setSortMode = vi.fn()
+    const setSelectedBillingMode = vi.fn()
+    const setSelectedGroups = vi.fn()
+    const setShowRealPrice = vi.fn()
+    const setShowRatioColumn = vi.fn()
+    const setShowEndpointTypes = vi.fn()
+
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "account" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: true,
+            supportsPricing: true,
+            supportsRatioDisplay: true,
+          } as any
+        }
+        searchTerm="gpt"
+        setSearchTerm={setSearchTerm}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={setSortMode}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={setSelectedBillingMode}
+        selectedGroups={[]}
+        setSelectedGroups={setSelectedGroups}
+        availableGroups={["vip", "default"]}
+        pricingData={{ group_ratio: { vip: 2 } }}
+        showRealPrice={false}
+        setShowRealPrice={setShowRealPrice}
+        showRatioColumn={true}
+        setShowRatioColumn={setShowRatioColumn}
+        showEndpointTypes={true}
+        setShowEndpointTypes={setShowEndpointTypes}
+        totalModels={5}
+        filteredModels={[
+          { model: { model_name: "gpt-4o-mini" } },
+          { model: { model_name: "claude-3-5-sonnet" } },
+        ]}
+      />,
+    )
+
+    const searchInput = await screen.findByPlaceholderText(
+      "modelList:searchPlaceholder",
+    )
+    fireEvent.change(searchInput, { target: { value: "claude" } })
+    expect(setSearchTerm).toHaveBeenCalledWith("claude")
+
+    const comboboxes = await screen.findAllByRole("combobox")
+    const [sortSelect, billingModeSelect, groupSelect] = comboboxes
+    expect(sortSelect).toHaveTextContent("modelList:sortOptions.default")
+    fireEvent.click(sortSelect)
+    fireEvent.click(await screen.findByText("modelList:sortOptions.priceAsc"))
+    expect(setSortMode).toHaveBeenCalledWith(MODEL_LIST_SORT_MODES.PRICE_ASC)
+
+    expect(billingModeSelect).toHaveTextContent("modelList:allBillingModes")
+
+    expect(groupSelect).toHaveTextContent("modelList:allGroups")
+    fireEvent.click(groupSelect)
+
+    expect(await screen.findByText("vip (2x)")).toBeInTheDocument()
+    expect(screen.getByText("default (1x)")).toBeInTheDocument()
+    fireEvent.click(screen.getByText("vip (2x)"))
+    expect(setSelectedGroups).toHaveBeenCalledWith(["vip"])
+    expect(
+      await screen.findByText("modelList:groupSelectionHint"),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole("switch", { name: "modelList:realAmount" }),
+    )
+    expect(setShowRealPrice).toHaveBeenCalledWith(true)
+
+    fireEvent.click(screen.getByRole("switch", { name: "modelList:showRatio" }))
+    expect(setShowRatioColumn).toHaveBeenCalledWith(false)
+
+    fireEvent.click(
+      screen.getByRole("switch", { name: "modelList:endpointTypes" }),
+    )
+    expect(setShowEndpointTypes).toHaveBeenCalledWith(false)
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "modelList:copyAllNames" }),
+    )
+
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        "gpt-4o-mini,claude-3-5-sonnet",
+      ),
+    )
+    expect(trackProductAnalyticsActionCompletedMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ModelList,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.FilterModelList,
+      surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsModelListControlPanel,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      result: PRODUCT_ANALYTICS_RESULTS.Success,
+      insights: {
+        targetKind: PRODUCT_ANALYTICS_TARGET_KINDS.ModelFilter,
+        mode: PRODUCT_ANALYTICS_MODE_IDS.SortFilter,
+        filterCount: 2,
+        resultCount: 2,
+      },
+    })
+    expect(trackProductAnalyticsActionStartedMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ModelList,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.CopyVisibleModelNames,
+      surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsModelListControlPanel,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+    expect(toast.success).toHaveBeenCalledWith(
+      "modelList:messages.modelNamesCopied",
+    )
+    fireEvent.click(
+      screen.getByRole("button", { name: "common:actions.clear" }),
+    )
+    expect(setSearchTerm).toHaveBeenCalledWith("")
+    expect(await screen.findByText("modelList:totalModels")).toBeInTheDocument()
+    expect(await screen.findByText("modelList:showing")).toBeInTheDocument()
+  })
+
+  it("shows a toast error instead of copying when no models match the current filters", async () => {
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "account" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: false,
+            supportsPricing: false,
+            supportsRatioDisplay: false,
+          } as any
+        }
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={vi.fn()}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={[]}
+        pricingData={null}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={0}
+        filteredModels={[]}
+      />,
+    )
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "modelList:copyAllNames" }),
+    )
+
+    expect(toast.error).toHaveBeenCalledWith("modelList:noMatchingModels")
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled()
+    expect(screen.queryByText("modelList:userGroup")).toBeNull()
+    expect(screen.queryByText("modelList:realAmount")).toBeNull()
+    expect(screen.queryByText("modelList:showRatio")).toBeNull()
+    expect(screen.queryByText("modelList:sortBy")).toBeNull()
+    expect(screen.queryByText("modelList:billingMode")).toBeNull()
+  })
+
+  it("renders the batch verification action when a handler is provided", async () => {
+    const onBatchVerifyModels = vi.fn()
+
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "account" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: false,
+            supportsPricing: false,
+            supportsRatioDisplay: false,
+          } as any
+        }
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={vi.fn()}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={[]}
+        pricingData={null}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={1}
+        filteredModels={[{ model: { model_name: "gpt-4o-mini" } }]}
+        onBatchVerifyModels={onBatchVerifyModels}
+      />,
+    )
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "modelList:batchVerify.actions.open",
+      }),
+    )
+
+    expect(onBatchVerifyModels).toHaveBeenCalledTimes(1)
+    expect(trackProductAnalyticsActionStartedMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ModelList,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.OpenBatchModelVerifyDialog,
+      surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsModelListControlPanel,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+    })
+  })
+
+  it("disables the batch verification action when no filtered models are visible", async () => {
+    const onBatchVerifyModels = vi.fn()
+
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "account" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: false,
+            supportsPricing: false,
+            supportsRatioDisplay: false,
+          } as any
+        }
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={vi.fn()}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={[]}
+        pricingData={null}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={1}
+        filteredModels={[]}
+        onBatchVerifyModels={onBatchVerifyModels}
+      />,
+    )
+
+    const batchVerifyButton = await screen.findByRole("button", {
+      name: "modelList:batchVerify.actions.open",
+    })
+
+    expect(batchVerifyButton).toBeDisabled()
+    fireEvent.click(batchVerifyButton)
+    expect(onBatchVerifyModels).not.toHaveBeenCalled()
+  })
+
+  it("includes the per-model cheapest sort option in all-accounts mode", async () => {
+    const setSortMode = vi.fn()
+
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "all-accounts" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: false,
+            supportsPricing: true,
+            supportsRatioDisplay: true,
+          } as any
+        }
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={setSortMode}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={vi.fn()}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={[]}
+        pricingData={null}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={2}
+        filteredModels={[
+          { model: { model_name: "gpt-4o-mini" } },
+          { model: { model_name: "claude-3-5-sonnet" } },
+        ]}
+      />,
+    )
+
+    const [sortSelect] = await screen.findAllByRole("combobox")
+    fireEvent.click(sortSelect)
+    fireEvent.click(
+      await screen.findByText("modelList:sortOptions.modelCheapestFirst"),
+    )
+
+    expect(setSortMode).toHaveBeenCalledWith(
+      MODEL_LIST_SORT_MODES.MODEL_CHEAPEST_FIRST,
+    )
+  })
+
+  it("tracks stable filter and exploration actions without exposing raw terms or model IDs", async () => {
+    const setSearchTerm = vi.fn()
+    const setSortMode = vi.fn()
+    const setSelectedBillingMode = vi.fn()
+    const setSelectedGroups = vi.fn()
+    const setShowRealPrice = vi.fn()
+    const setShowRatioColumn = vi.fn()
+    const setShowEndpointTypes = vi.fn()
+
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "account" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: true,
+            supportsPricing: true,
+            supportsRatioDisplay: true,
+          } as any
+        }
+        searchTerm="private-search"
+        setSearchTerm={setSearchTerm}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={setSortMode}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={setSelectedBillingMode}
+        selectedGroups={[]}
+        setSelectedGroups={setSelectedGroups}
+        availableGroups={["private-group", "default"]}
+        pricingData={{ group_ratio: { "private-group": 2 } }}
+        showRealPrice={false}
+        setShowRealPrice={setShowRealPrice}
+        showRatioColumn={true}
+        setShowRatioColumn={setShowRatioColumn}
+        showEndpointTypes={true}
+        setShowEndpointTypes={setShowEndpointTypes}
+        totalModels={5}
+        filteredModels={[{ model: { model_name: "private-model-id" } }]}
+      />,
+    )
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "common:actions.clear" }),
+    )
+
+    const comboboxes = await screen.findAllByRole("combobox")
+    const [, billingModeSelect, groupSelect] = comboboxes
+
+    expect(billingModeSelect).toHaveTextContent("modelList:allBillingModes")
+
+    expect(groupSelect).toHaveTextContent("modelList:allGroups")
+
+    expect(setSearchTerm).toHaveBeenCalledWith("")
+
+    expect(trackProductAnalyticsActionCompletedMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ModelList,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.FilterModelList,
+      surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsModelListControlPanel,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      result: PRODUCT_ANALYTICS_RESULTS.Success,
+      insights: {
+        targetKind: PRODUCT_ANALYTICS_TARGET_KINDS.ModelFilter,
+        mode: PRODUCT_ANALYTICS_MODE_IDS.SearchFilter,
+        filterCount: 0,
+        resultCount: 1,
+      },
+    })
+    expect(trackProductAnalyticsActionCompletedMock).toHaveBeenCalledTimes(1)
+
+    const analyticsCalls = JSON.stringify(
+      trackProductAnalyticsActionCompletedMock.mock.calls,
+    )
+    expect(analyticsCalls).not.toContain("private-search")
+    expect(analyticsCalls).not.toContain("private-group")
+    expect(analyticsCalls).not.toContain("private-model-id")
+  })
+
+  it("tracks billing and group filters as distinct analytics modes", async () => {
+    const setSelectedBillingMode = vi.fn()
+    const setSelectedGroups = vi.fn()
+
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "account" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: true,
+            supportsPricing: true,
+            supportsRatioDisplay: false,
+          } as any
+        }
+        searchTerm=""
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={setSelectedBillingMode}
+        selectedGroups={[]}
+        setSelectedGroups={setSelectedGroups}
+        availableGroups={["vip"]}
+        pricingData={{ group_ratio: { vip: 2 } }}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={3}
+        filteredModels={[{ model: { model_name: "private-model-id" } }]}
+      />,
+    )
+
+    const [, billingModeSelect, groupSelect] =
+      await screen.findAllByRole("combobox")
+    fireEvent.click(billingModeSelect)
+    fireEvent.click(await screen.findByText("ui:billing.tokenBased"))
+    fireEvent.click(groupSelect)
+    fireEvent.click(await screen.findByText("vip (2x)"))
+
+    expect(setSelectedBillingMode).toHaveBeenCalledWith(
+      MODEL_LIST_BILLING_MODES.TOKEN_BASED,
+    )
+    expect(setSelectedGroups).toHaveBeenCalledWith(["vip"])
+    expect(trackProductAnalyticsActionCompletedMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ModelList,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.FilterModelList,
+      surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsModelListControlPanel,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      result: PRODUCT_ANALYTICS_RESULTS.Success,
+      insights: {
+        targetKind: PRODUCT_ANALYTICS_TARGET_KINDS.ModelFilter,
+        mode: PRODUCT_ANALYTICS_MODE_IDS.BillingFilter,
+        filterCount: 1,
+        resultCount: 1,
+      },
+    })
+    expect(trackProductAnalyticsActionCompletedMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ModelList,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.FilterModelList,
+      surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsModelListControlPanel,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      result: PRODUCT_ANALYTICS_RESULTS.Success,
+      insights: {
+        targetKind: PRODUCT_ANALYTICS_TARGET_KINDS.ModelFilter,
+        mode: PRODUCT_ANALYTICS_MODE_IDS.GroupFilter,
+        filterCount: 1,
+        resultCount: 1,
+      },
+    })
+  })
+
+  it("tracks pending filter result counts from the shared model-list estimator", async () => {
+    const setSelectedBillingMode = vi.fn()
+    const getFilteredResultCount = vi.fn(() => 7)
+
+    render(
+      <ControlPanel
+        selectedSource={{ kind: "account" } as any}
+        sourceCapabilities={
+          {
+            supportsGroupFiltering: false,
+            supportsPricing: true,
+            supportsRatioDisplay: false,
+          } as any
+        }
+        searchTerm="private-search"
+        setSearchTerm={vi.fn()}
+        sortMode={MODEL_LIST_SORT_MODES.DEFAULT}
+        setSortMode={vi.fn()}
+        selectedBillingMode={MODEL_LIST_BILLING_MODES.ALL}
+        setSelectedBillingMode={setSelectedBillingMode}
+        selectedGroups={[]}
+        setSelectedGroups={vi.fn()}
+        availableGroups={[]}
+        pricingData={{ group_ratio: {} }}
+        showRealPrice={false}
+        setShowRealPrice={vi.fn()}
+        showRatioColumn={false}
+        setShowRatioColumn={vi.fn()}
+        showEndpointTypes={true}
+        setShowEndpointTypes={vi.fn()}
+        totalModels={10}
+        filteredModels={[{ model: { model_name: "current-visible-model" } }]}
+        getFilteredResultCount={getFilteredResultCount}
+      />,
+    )
+
+    const [, billingModeSelect] = await screen.findAllByRole("combobox")
+    fireEvent.click(billingModeSelect)
+    fireEvent.click(await screen.findByText("ui:billing.tokenBased"))
+
+    expect(setSelectedBillingMode).toHaveBeenCalledWith(
+      MODEL_LIST_BILLING_MODES.TOKEN_BASED,
+    )
+    expect(getFilteredResultCount).toHaveBeenCalledWith({
+      searchTerm: "private-search",
+      sortMode: MODEL_LIST_SORT_MODES.DEFAULT,
+      selectedBillingMode: MODEL_LIST_BILLING_MODES.TOKEN_BASED,
+      selectedGroups: [],
+    })
+    expect(trackProductAnalyticsActionCompletedMock).toHaveBeenCalledWith({
+      featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ModelList,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.FilterModelList,
+      surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsModelListControlPanel,
+      entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+      result: PRODUCT_ANALYTICS_RESULTS.Success,
+      insights: {
+        targetKind: PRODUCT_ANALYTICS_TARGET_KINDS.ModelFilter,
+        mode: PRODUCT_ANALYTICS_MODE_IDS.BillingFilter,
+        filterCount: 2,
+        resultCount: 7,
+      },
+    })
+  })
+})

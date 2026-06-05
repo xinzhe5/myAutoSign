@@ -1,0 +1,212 @@
+{
+  "actions": {
+    "autoConfigAriaLabel": "Save account and open {{managedSite}} channel setup",
+    "autoConfigRequiresValidAccount": "Complete the account form first",
+    "autoConfigTitle": "Save this account and open a prefilled channel form in {{managedSite}}",
+    "configToManagedSite": "Save and configure in {{managedSite}}",
+    "configuring": "Configuring...",
+    "confirmAdd": "Confirm Add",
+    "helpDocument": "Help Document",
+    "reloadCurrentPage": "Reload current page",
+    "reloadExtensionAndRetry": "Reload extension and retry",
+    "reportUnsupportedSite": "Report unsupported site",
+    "saveAccount": "Save Account",
+    "saveChanges": "Save Changes",
+    "workflow": {
+      "checkingToken": "Checking API keys...",
+      "creatingToken": "Creating default key...",
+      "loadingSavedAccount": "Loading saved account...",
+      "openingManagedSiteDialog": "Opening channel setup...",
+      "savingAccount": "Saving account...",
+      "waitingForOneTimeKey": "Save the one-time key first...",
+      "waitingForSub2ApiGroup": "Choose a Sub2API group..."
+    }
+  },
+  "aihubmixDefaultKeyPrompt": {
+    "cancel": "Create later",
+    "cancelHint": "Cancelling does not affect the saved account. You can create an AIHubMix API key manually in Key Management later.",
+    "confirm": "Create and view now",
+    "creating": "Creating...",
+    "description": "{{accountName}} has been saved. AIHubMix API keys are shown only once after creation, so make sure you can copy and save the full key now.",
+    "title": "Create an AIHubMix default key?",
+    "warningTitle": "The full key is shown only once"
+  },
+  "form": {
+    "accessToken": "Access Token",
+    "autoCheckInEnabled": "Enable daily automatic check-in",
+    "autoCheckInEnabledDesc": "Whether this account participates in daily check-in when global auto check-in is enabled",
+    "checkInStatus": "Check-in status detection (requires the site to have check-in enabled)",
+    "cookieAuthSessionCookie": "Session Cookie",
+    "cookieAuthSessionCookieDesc": "Import this account's session cookie from a logged-in browser tab (import separately for multi-account)",
+    "cookieAuthSessionCookiePlaceholder": "Paste Cookie header value",
+    "cookiePermissionEnableCookieAuth": "Grant permissions for Cookie multi-account auth",
+    "cookiePermissionHelpAction": "Open permissions settings",
+    "cookiePermissionRecommendationDesc": "Used to read cookies from the current login page and attach the right Cookie per account to refresh, check-in, and related requests for stable same-site multi-account use.",
+    "customCheckInDesc": "External check-in/welfare site URL where you can get account balance or redeem codes",
+    "customCheckInUrl": "External check-in site URL (optional)",
+    "customRedeemUrl": "Custom recharge/redeem page URL (optional)",
+    "customRedeemUrlDesc": "URL for recharge/exchange page",
+    "exchangeRate": "Recharge Amount Ratio (CNY/USD)",
+    "exchangeRateDesc": "Indicates how much RMB is needed to recharge 1 USD. The system will try to get it automatically, please fill in manually if not obtained",
+    "exchangeRatePlaceholder": "Please enter exchange rate",
+    "excludeFromTodayIncome": "Exclude from Today's Income",
+    "excludeFromTodayIncomeDesc": "Skips this account in Today's Income totals without disabling refresh, check-in, or account display",
+    "excludeFromTotalBalance": "Exclude from Total Balance",
+    "excludeFromTotalBalanceDesc": "Skips this account in the Total Balance aggregate without disabling refresh or check-in",
+    "hideAccessToken": "Hide Access Token",
+    "hideRefreshToken": "Hide Refresh Token",
+    "importCookieAuthSessionCookie": "Import from current login",
+    "manualBalanceUsd": "Manual Balance (USD)",
+    "manualBalanceUsdDesc": "Use this when the site cannot fetch balance/quota automatically",
+    "manualBalanceUsdError": "Please enter a valid amount (>= 0)",
+    "manualBalanceUsdPlaceholder": "Leave blank to auto-fetch",
+    "notes": "Notes",
+    "notesPlaceholder": "Optional, enter notes",
+    "openRedeemWithCheckIn": "Also open redeem page when using external check-in",
+    "showAccessToken": "Show Access Token",
+    "showRefreshToken": "Show Refresh Token",
+    "siteName": "Site Name",
+    "siteType": "Site Type",
+    "sub2apiCheckInUnsupported": "Sub2API does not support site check-in (disabled automatically).",
+    "sub2apiImportRefreshToken": "Import from current logged-in account",
+    "sub2apiRefreshToken": "Refresh Token",
+    "sub2apiRefreshTokenMode": "Plugin Hosted Session (multi-account)",
+    "sub2apiRefreshTokenModeDesc": "Optional. Store the refresh_token of the current dashboard session in the extension so each Sub2API account can refresh and renew authentication independently in the background (supports multiple accounts on one site).",
+    "sub2apiRefreshTokenPlaceholder": "Paste refresh_token value",
+    "sub2apiRefreshTokenWarningDesc": "Refresh tokens are long-lived credentials used for Plugin Hosted Sessions. They are saved with the account (e.g. backups/exports). To avoid rotation conflicts, import from an incognito/private window and close it; avoid using the same dashboard session in parallel.",
+    "sub2apiRefreshTokenWarningTitle": "Note",
+    "sub2apiTokenExpiresAt": "Access token expires at",
+    "tags": "Tags",
+    "tagsCreate": "Create \"{{name}}\"",
+    "tagsDelete": "Delete",
+    "tagsDeleteCancel": "Cancel",
+    "tagsDeleteConfirm": "Delete",
+    "tagsDeleteDescription": "Delete \"{{name}}\" globally. This will remove it from all accounts.",
+    "tagsDeleteTitle": "Delete tag",
+    "tagsDescription": "Use tags to categorize accounts for quick filtering",
+    "tagsNoResults": "No tags found",
+    "tagsPlaceholder": "Add or select tags",
+    "tagsRemove": "Remove {{name}}",
+    "tagsRename": "Rename",
+    "tagsRenameCancel": "Cancel",
+    "tagsRenameSave": "Save",
+    "tagsSearchPlaceholder": "Search tags...",
+    "tagsSelectedCount_one": "{{count}} tag selected",
+    "tagsSelectedCount_other": "{{count}} tags selected",
+    "userId": "User ID",
+    "userIdNumber": "User ID (number)",
+    "username": "Username",
+    "validRateError": "Please enter a valid exchange rate, greater than 0"
+  },
+  "infoPanel": {
+    "autoDetect": "Auto Detect",
+    "autoDetectInfo": "Please log in to the target site first. The extension will automatically detect and fill in the information needed to add the account.",
+    "confirmAddInfo": "Please confirm that the account information is correct before clicking the 'Confirm Add' button",
+    "confirmation": "Account Information Confirmation",
+    "editInfo": "Edit Account Information",
+    "editInfoDesc": "After modifying the account information, the system will re-verify and get the latest balance data",
+    "ldohSiteListHint": "No site yet? LDOH provides a directory of many public-benefit AI sites from the Linux.do community.",
+    "manualAdd": "Manual Add",
+    "manualInfo": "Manually fill in the account information. The account will be saved securely in local storage",
+    "openLdohSiteList": "Open LDOH site list",
+    "reDetectInfo": "If the site information changes, it is recommended to click the 'Re-detect' button (you need to log in to the target site first by yourself)"
+  },
+  "messages": {
+    "addSuccess": "Account {{name}} added successfully!",
+    "autoDetectCookiePermissionReloadHint": "If the first detection keeps waiting right after granting Cookie multi-account permissions, reload the extension and try again.",
+    "autoDetectFailed": "Auto-detect failed: {{error}}",
+    "autoDetectSuccess": "Auto-detect successful!",
+    "autoDetectTakingTooLong": "Auto-detect is taking longer than expected. Open troubleshooting guide.",
+    "cookiePermissionGranted": "Permission granted",
+    "cookiePermissionGrantFailed": "Permission was not granted",
+    "importCookiesEmpty": "No browser cookies were found for this site. Log in on this site first, then try again.",
+    "importCookiesFailed": "Failed to import cookies: {{error}}",
+    "importCookiesFailedUnknown": "Failed to import cookies due to an unknown error.",
+    "importCookiesLoading": "Importing cookies...",
+    "importCookiesPermissionDenied": "The extension could not read this site's cookies. Check the browser's cookie/site permissions for this site, then try again.",
+    "importCookiesSuccess": "Cookies imported",
+    "importSub2apiSessionMissing": "No refresh_token found. Please log in to the Sub2API dashboard and try again.",
+    "importSub2apiSessionSuccess": "Sub2API session imported",
+    "loadFailed": "Failed to load account data",
+    "newApiConfigFailed": "Auto-configuration to New API failed: {{error}}",
+    "operationFailed": "Operation failed: {{error}}",
+    "reloadExtensionConfirm": "Reloading the extension will close the current extension page. Make sure any needed information has been saved.",
+    "saveAccountFailed": "Failed to save account",
+    "saveFailed": "Save failed",
+    "updateSuccess": "Account {{name}} updated successfully!",
+    "urlRequired": "Please enter a URL first"
+  },
+  "mode": {
+    "autoDetect": "Auto Detect",
+    "detecting": "Detecting...",
+    "manualAdd": "Manual Add",
+    "reDetect": "Re-detect"
+  },
+  "sections": {
+    "accountAuth": {
+      "title": "Account Authentication"
+    },
+    "balanceAndStats": {
+      "title": "Balance & Stats"
+    },
+    "checkInConfig": {
+      "title": "Check-in Settings"
+    },
+    "siteInfo": {
+      "title": "Site Information"
+    },
+    "tagsAndNotes": {
+      "description": "Tags help organize, filter, and quickly identify accounts, while notes add supporting context.",
+      "title": "Tags & Notes"
+    }
+  },
+  "siteInfo": {
+    "alreadyAdded": "Account(s) already exist for this site",
+    "authMethod": "Authentication Method",
+    "authMethodPlaceholder": "Authentication method",
+    "authType": {
+      "accessToken": "Access Token Authentication",
+      "cookieAuth": "Cookie Authentication"
+    },
+    "cookieWarning": "Prefer access tokens. Cookie auth requires importing a session cookie, and it may expire/renew and stop working, requiring re-import; for multiple accounts on the same site, import a session cookie per account. Use only when necessary.",
+    "currentLoginAlreadyAdded": "Current login already added",
+    "currentSite": "Current Site",
+    "editNow": "Edit Now",
+    "siteUrl": "Site URL",
+    "sub2apiAuthOnly": "Sub2API only supports Access Token authentication (JWT)",
+    "sub2apiHint": "Sub2API uses short-term JWTs. When they expire, the extension will automatically try to obtain a new JWT using a temporary window (requires being logged in on the site). With \"Plugin Hosted Session\" enabled, each account can automatically refresh and renew authentication independently in the background, supporting multiple accounts on the same site.",
+    "unknown": "Unable to get",
+    "useCurrent": "Use Current Site"
+  },
+  "title": {
+    "add": "Add Account",
+    "edit": "Edit Account"
+  },
+  "warnings": {
+    "duplicateAccount": {
+      "actions": {
+        "continue": "Continue",
+        "disableAndContinue": "Don't remind me again and continue"
+      },
+      "description_one": "You already have {{count}} account for {{siteUrl}}. Adding another may create duplicates. Do you want to continue?",
+      "description_other": "You already have {{count}} accounts for {{siteUrl}}. Adding another may create duplicates. Do you want to continue?",
+      "descriptionExact": "An account for {{siteUrl}} with user ID {{userId}} already exists ({{username}}). Adding another may create duplicates. Do you want to continue?",
+      "title": "Duplicate account",
+      "warningTitle": "This site already has accounts"
+    },
+    "managedSiteConfig": {
+      "actions": {
+        "later": "Maybe later",
+        "openSettings": "Open settings"
+      },
+      "description": "{{message}}",
+      "guide": "This feature first saves the current account, then prepares a usable API key and prefills it into a new channel in {{managedSite}}, helping you finish channel creation faster. It becomes available after the managed-site setup is complete.",
+      "title": "Configure {{managedSite}} first",
+      "warningTitle": "{{managedSite}} is not configured yet"
+    },
+    "reloadExtension": {
+      "title": "Reload extension",
+      "warningTitle": "Confirm extension reload?"
+    }
+  }
+}

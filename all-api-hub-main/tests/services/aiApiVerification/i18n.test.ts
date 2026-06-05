@@ -1,0 +1,112 @@
+import { describe, expect, it, vi } from "vitest"
+
+import {
+  getApiVerificationApiTypeLabel,
+  getApiVerificationProbeLabel,
+  translateApiVerificationSummary,
+} from "~/services/verification/aiApiVerification/i18n"
+import { API_TYPES } from "~/services/verification/aiApiVerification/types"
+
+describe("aiApiVerification i18n", () => {
+  it.each([
+    [
+      API_TYPES.OPENAI_COMPATIBLE,
+      "aiApiVerification:verifyDialog.apiTypes.openaiCompatible",
+    ],
+    [API_TYPES.OPENAI, "aiApiVerification:verifyDialog.apiTypes.openai"],
+    [API_TYPES.ANTHROPIC, "aiApiVerification:verifyDialog.apiTypes.anthropic"],
+    [API_TYPES.GOOGLE, "aiApiVerification:verifyDialog.apiTypes.google"],
+  ])("returns the correct label key for apiType %s", (apiType, expectedKey) => {
+    const t = vi.fn((key: string) => key)
+
+    const result = getApiVerificationApiTypeLabel(t as any, apiType)
+
+    expect(result).toBe(expectedKey)
+    expect(t).toHaveBeenCalledWith(expectedKey)
+  })
+
+  it.each([
+    ["models", "aiApiVerification:verifyDialog.probes.models"],
+    [
+      "text-generation",
+      "aiApiVerification:verifyDialog.probes.text-generation",
+    ],
+    ["tool-calling", "aiApiVerification:verifyDialog.probes.tool-calling"],
+    [
+      "structured-output",
+      "aiApiVerification:verifyDialog.probes.structured-output",
+    ],
+    ["web-search", "aiApiVerification:verifyDialog.probes.web-search"],
+  ])("returns the correct label key for probe %s", (probeId, expectedKey) => {
+    const t = vi.fn((key: string) => key)
+
+    const result = getApiVerificationProbeLabel(t as any, probeId as any)
+
+    expect(result).toBe(expectedKey)
+    expect(t).toHaveBeenCalledWith(expectedKey)
+  })
+
+  it.each([
+    "verifyDialog.summaries.modelsFetched",
+    "verifyDialog.summaries.noModelsReturned",
+    "verifyDialog.summaries.textGenerationSucceeded",
+    "verifyDialog.summaries.textGenerationUnexpectedResponse",
+    "verifyDialog.summaries.noToolCallDetected",
+    "verifyDialog.summaries.toolCallSucceeded",
+    "verifyDialog.summaries.structuredOutputSucceeded",
+    "verifyDialog.summaries.structuredOutputInvalid",
+    "verifyDialog.summaries.webSearchUnsupportedAnthropic",
+    "verifyDialog.summaries.webSearchSucceeded",
+    "verifyDialog.summaries.webSearchNoResults",
+    "verifyDialog.summaries.webSearchGroundingSucceeded",
+    "verifyDialog.summaries.webSearchGroundingNoResults",
+    "verifyDialog.summaries.webSearchUnsupportedForApiType",
+    "verifyDialog.summaries.webSearchRequiresExplicitSupport",
+    "verifyDialog.summaries.modelsProbeUnsupportedForApiType",
+    "verifyDialog.summaries.noModelIdProvided",
+    "verifyDialog.summaries.noModelIdProvidedToRunProbe",
+    "verifyDialog.summaries.noModelIdProvidedToRunProbes",
+    "verifyDialog.summaries.noModelAvailableToRunProbes",
+    "verifyDialog.summaries.unauthorized",
+    "verifyDialog.summaries.forbidden",
+    "verifyDialog.summaries.endpointNotFound",
+    "verifyDialog.summaries.httpError",
+  ])("translates known summary key %s with forwarded params", (summaryKey) => {
+    const params = { count: 2, modelId: "gpt-test" }
+    const expectedKey = `aiApiVerification:${summaryKey}`
+    const t = vi.fn((key: string, forwardedParams?: Record<string, unknown>) =>
+      JSON.stringify({ key, forwardedParams }),
+    )
+
+    const result = translateApiVerificationSummary(t as any, summaryKey, params)
+
+    expect(result).toBe(
+      JSON.stringify({ key: expectedKey, forwardedParams: params }),
+    )
+    expect(t).toHaveBeenCalledWith(expectedKey, params)
+  })
+
+  it("returns undefined without calling t for unknown summary keys", () => {
+    const t = vi.fn((key: string) => key)
+
+    const result = translateApiVerificationSummary(
+      t as any,
+      "verifyDialog.summaries.unknown",
+      { count: 1 },
+    )
+
+    expect(result).toBeUndefined()
+    expect(t).not.toHaveBeenCalled()
+  })
+
+  it("throws for unsupported api types and probe ids", () => {
+    const t = vi.fn((key: string) => key)
+
+    expect(() =>
+      getApiVerificationApiTypeLabel(t as any, "custom" as any),
+    ).toThrow("Unexpected API verification type: custom")
+    expect(() =>
+      getApiVerificationProbeLabel(t as any, "invalid-probe" as any),
+    ).toThrow("Unexpected API verification probe id: invalid-probe")
+  })
+})

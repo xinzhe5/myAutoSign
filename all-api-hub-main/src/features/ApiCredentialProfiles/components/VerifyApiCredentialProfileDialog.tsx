@@ -1,0 +1,951 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
+
+import { buildProbeState } from "~/components/dialogs/VerifyApiDialog/probeState"
+import { ProbeStatusBadge } from "~/components/dialogs/VerifyApiDialog/ProbeStatusBadge"
+import type { ProbeItemState } from "~/components/dialogs/VerifyApiDialog/types"
+import { useVerificationDialogState } from "~/components/dialogs/VerifyApiDialog/useVerificationDialogState"
+import {
+  formatLatency,
+  safeJsonStringify,
+} from "~/components/dialogs/VerifyApiDialog/utils"
+import { VerificationHistorySummary } from "~/components/dialogs/VerifyApiDialog/VerificationHistorySummary"
+import {
+  Alert,
+  Badge,
+  Button,
+  CollapsibleSection,
+  Heading5,
+  SearchableSelect,
+} from "~/components/ui"
+import { Modal } from "~/components/ui/Dialog/Modal"
+import {
+  fetchApiCredentialModelIds,
+  normalizeApiCredentialModelIds,
+} from "~/services/apiCredentialProfiles/modelCatalog"
+import {
+  resolveProductAnalyticsErrorCategoryFromError,
+  startProductAnalyticsAction,
+} from "~/services/productAnalytics/actions"
+import {
+  PRODUCT_ANALYTICS_ACTION_IDS,
+  PRODUCT_ANALYTICS_ENTRYPOINTS,
+  PRODUCT_ANALYTICS_ERROR_CATEGORIES,
+  PRODUCT_ANALYTICS_FEATURE_IDS,
+  PRODUCT_ANALYTICS_RESULTS,
+  PRODUCT_ANALYTICS_SURFACE_IDS,
+} from "~/services/productAnalytics/events"
+import { resolveProductAnalyticsErrorCategoryFromProbeResult } from "~/services/productAnalytics/verification"
+import {
+  API_TYPES,
+  getApiVerificationProbeDefinitions,
+  runApiVerificationProbe,
+  type ApiVerificationApiType,
+  type ApiVerificationProbeId,
+  type ApiVerificationProbeResult,
+} from "~/services/verification/aiApiVerification"
+import {
+  getApiVerificationApiTypeLabel,
+  getApiVerificationProbeLabel,
+  translateApiVerificationSummary,
+} from "~/services/verification/aiApiVerification/i18n"
+import {
+  buildSafeProbeFailureDiagnostics,
+  toSanitizedErrorSummary,
+} from "~/services/verification/aiApiVerification/utils"
+import {
+  createProfileModelVerificationHistoryTarget,
+  createProfileVerificationHistoryTarget,
+  verificationResultHistoryStorage,
+} from "~/services/verification/verificationResultHistory"
+import type { ApiCredentialProfile } from "~/types/apiCredentialProfiles"
+import { createLogger } from "~/utils/core/logger"
+
+import {
+  API_CREDENTIAL_PROFILES_TEST_IDS,
+  getApiCredentialProfileVerifyProbeTestId,
+} from "../testIds"
+
+/**
+ * Unified logger scoped to API credential profile verification dialog.
+ */
+const logger = createLogger("VerifyApiCredentialProfileDialog")
+const analyticsContext = {
+  featureId: PRODUCT_ANALYTICS_FEATURE_IDS.ApiCredentialProfiles,
+  surfaceId: PRODUCT_ANALYTICS_SURFACE_IDS.OptionsApiCredentialProfilesDialog,
+  entrypoint: PRODUCT_ANALYTICS_ENTRYPOINTS.Options,
+}
+
+interface VerifyApiCredentialProfileDialogProps {
+  isOpen: boolean
+  onClose: () => void
+  profile: ApiCredentialProfile | null
+  initialModelId?: string
+}
+
+type ModelsProbeOutput = {
+  suggestedModelId?: string
+  modelIdsPreview?: string[]
+}
+
+/**
+ * Extract (limited) model suggestions from the `models` probe output.
+ *
+ * Notes:
+ * - The probe intentionally provides a preview list (not a full enumeration) to
+ *   avoid large payloads in UI state.
+ */
+function extractModelsProbeOutput(
+  result: ApiVerificationProbeResult,
+): ModelsProbeOutput | null {
+  if (result.id !== "models") return null
+  if (!result.output || typeof result.output !== "object") return null
+
+  const output = result.output as Record<string, unknown>
+
+  const suggestedModelId =
+    typeof output.suggestedModelId === "string" &&
+    output.suggestedModelId.trim()
+      ? output.suggestedModelId.trim()
+      : undefined
+
+  const modelIdsPreview = Array.isArray(output.modelIdsPreview)
+    ? output.modelIdsPreview
+        .filter(
+          (id): id is string => typeof id === "string" && id.trim().length > 0,
+        )
+        .map((id) => id.trim())
+    : undefined
+
+  return { suggestedModelId, modelIdsPreview }
+}
+
+/**
+ * Best-effort model id suggestion derived from returned model ids.
+ */
+function pickSuggestedModelId(
+  apiType: ApiVerificationApiType,
+  modelIds: string[],
+): string | undefined {
+  const normalized = modelIds
+    .filter((id) => typeof id === "string" && id.trim())
+    .map((id) => id.trim())
+
+  if (normalized.length === 0) return undefined
+
+  const preferredPrefixes = (() => {
+    if (apiType === API_TYPES.GOOGLE) return ["gemini"]
+    if (apiType === API_TYPES.ANTHROPIC) return ["claude"]
+    return ["gpt", "o"]
+  })()
+
+  const preferred = normalized.find((id) => {
+    const lower = id.toLowerCase()
+    return preferredPrefixes.some((prefix) =>
+      prefix === "o" ? /^o\d/i.test(id) : lower.startsWith(prefix),
+    )
+  })
+
+  return preferred ?? normalized[0]
+}
+
+/**
+ * Resolves the persisted history target for the profile and optional model.
+ */
+function createCurrentProfileVerificationHistoryTarget(
+  profileId: string,
+  modelId?: string,
+) {
+  const trimmedModelId = modelId?.trim()
+  return trimmedModelId
+    ? createProfileModelVerificationHistoryTarget(profileId, trimmedModelId)
+    : createProfileVerificationHistoryTarget(profileId)
+}
+
+/**
+ * Tracks the persisted-history context separately from the storage target so
+ * API type switches still force a history refresh.
+ */
+function createVerificationHistoryContextKey(
+  profileId: string,
+  apiType: ApiVerificationApiType,
+  modelId?: string,
+) {
+  return `${profileId}::${apiType}::${modelId?.trim() ?? ""}`
+}
+
+/**
+ * Modal dialog that runs AI API verification probes using a stored profile's
+ * baseUrl + apiKey (no SiteAccount required).
+ */
+export function VerifyApiCredentialProfileDialog({
+  isOpen,
+  onClose,
+  profile,
+  initialModelId,
+}: VerifyApiCredentialProfileDialogProps) {
+  const { t } = useTranslation(["aiApiVerification", "apiCredentialProfiles"])
+
+  const [isRunning, setIsRunning] = useState(false)
+  const [apiType, setApiType] = useState<ApiVerificationApiType>(
+    profile?.apiType ?? API_TYPES.OPENAI_COMPATIBLE,
+  )
+  const [modelId, setModelId] = useState("")
+  const [modelOptions, setModelOptions] = useState<string[]>([])
+  const [isFetchingModels, setIsFetchingModels] = useState(false)
+  const [fetchModelsError, setFetchModelsError] = useState<string | null>(null)
+  const [isPersisting, setIsPersisting] = useState(false)
+
+  const apiTypeRef = useRef(apiType)
+  const fetchModelsRequestIdRef = useRef(0)
+  const pendingHistoryContextKeyRef = useRef<string | null>(null)
+  const lastLoadedHistoryContextKeyRef = useRef<string | null>(null)
+  const trimmedModelId = modelId.trim()
+  const historyTarget = useMemo(() => {
+    if (!profile) return null
+
+    // API type does not change the storage key, but it does change which
+    // persisted summary should be shown for the active dialog context.
+    void apiType
+    return createCurrentProfileVerificationHistoryTarget(
+      profile.id,
+      trimmedModelId,
+    )
+  }, [apiType, profile, trimmedModelId])
+  const historyContextKey = useMemo(() => {
+    if (!profile) return null
+    return createVerificationHistoryContextKey(
+      profile.id,
+      apiType,
+      trimmedModelId,
+    )
+  }, [apiType, profile, trimmedModelId])
+  const {
+    probes,
+    setProbes: replaceProbes,
+    probesRef,
+    persistedSummary,
+    setPersistedSummary,
+    persistCurrentResults,
+    loadVerificationHistory,
+  } = useVerificationDialogState(historyTarget)
+
+  const isAnyProbeRunning = probes.some((p) => p.isRunning)
+  const canClose = !isRunning && !isAnyProbeRunning && !isPersisting
+
+  useEffect(() => {
+    apiTypeRef.current = apiType
+  }, [apiType])
+
+  const getHistoryTargetForModel = useCallback(
+    (nextModelId?: string) => {
+      if (!profile) return null
+      return createCurrentProfileVerificationHistoryTarget(
+        profile.id,
+        nextModelId,
+      )
+    },
+    [profile],
+  )
+
+  const hasAnyResult = probes.some((p) => p.result !== null)
+  const hasApiTypeOverride = Boolean(profile && apiType !== profile.apiType)
+  const savedApiTypeLabel = profile
+    ? getApiVerificationApiTypeLabel(t, profile.apiType)
+    : ""
+  const currentApiTypeLabel = getApiVerificationApiTypeLabel(t, apiType)
+
+  const header = useMemo(() => {
+    if (!profile) return null
+    return (
+      <div className="min-w-0">
+        <Heading5 className="truncate">
+          {t("aiApiVerification:verifyDialog.title")}
+        </Heading5>
+        <div className="dark:text-dark-text-tertiary mt-1 truncate text-xs text-gray-500">
+          {profile.baseUrl} · {profile.name}
+        </div>
+      </div>
+    )
+  }, [profile, t])
+
+  const preserveCurrentProbeStateForModel = useCallback(
+    (nextModelId: string, nextApiType: ApiVerificationApiType) => {
+      if (!profile) return
+
+      pendingHistoryContextKeyRef.current = null
+      lastLoadedHistoryContextKeyRef.current =
+        createVerificationHistoryContextKey(
+          profile.id,
+          nextApiType,
+          nextModelId,
+        )
+    },
+    [profile],
+  )
+
+  const fetchModels = useCallback(
+    async (nextApiType: ApiVerificationApiType) => {
+      if (!profile) return
+
+      const requestId = (fetchModelsRequestIdRef.current += 1)
+      setFetchModelsError(null)
+      setIsFetchingModels(true)
+
+      try {
+        const normalized = normalizeApiCredentialModelIds(
+          await fetchApiCredentialModelIds({
+            apiType: nextApiType,
+            baseUrl: profile.baseUrl,
+            apiKey: profile.apiKey,
+          }),
+        )
+
+        if (fetchModelsRequestIdRef.current !== requestId) return
+
+        setModelOptions(normalized)
+        const suggestedModelId = pickSuggestedModelId(nextApiType, normalized)
+        if (suggestedModelId) {
+          setModelId((current) => {
+            if (current.trim()) return current
+
+            const hasActiveProbeState = probesRef.current.some(
+              (probe) => probe.isRunning || probe.result,
+            )
+            if (hasActiveProbeState && nextApiType === apiTypeRef.current) {
+              preserveCurrentProbeStateForModel(suggestedModelId, nextApiType)
+            }
+
+            return suggestedModelId
+          })
+        }
+      } catch (error) {
+        const message =
+          toSanitizedErrorSummary(error, [profile.apiKey, profile.baseUrl]) ||
+          t("apiCredentialProfiles:verify.modelsFetchFailed")
+
+        logger.error("Failed to fetch models", { message })
+
+        if (fetchModelsRequestIdRef.current !== requestId) return
+
+        setFetchModelsError(message)
+      } finally {
+        if (fetchModelsRequestIdRef.current === requestId) {
+          setIsFetchingModels(false)
+        }
+      }
+    },
+    [preserveCurrentProbeStateForModel, profile, probesRef, t],
+  )
+
+  useEffect(() => {
+    if (!isOpen || !profile) {
+      pendingHistoryContextKeyRef.current = null
+      lastLoadedHistoryContextKeyRef.current = null
+      return
+    }
+
+    const nextApiType = profile.apiType
+    const nextModelId = initialModelId?.trim() ?? ""
+    pendingHistoryContextKeyRef.current = createVerificationHistoryContextKey(
+      profile.id,
+      nextApiType,
+      nextModelId,
+    )
+    lastLoadedHistoryContextKeyRef.current = null
+
+    setApiType(nextApiType)
+    setModelId(nextModelId)
+    setModelOptions([])
+    setFetchModelsError(null)
+    setPersistedSummary(null)
+    replaceProbes(buildProbeState(nextApiType))
+    void fetchModels(nextApiType)
+  }, [
+    fetchModels,
+    initialModelId,
+    isOpen,
+    profile,
+    replaceProbes,
+    setPersistedSummary,
+  ])
+
+  useEffect(() => {
+    if (
+      !isOpen ||
+      !profile ||
+      !historyTarget ||
+      !historyContextKey ||
+      isRunning ||
+      isAnyProbeRunning ||
+      isPersisting
+    ) {
+      return
+    }
+
+    if (
+      pendingHistoryContextKeyRef.current &&
+      pendingHistoryContextKeyRef.current !== historyContextKey
+    ) {
+      return
+    }
+
+    if (lastLoadedHistoryContextKeyRef.current === historyContextKey) {
+      return
+    }
+
+    pendingHistoryContextKeyRef.current = null
+    lastLoadedHistoryContextKeyRef.current = historyContextKey
+
+    let cancelled = false
+    setPersistedSummary(null)
+    replaceProbes(buildProbeState(apiType))
+
+    void loadVerificationHistory({
+      apiType,
+      isCancelled: () => cancelled,
+      onResolvedModelId: (resolvedModelId) => {
+        setModelId((current) => current.trim() || resolvedModelId)
+      },
+      shouldApplySummaryToProbes: (summary) => summary.apiType === apiType,
+    }).then((summary) => {
+      if (cancelled || !summary || summary.apiType === apiType) {
+        return
+      }
+
+      setPersistedSummary(null, false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    apiType,
+    historyContextKey,
+    historyTarget,
+    isAnyProbeRunning,
+    isOpen,
+    isPersisting,
+    isRunning,
+    loadVerificationHistory,
+    profile,
+    replaceProbes,
+    setPersistedSummary,
+  ])
+
+  const persistProbeResults = useCallback(
+    async (nextProbes: ProbeItemState[], modelIdOverride?: string) => {
+      const modelForProbe = (modelIdOverride ?? modelId).trim()
+      setIsPersisting(true)
+
+      try {
+        await persistCurrentResults(
+          apiType,
+          nextProbes,
+          modelForProbe || initialModelId?.trim(),
+          getHistoryTargetForModel(modelForProbe),
+        )
+      } catch (error) {
+        logger.error("Failed to persist verification history", { error })
+      } finally {
+        setIsPersisting(false)
+      }
+    },
+    [
+      apiType,
+      getHistoryTargetForModel,
+      initialModelId,
+      modelId,
+      persistCurrentResults,
+    ],
+  )
+
+  const runProbe = async (
+    probeId: ApiVerificationProbeId,
+    modelIdOverride?: string,
+    trackAnalytics = true,
+  ): Promise<ApiVerificationProbeResult | null> => {
+    if (!profile) return null
+
+    const tracker = trackAnalytics
+      ? startProductAnalyticsAction({
+          ...analyticsContext,
+          actionId: PRODUCT_ANALYTICS_ACTION_IDS.RunApiCredentialProbe,
+        })
+      : null
+
+    const pendingProbes = probesRef.current.map((probe) =>
+      probe.definition.id === probeId
+        ? { ...probe, isRunning: true, attempts: probe.attempts + 1 }
+        : probe,
+    )
+    replaceProbes(pendingProbes)
+
+    try {
+      const modelForProbe = (modelIdOverride ?? modelId).trim()
+      const result = await runApiVerificationProbe({
+        baseUrl: profile.baseUrl,
+        apiKey: profile.apiKey,
+        apiType,
+        modelId: modelForProbe || undefined,
+        probeId,
+      })
+
+      const nextProbes = probesRef.current.map((probe) =>
+        probe.definition.id === probeId
+          ? { ...probe, isRunning: false, result }
+          : probe,
+      )
+      replaceProbes(nextProbes)
+
+      const modelsOutput = extractModelsProbeOutput(result)
+      if (modelsOutput) {
+        if (Array.isArray(modelsOutput.modelIdsPreview)) {
+          setModelOptions((current) =>
+            current.length > 0 ? current : modelsOutput.modelIdsPreview!,
+          )
+        }
+
+        const suggested =
+          modelsOutput.suggestedModelId ?? modelsOutput.modelIdsPreview?.[0]
+        if (suggested) {
+          // Avoid overriding user input while the probe is in-flight.
+          setModelId((current) => {
+            if (current.trim()) return current
+            preserveCurrentProbeStateForModel(suggested, apiType)
+            return suggested
+          })
+        }
+      }
+
+      await persistProbeResults(nextProbes, modelIdOverride)
+      if (result.status === "pass") {
+        tracker?.complete(PRODUCT_ANALYTICS_RESULTS.Success)
+      } else {
+        tracker?.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+          errorCategory:
+            resolveProductAnalyticsErrorCategoryFromProbeResult(result),
+        })
+      }
+      return result
+    } catch (error) {
+      const sanitizedMessage = toSanitizedErrorSummary(error, [
+        profile.apiKey,
+        profile.baseUrl,
+      ])
+      logger.error("Probe failed", {
+        probeId,
+        message: sanitizedMessage,
+      })
+
+      const fallback: ApiVerificationProbeResult = {
+        id: probeId,
+        status: "fail",
+        latencyMs: 0,
+        summary: t("aiApiVerification:verifyDialog.errors.unexpected"),
+        ...buildSafeProbeFailureDiagnostics(error, sanitizedMessage),
+      }
+
+      const nextProbes = probesRef.current.map((probe) => {
+        if (probe.definition.id !== probeId) return probe
+        return {
+          ...probe,
+          isRunning: false,
+          result: fallback,
+        }
+      })
+      replaceProbes(nextProbes)
+      await persistProbeResults(nextProbes, modelIdOverride)
+      tracker?.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+        errorCategory: resolveProductAnalyticsErrorCategoryFromError(error),
+      })
+      return fallback
+    }
+  }
+
+  const clearHistory = async () => {
+    const targetToClear = persistedSummary?.target ?? historyTarget
+    if (!targetToClear) return
+
+    try {
+      await verificationResultHistoryStorage.clearTarget(targetToClear)
+      setPersistedSummary(null)
+      replaceProbes(buildProbeState(apiType))
+    } catch (error) {
+      logger.error("Failed to clear verification history", { error })
+    }
+  }
+
+  const runAll = async () => {
+    if (!profile) return
+    const tracker = startProductAnalyticsAction({
+      ...analyticsContext,
+      actionId: PRODUCT_ANALYTICS_ACTION_IDS.RunApiCredentialProbeSuite,
+    })
+    const results: ApiVerificationProbeResult[] = []
+    setIsRunning(true)
+    setPersistedSummary(null)
+
+    try {
+      replaceProbes(buildProbeState(apiType))
+      const ordered = getApiVerificationProbeDefinitions(apiType)
+      let modelIdForSuite = modelId.trim()
+
+      for (const probe of ordered) {
+        if (probe.id === "models") {
+          const result = await runProbe("models", undefined, false)
+          if (result) results.push(result)
+          if (!modelIdForSuite && result) {
+            const modelsOutput = extractModelsProbeOutput(result)
+            const suggested =
+              modelsOutput?.suggestedModelId ??
+              modelsOutput?.modelIdsPreview?.[0]
+            if (suggested) {
+              modelIdForSuite = suggested
+              setModelId((current) => {
+                if (current.trim()) return current
+                preserveCurrentProbeStateForModel(suggested, apiType)
+                return suggested
+              })
+            }
+          }
+          continue
+        }
+
+        if (probe.requiresModelId && !modelIdForSuite) continue
+        const result = await runProbe(probe.id, modelIdForSuite, false)
+        if (result) results.push(result)
+      }
+
+      if (results.length === 0) {
+        tracker.complete(PRODUCT_ANALYTICS_RESULTS.Skipped)
+        return
+      }
+
+      const successCount = results.filter(
+        (result) => result.status === "pass",
+      ).length
+      const failureCount = results.length - successCount
+      const insights = {
+        itemCount: results.length,
+        successCount,
+        failureCount,
+      }
+
+      const hasFailedProbe = failureCount > 0
+      if (hasFailedProbe) {
+        const errorCategory = results
+          .filter((result) => result.status === "fail")
+          .map((result) =>
+            resolveProductAnalyticsErrorCategoryFromProbeResult(result),
+          )
+          .find(
+            (category) =>
+              category !== PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          )
+        tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+          errorCategory:
+            errorCategory ?? PRODUCT_ANALYTICS_ERROR_CATEGORIES.Unknown,
+          insights,
+        })
+        return
+      }
+
+      tracker.complete(PRODUCT_ANALYTICS_RESULTS.Success, { insights })
+    } catch (error) {
+      logger.error("Probe suite failed", {
+        message: toSanitizedErrorSummary(error, [
+          profile.apiKey,
+          profile.baseUrl,
+        ]),
+      })
+      tracker.complete(PRODUCT_ANALYTICS_RESULTS.Failure, {
+        errorCategory: resolveProductAnalyticsErrorCategoryFromError(error),
+      })
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  const footer = (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        {historyTarget ? (
+          <Button variant="outline" onClick={clearHistory} disabled={!canClose}>
+            {t("aiApiVerification:verifyDialog.history.clear")}
+          </Button>
+        ) : null}
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="secondary"
+          onClick={onClose}
+          disabled={!canClose}
+          data-testid={API_CREDENTIAL_PROFILES_TEST_IDS.verifyDialogCloseButton}
+        >
+          {t("aiApiVerification:verifyDialog.actions.close")}
+        </Button>
+        <Button
+          variant="success"
+          onClick={runAll}
+          disabled={isRunning || isPersisting || isAnyProbeRunning || !profile}
+        >
+          {isRunning
+            ? t("aiApiVerification:verifyDialog.actions.running")
+            : t("aiApiVerification:verifyDialog.actions.run")}
+        </Button>
+      </div>
+    </div>
+  )
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={canClose ? onClose : () => {}}
+      header={header}
+      footer={footer}
+      size="lg"
+      closeOnEsc={canClose}
+      closeOnBackdropClick={canClose}
+    >
+      {!profile ? null : (
+        <div className="space-y-3">
+          {historyTarget ? (
+            <div className="dark:border-dark-bg-tertiary flex flex-wrap items-center gap-2 rounded-md border border-gray-100 p-3 text-sm">
+              <VerificationHistorySummary summary={persistedSummary} />
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <div className="flex min-h-7 items-center gap-2">
+                <div className="dark:text-dark-text-tertiary text-xs text-gray-500">
+                  {t("aiApiVerification:verifyDialog.meta.apiType")}
+                </div>
+                {hasApiTypeOverride ? (
+                  <Badge variant="warning" size="sm">
+                    {t("apiCredentialProfiles:verify.override.badge")}
+                  </Badge>
+                ) : null}
+              </div>
+              <SearchableSelect
+                aria-label={t("aiApiVerification:verifyDialog.meta.apiType")}
+                options={[
+                  {
+                    value: API_TYPES.OPENAI_COMPATIBLE,
+                    label: getApiVerificationApiTypeLabel(
+                      t,
+                      API_TYPES.OPENAI_COMPATIBLE,
+                    ),
+                  },
+                  {
+                    value: API_TYPES.OPENAI,
+                    label: getApiVerificationApiTypeLabel(t, API_TYPES.OPENAI),
+                  },
+                  {
+                    value: API_TYPES.ANTHROPIC,
+                    label: getApiVerificationApiTypeLabel(
+                      t,
+                      API_TYPES.ANTHROPIC,
+                    ),
+                  },
+                  {
+                    value: API_TYPES.GOOGLE,
+                    label: getApiVerificationApiTypeLabel(t, API_TYPES.GOOGLE),
+                  },
+                ]}
+                value={apiType}
+                onChange={(value) => {
+                  const nextApiType = value as ApiVerificationApiType
+                  setApiType(nextApiType)
+                  setModelOptions([])
+                  setFetchModelsError(null)
+                  setPersistedSummary(null)
+                  replaceProbes(buildProbeState(nextApiType))
+                  void fetchModels(nextApiType)
+                }}
+                disabled={!canClose}
+              />
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <div className="flex min-h-7 items-center">
+                <div className="dark:text-dark-text-tertiary text-xs text-gray-500">
+                  {t("aiApiVerification:verifyDialog.meta.model")}
+                </div>
+              </div>
+
+              <SearchableSelect
+                aria-label={t("aiApiVerification:verifyDialog.meta.model")}
+                data-testid={API_CREDENTIAL_PROFILES_TEST_IDS.verifyModelId}
+                options={modelOptions.map((id) => ({ value: id, label: id }))}
+                value={modelId}
+                onChange={(value) => {
+                  setModelId(value)
+                  setPersistedSummary(null)
+                }}
+                placeholder={
+                  isFetchingModels
+                    ? t("apiCredentialProfiles:verify.fetchingModels")
+                    : t("apiCredentialProfiles:verify.modelPickerPlaceholder")
+                }
+                allowCustomValue
+                disabled={!canClose}
+              />
+
+              {fetchModelsError ? (
+                <div className="dark:text-dark-text-tertiary text-xs text-red-600">
+                  {fetchModelsError}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {hasApiTypeOverride ? (
+            <Alert
+              variant="warning"
+              title={t("apiCredentialProfiles:verify.override.title")}
+              description={t(
+                "apiCredentialProfiles:verify.override.description",
+                {
+                  savedApiType: savedApiTypeLabel,
+                  currentApiType: currentApiTypeLabel,
+                },
+              )}
+            />
+          ) : null}
+
+          {!hasAnyResult && (
+            <div className="dark:text-dark-text-secondary text-sm text-gray-600">
+              {t("apiCredentialProfiles:verify.idleHint")}
+            </div>
+          )}
+
+          <Alert variant="warning">
+            <p>{t("aiApiVerification:verifyDialog.warning")}</p>
+          </Alert>
+
+          <div className="space-y-2">
+            {probes.map((probe) => {
+              const result = probe.result
+              const isDisabledForModel =
+                probe.definition.requiresModelId && !modelId.trim()
+
+              const resultSummary = isDisabledForModel
+                ? t("aiApiVerification:verifyDialog.requiresModelId")
+                : result?.summaryKey
+                  ? translateApiVerificationSummary(
+                      t,
+                      result.summaryKey,
+                      result.summaryParams,
+                    ) ?? result.summary
+                  : result?.status === "unsupported"
+                    ? t(
+                        "aiApiVerification:verifyDialog.unsupportedProbeForApiType",
+                        {
+                          probe: getApiVerificationProbeLabel(
+                            t,
+                            probe.definition.id,
+                          ),
+                        },
+                      )
+                    : result
+                      ? result.summary
+                      : t("aiApiVerification:verifyDialog.notRunYet")
+
+              return (
+                <div
+                  key={probe.definition.id}
+                  data-testid={getApiCredentialProfileVerifyProbeTestId(
+                    probe.definition.id,
+                  )}
+                  className="dark:border-dark-bg-tertiary rounded-md border border-gray-100 p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <div className="dark:text-dark-text-primary min-w-0 truncate text-sm font-medium text-gray-900">
+                          {getApiVerificationProbeLabel(t, probe.definition.id)}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {result ? (
+                            <ProbeStatusBadge result={result} />
+                          ) : (
+                            <Badge variant="outline" size="sm">
+                              {t(
+                                "aiApiVerification:verifyDialog.status.pending",
+                              )}
+                            </Badge>
+                          )}
+                          <div className="dark:text-dark-text-tertiary text-xs text-gray-500">
+                            {result ? formatLatency(result.latencyMs) : "-"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="dark:text-dark-text-secondary mt-1 text-xs text-gray-600">
+                        {resultSummary}
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => runProbe(probe.definition.id)}
+                      data-testid={
+                        API_CREDENTIAL_PROFILES_TEST_IDS.verifyProbeRunButton
+                      }
+                      disabled={
+                        isRunning ||
+                        isPersisting ||
+                        probe.isRunning ||
+                        isDisabledForModel ||
+                        !profile
+                      }
+                    >
+                      {probe.isRunning
+                        ? t("aiApiVerification:verifyDialog.actions.running")
+                        : probe.attempts > 0
+                          ? t("aiApiVerification:verifyDialog.actions.retry")
+                          : t("aiApiVerification:verifyDialog.actions.runOne")}
+                    </Button>
+                  </div>
+
+                  {result &&
+                    (result.input !== undefined ||
+                      result.output !== undefined) && (
+                      <div className="mt-3 space-y-2">
+                        {result.input !== undefined && (
+                          <CollapsibleSection
+                            title={t(
+                              "aiApiVerification:verifyDialog.details.input",
+                            )}
+                          >
+                            <pre className="dark:text-dark-text-secondary overflow-auto text-xs break-words whitespace-pre-wrap text-gray-700">
+                              {safeJsonStringify(result.input)}
+                            </pre>
+                          </CollapsibleSection>
+                        )}
+                        {result.output !== undefined && (
+                          <CollapsibleSection
+                            title={t(
+                              "aiApiVerification:verifyDialog.details.output",
+                            )}
+                          >
+                            <pre className="dark:text-dark-text-secondary overflow-auto text-xs break-words whitespace-pre-wrap text-gray-700">
+                              {safeJsonStringify(result.output)}
+                            </pre>
+                          </CollapsibleSection>
+                        )}
+                      </div>
+                    )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}

@@ -1,0 +1,22 @@
+export const KEY_MANAGEMENT_TEST_IDS = {
+  addTokenButton: "key-management-add-token-button",
+  emptyStateAddTokenButton: "key-management-empty-state-add-token-button",
+  addTokenDialog: "key-management-add-token-dialog",
+  saveToApiProfilesButton: "key-management-save-to-api-profiles-button",
+  tokenRowActions: "key-management-token-row-actions",
+  openApiProfilesToastButton: "key-management-open-api-profiles-toast-button",
+  addTokenSubmitButton: "key-management-add-token-submit-button",
+  oneTimeKeyCloseButton: "key-management-one-time-key-close-button",
+  oneTimeKeySaveButton: "key-management-one-time-key-save-button",
+  deleteTokenConfirmButton: "key-management-delete-token-confirm-button",
+} as const
+
+export const KEY_MANAGEMENT_TOKEN_ROW_TEST_ID_PREFIX =
+  "key-management-token-row-" as const
+
+/**
+ * Returns the stable test id for a rendered API key row.
+ */
+export function getKeyManagementTokenRowTestId(tokenId: string | number) {
+  return `${KEY_MANAGEMENT_TOKEN_ROW_TEST_ID_PREFIX}${tokenId}`
+}

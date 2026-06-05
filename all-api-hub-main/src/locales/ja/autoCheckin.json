@@ -1,0 +1,209 @@
+{
+  "description": "条件を満たすアカウントを、設定可能な時間帯の中で毎日自動チェックインします。下の結果一覧は完了した実行記録であり、待機中のキューではありません。",
+  "execution": {
+    "actions": {
+      "devModeHint": "開発モード: テスト用にアクションボタンを常に表示します。",
+      "openFailedManual": "失敗した手動チェックインを開く",
+      "openManual": "手動チェックイン",
+      "openSite": "サイトを開く",
+      "retryAccount": "再試行"
+    },
+    "debug": {
+      "evaluateUiOpenPretrigger": "開発用: 「UI を開いた時に今日のチェックインを事前起動」の条件を評価",
+      "resetLastDailyRunDay": "開発用: 「本日のデイリーチェックイン実行済み」フラグをクリア",
+      "scheduleDailyAlarmForToday": "開発用: 今日後で実行するデイリーチェックインアラームを登録",
+      "triggerDailyAlarmNow": "開発用: 今すぐデイリーチェックインを実行（デイリーアラームのコールバックを模擬）",
+      "triggerRetryAlarmNow": "開発用: 今すぐ再試行チェックインを実行（再試行アラームのコールバックを模擬）",
+      "triggerUiOpenPretrigger": "開発用: 「UI を開いた時に今日のチェックインを事前起動」を即時実行",
+      "uiOpenPretriggerDiagnosticsDesc": "条件を満たしているか、および判定に使われた入力情報を表示します。",
+      "uiOpenPretriggerDiagnosticsTitle": "UI 起動時の今日のチェックイン事前起動"
+    },
+    "empty": {
+      "addAccount": "アカウントを追加",
+      "noAccounts": "自動チェックインの前にアカウントを追加してください",
+      "noAccountsDesc": "自動チェックインを実行するには、有効なアカウントが少なくとも 1 つ必要です。",
+      "noDetectionAccounts": "アカウントのチェックイン検出を有効にしてください",
+      "noDetectionAccountsDesc": "既存のアカウントではチェックイン検出がまだ有効になっていません。アカウント管理を開き、自動チェックインに含めるアカウントでチェックイン検出を有効にしてください。",
+      "noHistory": "実行履歴がありません",
+      "noHistoryDesc": "チェックイン実行記録はまだありません。「今すぐ実行」をクリックすると対象アカウントのチェックインが開始され、完了後に結果一覧へ表示されます。",
+      "noResults": "一致する結果がありません",
+      "noResultsDesc": "フィルターや検索条件を調整してください",
+      "openAccounts": "アカウント管理を開く"
+    },
+    "filters": {
+      "all": "すべて",
+      "failed": "失敗",
+      "searchPlaceholder": "アカウント名またはメッセージで検索...",
+      "skipped": "スキップ",
+      "success": "成功"
+    },
+    "hints": {
+      "invalidAccessToken": "対処方法: Access Token の有効期限が切れている可能性があります。サイトに再ログインしてから、「アカウント管理 → アカウント編集」で Access Token を自動再認識 / 更新してください。自動認識後も問題が続く場合は、Access Token を手動で取得して更新してください。",
+      "manualVerificationRequired": "まず「サイトを開く」をクリックし、サイト上でログイン、Turnstile、PoW などの基本的な認証を完了して、ブラウザーに有効なセッションを作成してから自動チェックインを再試行してください。認証後も繰り返し失敗する場合は、現在の自動チェックインフローがこのサイトにまだ対応していない可能性があるため、当面は手動チェックインを利用してください。",
+      "noTabWithId": "ヒント: 拡張機能が自動で開いたタブ / ウィンドウは閉じないでください。短時間後に拡張機能が自動で閉じます。手動で閉じる必要がある場合は、少なくとも 1 分待ってから閉じてください。",
+      "openFailedManualNewWindow": "ヒント: 「失敗した手動チェックインを開く」を Shift クリックすると、新しいウィンドウで開きます。",
+      "siteTypeCheckinUnsupported": "対処方法: まず「アカウント管理 → アカウント編集」で選択中のサイト種別が実際のサイトと一致しているか確認してください。以前に自動判定された種別であれば、対象サイトに再ログインしてから再度自動判定を行ってください。サイト種別が正しいのにこの表示が続く場合、そのサイトはまだ自動チェックイン未対応の可能性があるため、「サイトを開く」または「手動チェックイン」を利用してください。"
+    },
+    "refresh": "更新",
+    "runNow": "今すぐ実行",
+    "statistics": {
+      "result": "結果"
+    },
+    "status": {
+      "alreadyChecked": "チェックイン済み",
+      "failed": "失敗",
+      "skipped": "スキップ",
+      "success": "成功"
+    },
+    "table": {
+      "accountName": "アカウント名",
+      "actions": "操作",
+      "message": "メッセージ",
+      "status": "状態",
+      "time": "時刻"
+    },
+    "title": "自動チェックイン"
+  },
+  "messages": {
+    "error": {
+      "accountDisabled": "アカウントは無効です",
+      "dailyAlarmScheduleForTodayFailed": "本日のデイリーアラーム登録に失敗しました: {{error}}",
+      "dailyAlarmTriggerFailed": "デイリーアラームの起動に失敗しました: {{error}}",
+      "deterministicTimeOutsideWindow": "固定時刻は設定した時間帯の範囲内である必要があります。",
+      "invalidDeterministicTime": "HH:mm 形式の有効な固定時刻を入力してください。",
+      "invalidNumber": "有効な正の数を入力してください。",
+      "invalidTimeWindow": "無効な時間帯です。開始時刻と終了時刻を同じにはできません。",
+      "lastDailyRunDayResetFailed": "前回デイリー実行マーカーのリセットに失敗しました: {{error}}",
+      "openFailedManualFailed": "{{failedCount}} 件の失敗アカウントの手動チェックインページを開けませんでした。",
+      "openFailedManualNone": "手動チェックイン可能な失敗アカウントがありません。",
+      "openFailedManualPartial": "{{openedCount}} 件の失敗アカウントの手動チェックインページを開きましたが、{{failedCount}} 件は開けませんでした。",
+      "openManualFailed": "手動チェックインページを開けませんでした: {{error}}",
+      "openSiteFailed": "サイトページを開けませんでした: {{error}}",
+      "retryAlarmTriggerFailed": "再試行アラームの起動に失敗しました: {{error}}",
+      "retryFailed": "再試行に失敗しました: {{error}}",
+      "runFailed": "自動チェックインの実行に失敗しました: {{error}}",
+      "uiOpenPretriggerDidNotStart": "UI 起動時の事前起動は開始されませんでした: {{reason}}",
+      "uiOpenPretriggerEvaluationFailed": "UI 起動時の事前起動判定に失敗しました: {{error}}",
+      "uiOpenPretriggerIneligible": "UI 起動時の事前起動対象ではありません: {{reason}}",
+      "uiOpenPretriggerTriggerFailed": "UI 起動時の事前起動に失敗しました: {{error}}"
+    },
+    "loading": {
+      "evaluatingUiOpenPretrigger": "UI 起動時の事前起動条件を評価中...",
+      "openingFailedManual_other": "{{count}} 件の失敗アカウントの手動チェックインページを開いています...",
+      "resettingLastDailyRunDay": "前回デイリー実行マーカーをリセット中...",
+      "running": "自動チェックインを実行中...",
+      "schedulingDailyAlarmForToday": "本日のデイリーアラームを登録中...",
+      "triggeringDailyAlarm": "デイリーアラームを起動中...",
+      "triggeringRetryAlarm": "再試行アラームを起動中...",
+      "triggeringUiOpenPretrigger": "UI 起動時の事前起動を実行中..."
+    },
+    "success": {
+      "dailyAlarmScheduledForToday": "本日のデイリーアラームを登録しました。",
+      "dailyAlarmTriggered": "デイリーアラーム実行を起動しました。",
+      "lastDailyRunDayReset": "前回デイリー実行マーカーをリセットしました。",
+      "openFailedManualCompleted_other": "{{count}} 件の失敗アカウントの手動チェックインページを開きました。",
+      "pretriggerStarted": "自動チェックインを前倒しで開始しました。",
+      "retryAlarmTriggered": "再試行アラーム実行を起動しました。",
+      "retryCompleted": "再試行が完了しました。",
+      "runCompleted": "自動チェックインが完了しました。",
+      "settingsSaved": "自動チェックイン設定を保存しました。",
+      "uiOpenPretriggerEligible": "UI 起動時の事前起動条件を満たしています。"
+    }
+  },
+  "providerFallback": {
+    "alreadyCheckedToday": "本日はすでにチェックイン済みです",
+    "checkinFailed": "チェックインに失敗しました",
+    "checkinSuccessful": "チェックインに成功しました",
+    "endpointNotSupported": "このチェックインエンドポイントはサポートされていません。アカウントのサイト種別が実際のサイトと一致しているか確認してください。",
+    "turnstileIncognitoAccessRequired": "プライベート一時ウィンドウで Turnstile トークンを取得するには、拡張機能のシークレット / プライベートウィンドウ実行を許可する必要があります（複数アカウントの場面）。この拡張機能の「シークレットモードでの実行を許可」を有効にして再試行するか、チェックインページを開いて認証を完了してください: {{checkInUrl}}",
+    "turnstileManualRequired": "Cloudflare Turnstile 認証が必要です。チェックインページを開いて認証を完了してください: {{checkInUrl}}",
+    "unknownError": "不明なエラーが発生しました"
+  },
+  "providerWong": {
+    "checkinDisabled": "チェックイン機能は無効です"
+  },
+  "settings": {
+    "deterministicTimeDesc": "固定モード有効時にチェックインを開始する正確な時刻（HH:mm）を指定します。",
+    "deterministicTimeTitle": "固定時刻",
+    "enable": "自動チェックインを有効化",
+    "enableDesc": "グローバル自動チェックイン機能を切り替えます。無効時はチェックインタスクは実行されません。",
+    "notifyUiOnCompletion": "自動チェックイン完了時にデータと UI を更新",
+    "notifyUiOnCompletionDesc": "自動チェックイン完了後、チェックイン対象アカウントのデータと関連 UI をすぐに更新します。",
+    "pretriggerDailyOnUiOpen": "UI を開いた時に当日の実行を事前起動",
+    "pretriggerDailyOnUiOpenDesc": "当日の時間帯内に拡張機能 UI を開き、まだ当日の実行が行われていない場合は、すぐに開始します。",
+    "retryDesc": "失敗したアカウントを同日中に数回自動再試行します。",
+    "retryInterval": "再試行間隔（分）",
+    "retryIntervalDesc": "次回再試行まで待機する時間です。",
+    "retryMaxAttempts": "1 日あたりの最大試行回数",
+    "retryMaxAttemptsDesc": "1 アカウントあたりの 1 日の最大試行回数（初回 + 再試行）。",
+    "retryTitle": "再試行戦略",
+    "scheduleModeDesc": "時間帯内の次回実行時刻をどのように計算するかを選択します。",
+    "scheduleModeDeterministic": "固定",
+    "scheduleModeRandom": "ランダム",
+    "scheduleModeTitle": "スケジュールモード",
+    "title": "自動チェックイン",
+    "viewExecution": "自動チェックイン履歴",
+    "viewExecutionButton": "結果を開く",
+    "viewExecutionDesc": "完了した自動チェックイン結果、スキップ理由、アカウント準備状況を表示します。待機中アカウントの一覧ではありません。",
+    "windowEnd": "時間帯の終了",
+    "windowEndDesc": "デイリーチェックインを開始できる最も遅いローカル時刻です。",
+    "windowStart": "時間帯の開始",
+    "windowStartDesc": "デイリーチェックインを開始できる最も早いローカル時刻です。"
+  },
+  "skipReasons": {
+    "account_disabled": "アカウントは無効です",
+    "already_checked_today": "本日はすでにチェック済みです",
+    "auto_checkin_disabled": "自動チェックインは無効です",
+    "detection_disabled": "検出は無効です",
+    "no_provider": "このアカウントのサイト種別は現在チェックインに対応していません",
+    "provider_not_ready": "現在のアカウント設定ではチェックインに対応していません"
+  },
+  "snapshot": {
+    "badges": {
+      "disabled": "無効",
+      "enabled": "有効",
+      "pending": "保留中",
+      "providerAvailable": "利用可能",
+      "providerUnavailable": "利用不可"
+    },
+    "description": "検出が有効なすべてのアカウントと準備状況を表示します。保留中のアカウントは、「今すぐ実行」をクリックするか予定時刻になるとチェックインに参加します。",
+    "table": {
+      "autoCheckin": "自動チェックイン",
+      "detection": "検出",
+      "lastResult": "前回結果",
+      "provider": "プロバイダー",
+      "skipReason": "スキップ理由",
+      "status": "状態"
+    },
+    "title": "アカウント準備状況"
+  },
+  "status": {
+    "disabled": "無効",
+    "lastRun": "前回実行",
+    "nextDaily": "次回デイリー実行",
+    "nextRetry": "次回再試行",
+    "noPendingRetry": "保留中の再試行はありません",
+    "notScheduled": "未スケジュール",
+    "pendingRetry": "再試行待ち",
+    "result": {
+      "failed": "失敗",
+      "partial": "一部成功",
+      "success": "成功"
+    },
+    "retryDisabled": "再試行は無効です",
+    "summary": {
+      "eligible": "対象",
+      "executed": "実行",
+      "failed": "失敗",
+      "skipped": "スキップ",
+      "success": "成功",
+      "title": "実行概要"
+    }
+  },
+  "uiOpenPretrigger": {
+    "close": "閉じる",
+    "dialogDescription": "本日予定されていたデイリー実行が、UI を開いた際に前倒しで起動されました。",
+    "dialogTitle": "自動チェックインが完了しました",
+    "viewDetails": "詳細を見る"
+  }
+}

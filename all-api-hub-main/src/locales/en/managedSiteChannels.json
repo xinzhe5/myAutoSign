@@ -1,0 +1,244 @@
+{
+  "alerts": {
+    "loadError": {
+      "description": "{{error}}",
+      "title": "Unable to load channels"
+    }
+  },
+  "description": "Search, edit, delete, and manually sync channels connected to your managed site.",
+  "dialog": {
+    "cancel": "Cancel",
+    "confirm": "Delete",
+    "deleteDescription": "This action cannot be undone. The selected channels will be removed permanently.",
+    "deleteTitle": "Delete channel?",
+    "deleteTitlePlural": "Delete channels?"
+  },
+  "filter": {
+    "statusLabel": "Filter by status"
+  },
+  "filters": {
+    "actionOptions": {
+      "exclude": "Exclude matching models",
+      "include": "Include matching models"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "moveDown": "Move filter down",
+      "moveUp": "Move filter up",
+      "save": "Save filters"
+    },
+    "addPatternRule": "Add pattern rule",
+    "addProbeRule": "Add probe rule",
+    "empty": {
+      "description": "Add include/exclude rules with optional regex to control synced models.",
+      "title": "No filters yet"
+    },
+    "hints": {
+      "probesAllPass": "A model matches this rule only when every selected probe passes. Probes use the channel base URL and resolved channel key.",
+      "regex": "Regex rules support advanced matching using JavaScript syntax.",
+      "substring": "Plain rules match case-sensitive substrings inside model names.",
+      "unsupportedChannelType": "Probe rules are unavailable for this channel type because it cannot be mapped to a supported verification API."
+    },
+    "jsonEditor": {
+      "hint": "The JSON must be an array of pattern or probe rule objects. Pattern rules use kind: 'pattern', name, and pattern. Probe rules use kind: 'probe', name, and probeIds. Credential fields such as apiKey, key, and baseUrl are ignored.",
+      "label": "Advanced JSON editor",
+      "placeholder": "Paste or edit an array of filter rule objects here to quickly reuse the same configuration across channels."
+    },
+    "labels": {
+      "action": "Action",
+      "delete": "Delete filter",
+      "description": "Description",
+      "enabled": "Enabled",
+      "name": "Filter name",
+      "pattern": "Match pattern",
+      "probes": "Verification probes",
+      "regex": "Regex mode",
+      "ruleType": "Rule type"
+    },
+    "loading": "Loading channel filters...",
+    "messages": {
+      "jsonArrayRequired": "JSON must be an array of filter rules.",
+      "jsonInvalid": "Invalid filter JSON: {{error}}",
+      "jsonItemNotObject": "Filter at index {{index}} must be an object.",
+      "loadFailed": "Failed to load filters: {{error}}",
+      "saved": "Filters saved",
+      "saveFailed": "Failed to save filters: {{error}}",
+      "validationName": "Please provide a name for each filter.",
+      "validationPattern": "Filter pattern cannot be empty.",
+      "validationProbeIds": "Select at least one verification probe for each probe rule.",
+      "validationRegex": "Invalid regex pattern: {{error}}"
+    },
+    "placeholders": {
+      "description": "Optional notes about this rule",
+      "name": "e.g. Allow GPT-4",
+      "pattern": "Exact string or regex pattern",
+      "probes": "Select probes",
+      "probeSearch": "Search probes"
+    },
+    "probes": {
+      "empty": "No probes found",
+      "options": {
+        "structured-output": "Structured output",
+        "text-generation": "Text generation",
+        "tool-calling": "Tool calling",
+        "web-search": "Web search"
+      }
+    },
+    "ruleTypeOptions": {
+      "pattern": "Pattern",
+      "probe": "Probe"
+    },
+    "subtitle": "Customize filtering rules for {{channel}}",
+    "title": "Channel filters",
+    "viewMode": {
+      "json": "JSON edit",
+      "label": "Edit mode",
+      "visual": "Visual edit"
+    }
+  },
+  "migration": {
+    "actions": {
+      "cancel": "Cancel",
+      "close": "Close",
+      "refreshPreview": "Refresh preview",
+      "running": "Migrating...",
+      "start": "Start migration"
+    },
+    "alerts": {
+      "noTargets": {
+        "description": "Configure another managed-site target in settings before channel migration can be used."
+      }
+    },
+    "betaBadge": "Beta",
+    "blockedReasons": {
+      "sourceKeyMissing": "The source channel key is unavailable, so this channel cannot be migrated yet.",
+      "sourceKeyResolutionFailed": "The source channel key could not be loaded. If you just completed verification, refresh the preview and try again."
+    },
+    "confirm": {
+      "confirm": "Confirm migration",
+      "description": "This will create new target channels for {{ready}} ready channels out of {{total}} selected channels.",
+      "title": "Start channel migration?",
+      "warningTitle": "This flow only creates new channels. It does not sync, deduplicate, or roll back."
+    },
+    "description": "Copy {{selectedCount}} channels from the current managed site into another configured managed site.",
+    "generalWarnings": {
+      "compactSummary": "Create-only. Hover for details.",
+      "createOnly": "This migration only creates new channels on the target site and does not modify the source channels.",
+      "noDedupeOrSync": "This migration does not check for duplicates, overwrite existing target channels, or sync existing target channels.",
+      "noRollback": "Automatic rollback is not available in this flow. Use the result list to review any manual follow-up.",
+      "title": "Migration limitations"
+    },
+    "itemWarnings": {
+      "dropsAdvancedSettings": "Advanced provider-specific channel settings cannot be copied directly and will be dropped.",
+      "dropsModelMapping": "Model redirect mappings will not be copied.",
+      "dropsMultiKeyState": "Multi-key runtime state will not be copied.",
+      "dropsStatusCodeMapping": "Status-code mapping settings will not be copied.",
+      "targetForcesDefaultGroup": "The target site will replace the source groups with its default group.",
+      "targetIgnoresPriority": "The target site will not preserve the source priority value.",
+      "targetIgnoresWeight": "The target site will not preserve the source weight value.",
+      "targetNormalizesBaseUrl": "The target site will normalize the base URL before creation.",
+      "targetRemapsChannelType": "The target site will remap the channel type to the closest supported type.",
+      "targetSimplifiesStatus": "The target site will simplify the source status to enabled or disabled."
+    },
+    "preview": {
+      "badges": {
+        "limitsLabel": "limits",
+        "warningsLabel": "warnings"
+      },
+      "compare": {
+        "fieldLabel": "Field"
+      },
+      "loadFailed": "Failed to load migration preview: {{error}}",
+      "loading": "Building migration preview...",
+      "selectedCount": "{{selectedCount}} channels selected",
+      "status": {
+        "blocked": "Blocked",
+        "ready": "Ready"
+      },
+      "summary": "Preview: {{ready}} ready, {{blocked}} blocked, {{total}} selected."
+    },
+    "results": {
+      "status": {
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "success": "Created"
+      },
+      "summary": "Results: {{created}} created, {{failed}} failed, {{skipped}} skipped, {{total}} total.",
+      "title": "Migration results"
+    },
+    "target": {
+      "destinationLabel": "Destination site",
+      "label": "Migration target",
+      "placeholder": "Select a managed-site target",
+      "sourceLabel": "Source site",
+      "unselected": "Not selected"
+    },
+    "title": "Migrate channels"
+  },
+  "statusLabels": {
+    "autoDisabled": "Auto Disabled",
+    "enabled": "Enabled",
+    "manualPause": "Manual Pause",
+    "unknown": "Unknown"
+  },
+  "table": {
+    "columns": {
+      "actions": "Actions",
+      "group": "Available Groups",
+      "id": "ID",
+      "models": "Models",
+      "name": "Channel",
+      "priority": "Priority",
+      "status": "Status",
+      "type": "Type",
+      "weight": "Weight"
+    },
+    "empty": "No channels found. Try adjusting your filters.",
+    "loading": "Loading channels...",
+    "noEntries": "No entries",
+    "paginationNext": "Next page",
+    "paginationPrev": "Previous page",
+    "paginationSummary": "{{start}} - {{end}} of {{total}} channels",
+    "rowActions": {
+      "delete": "Delete",
+      "edit": "Edit",
+      "filters": "Edit channel filtering rules",
+      "migrate": "Migrate to another site",
+      "openSync": "Open model sync interface",
+      "sync": "Sync model list immediately",
+      "syncing": "Syncing...",
+      "view": "View channel"
+    },
+    "rowsPerPage": "Rows per page",
+    "selectAll": "Select all rows",
+    "selectRow": "Select Row"
+  },
+  "title": "Channels management",
+  "toasts": {
+    "channelDeleted": "Channel deleted",
+    "channelSaved": "Channel saved",
+    "channelsDeleted_one": "{{count}} channel deleted",
+    "channelsDeleted_other": "{{count}} channels deleted",
+    "channelUpdated": "Channel updated",
+    "revealKeyFailed": "Failed to load the real channel key: {{error}}",
+    "someDeletesFailed_one": "Failed to delete {{count}} channel: {{error}}",
+    "someDeletesFailed_other": "Failed to delete {{count}} channels: {{error}}",
+    "syncCompleted": "Model sync completed ({{success}}/{{total}})",
+    "syncFailed": "Model sync failed: {{error}}"
+  },
+  "toolbar": {
+    "addChannel": "Add channel",
+    "clearSearch": "Clear search",
+    "columns": "Columns",
+    "deleteSelected": "Delete selected",
+    "enterMigrationMode": "Channel migration",
+    "exitMigrationMode": "Exit migration mode",
+    "migrateFiltered": "Migrate all filtered channels",
+    "migrateSelected": "Migrate selected",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search by name, URL or group",
+    "status": "Status",
+    "syncSelected": "Sync selected channel models",
+    "toggleColumns": "Toggle columns"
+  }
+}

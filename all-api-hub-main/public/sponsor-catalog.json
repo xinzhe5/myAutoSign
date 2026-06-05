@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 3,
+  "items": [
+    {
+      "id": "packycode",
+      "enabled": true,
+      "rank": 100,
+      "supportStatus": "supported",
+      "urls": {
+        "primaryAffiliate": "https://www.packyapi.com/register?aff=all-api-hub",
+        "website": "https://www.packyapi.com",
+        "apiKeyCreate": "https://www.packyapi.com/console/token?aff=all-api-hub"
+      },
+      "locales": {
+        "zh-CN": {
+          "name": "PackyCode",
+          "tagline": "稳定高效的 API 中转服务，支持 Claude Code、Codex、Gemini 等多种工具场景。",
+          "postClickNote": "使用 all-api-hub 优惠码完成首次充值，可享受 9 折优惠。"
+        },
+        "zh-TW": {
+          "name": "PackyCode",
+          "tagline": "穩定高效的 API 中轉服務，支援 Claude Code、Codex、Gemini 等多種工具場景。",
+          "postClickNote": "使用 all-api-hub 優惠碼完成首次儲值，可享 9 折優惠。"
+        },
+        "en": {
+          "name": "PackyCode",
+          "tagline": "A stable and efficient API relay service for Claude Code, Codex, Gemini, and more.",
+          "postClickNote": "Use promo code all-api-hub on your first recharge to get 10% off."
+        },
+        "ja": {
+          "name": "PackyCode",
+          "tagline": "Claude Code、Codex、Gemini などで使える、安定した高速な API リレーサービスです。",
+          "postClickNote": "初回チャージ時にプロモコード all-api-hub を入力すると、10% オフになります。"
+        },
+        "vi": {
+          "name": "PackyCode",
+          "tagline": "Dich vu chuyen tiep API on dinh, hieu qua cho Claude Code, Codex, Gemini va nhieu cong cu khac.",
+          "postClickNote": "Dung ma uu dai all-api-hub trong lan nap dau tien de duoc giam 10%."
+        }
+      },
+      "accountPrefill": {
+        "siteType": "new-api",
+        "siteUrl": "https://www.packyapi.com",
+        "authType": "access_token"
+      }
+    }
+  ],
+  "_examples": {
+    "devSponsors": [
+      {
+        "id": "dev-supported-direct",
+        "enabled": true,
+        "rank": 9000,
+        "supportStatus": "supported",
+        "urls": {
+          "primaryAffiliate": "https://dev-supported.example.test/register?utm_source=all-api-hub",
+          "website": "https://dev-supported.example.test"
+        },
+        "locales": {
+          "zh-CN": {
+            "name": "[DEV] 可直接添加",
+            "tagline": "测试 Cookie 认证的 accountPrefill 主按钮和添加账号预填。",
+            "postClickNote": "测试 Cookie 认证预填后的提示，会显示在新建账号 URL 下方。"
+          },
+          "en": {
+            "name": "[DEV] Direct account",
+            "tagline": "Tests cookie accountPrefill primary action and add-account prefill.",
+            "postClickNote": "Tests the post-click note shown below the add-account URL after cookie prefill."
+          }
+        },
+        "accountPrefill": {
+          "siteType": "new-api",
+          "siteUrl": "https://dev-supported.example.test",
+          "authType": "cookie"
+        }
+      },
+      {
+        "id": "dev-supported-access-token",
+        "enabled": true,
+        "rank": 9010,
+        "supportStatus": "supported",
+        "urls": {
+          "primaryAffiliate": "https://dev-token.example.test/register?utm_source=all-api-hub",
+          "website": "https://dev-token.example.test",
+          "apiKeyCreate": "https://dev-token.example.test/dashboard/api-keys?utm_source=all-api-hub"
+        },
+        "locales": {
+          "zh-CN": {
+            "name": "[DEV] 访问令牌直连",
+            "tagline": "测试访问令牌认证的 accountPrefill 和 API Key 创建入口。",
+            "postClickNote": "测试访问令牌认证预填后的提示，会显示在新建账号 URL 下方。"
+          },
+          "en": {
+            "name": "[DEV] Access token account",
+            "tagline": "Tests access-token accountPrefill and API key creation URL normalization.",
+            "postClickNote": "Tests the post-click note shown below the add-account URL after access-token prefill."
+          }
+        },
+        "accountPrefill": {
+          "siteType": "new-api",
+          "siteUrl": "https://dev-token.example.test",
+          "authType": "access_token"
+        }
+      },
+      {
+        "id": "dev-unsupported-bookmark",
+        "enabled": true,
+        "rank": 9020,
+        "supportStatus": "unsupported",
+        "urls": {
+          "primaryAffiliate": "https://dev-bookmark.example.test"
+        },
+        "locales": {
+          "zh-CN": {
+            "name": "[DEV] 保存书签",
+            "tagline": "测试仅显示书签 fallback。"
+          },
+          "en": {
+            "name": "[DEV] Bookmark",
+            "tagline": "Tests the bookmark fallback only."
+          }
+        },
+        "fallbackHints": {
+          "bookmarkManager": true
+        }
+      },
+      {
+        "id": "dev-unsupported-api-profile",
+        "enabled": true,
+        "rank": 9030,
+        "supportStatus": "unsupported",
+        "urls": {
+          "primaryAffiliate": "https://dev-api-profile.example.test",
+          "apiKeyCreate": "https://dev-api-profile.example.test/dashboard/api-keys?utm_source=all-api-hub"
+        },
+        "locales": {
+          "zh-CN": {
+            "name": "[DEV] API 凭证",
+            "tagline": "测试仅显示 API 凭证配置 fallback。"
+          },
+          "en": {
+            "name": "[DEV] API profile",
+            "tagline": "Tests the API credential profile fallback only."
+          }
+        },
+        "fallbackHints": {
+          "apiCredentialProfiles": true
+        }
+      },
+      {
+        "id": "dev-unsupported-all-fallbacks",
+        "enabled": true,
+        "rank": 9040,
+        "supportStatus": "unsupported",
+        "urls": {
+          "primaryAffiliate": "https://dev-all-fallbacks.example.test/register",
+          "website": "https://dev-all-fallbacks.example.test",
+          "apiKeyCreate": "https://dev-all-fallbacks.example.test/dashboard/api-keys?utm_source=all-api-hub"
+        },
+        "locales": {
+          "zh-CN": {
+            "name": "[DEV] 全部 fallback",
+            "tagline": "测试 fallback 按钮和活动提示同时出现。",
+            "postClickNote": "测试赞助商提供的活动提示，可同时显示在添加账号和获取 API Key 的引导中。"
+          },
+          "en": {
+            "name": "[DEV] All fallbacks",
+            "tagline": "Tests fallback buttons and campaign copy together.",
+            "postClickNote": "Tests sponsor-provided campaign copy in both add-account and API key guidance."
+          }
+        },
+        "fallbackHints": {
+          "bookmarkManager": true,
+          "apiCredentialProfiles": true
+        }
+      },
+      {
+        "id": "dev-locale-fallback",
+        "enabled": true,
+        "rank": 9050,
+        "supportStatus": "unsupported",
+        "urls": {
+          "primaryAffiliate": "https://dev-locale-fallback.example.test"
+        },
+        "locales": {
+          "en": {
+            "name": "[DEV] Locale fallback",
+            "tagline": "Tests fallback from the active locale to English."
+          }
+        },
+        "fallbackHints": {
+          "bookmarkManager": true
+        }
+      }
+    ]
+  }
+}

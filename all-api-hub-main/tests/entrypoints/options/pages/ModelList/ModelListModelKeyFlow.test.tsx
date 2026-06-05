@@ -1,0 +1,220 @@
+import userEvent from "@testing-library/user-event"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+import ModelList from "~/entrypoints/options/pages/ModelList"
+import { MODEL_LIST_BILLING_MODES } from "~/features/ModelList/billingModes"
+import { createAccountSource } from "~/features/ModelList/modelManagementSources"
+import { AuthTypeEnum } from "~/types"
+import { render, screen, waitFor } from "~~/tests/test-utils/render"
+
+const {
+  fetchAccountTokensMock,
+  createApiTokenMock,
+  fetchAccountAvailableModelsMock,
+  fetchUserGroupsMock,
+  toastSuccessMock,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  fetchAccountTokensMock: vi.fn(),
+  createApiTokenMock: vi.fn(),
+  fetchAccountAvailableModelsMock: vi.fn(),
+  fetchUserGroupsMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}))
+
+vi.mock("react-hot-toast", () => ({
+  default: {
+    success: toastSuccessMock,
+    error: toastErrorMock,
+  },
+}))
+
+vi.mock("~/services/apiService", () => ({
+  getApiService: () => ({
+    fetchAccountTokens: (...args: any[]) => fetchAccountTokensMock(...args),
+    createApiToken: (...args: any[]) => createApiTokenMock(...args),
+    fetchAccountAvailableModels: (...args: any[]) =>
+      fetchAccountAvailableModelsMock(...args),
+    fetchUserGroups: (...args: any[]) => fetchUserGroupsMock(...args),
+    updateApiToken: vi.fn(async () => true),
+  }),
+}))
+
+vi.mock("~/services/models/utils/modelProviders", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("~/services/models/utils/modelProviders")
+    >()
+  return {
+    ...actual,
+    getAllProviders: () => [],
+  }
+})
+
+const ACCOUNT = {
+  id: "acc-1",
+  name: "Example",
+  username: "tester",
+  siteType: "new-api",
+  baseUrl: "https://example.com",
+  token: "token",
+  userId: "1",
+  authType: AuthTypeEnum.AccessToken,
+  checkIn: { enableDetection: false },
+} as any
+
+const TOKEN = {
+  id: 1,
+  user_id: 1,
+  key: "sk-test",
+  status: 1,
+  name: "default",
+  created_time: 0,
+  accessed_time: 0,
+  expired_time: -1,
+  remain_quota: 0,
+  unlimited_quota: true,
+  used_quota: 0,
+  allow_ips: "",
+  model_limits_enabled: false,
+  model_limits: "",
+  group: "",
+} as any
+
+const ACCOUNT_SOURCE = createAccountSource(ACCOUNT)
+
+vi.mock("~/features/ModelList/hooks/useModelListData", () => ({
+  useModelListData: vi.fn(() => ({
+    accounts: [ACCOUNT],
+    profiles: [],
+    selectedSource: ACCOUNT_SOURCE,
+    currentAccount: ACCOUNT,
+    sourceCapabilities: ACCOUNT_SOURCE.capabilities,
+
+    selectedSourceValue: ACCOUNT_SOURCE.value,
+    setSelectedSourceValue: vi.fn(),
+    searchTerm: "",
+    setSearchTerm: vi.fn(),
+    selectedProvider: "all",
+    setSelectedProvider: vi.fn(),
+    selectedBillingMode: MODEL_LIST_BILLING_MODES.ALL,
+    setSelectedBillingMode: vi.fn(),
+    selectedGroups: [],
+    setSelectedGroups: vi.fn(),
+
+    // Display options
+    showRealPrice: false,
+    setShowRealPrice: vi.fn(),
+    showRatioColumn: false,
+    setShowRatioColumn: vi.fn(),
+    showEndpointTypes: false,
+    setShowEndpointTypes: vi.fn(),
+
+    // Data state
+    pricingData: { data: [{ model_name: "gpt-4" }] },
+    pricingContexts: [],
+    isLoading: false,
+    dataFormatError: null,
+    loadErrorMessage: null,
+
+    filteredModels: [],
+    accountSummaryCountsByAccountId: new Map(),
+    baseFilteredModels: [],
+    availableGroups: [],
+
+    loadPricingData: vi.fn(),
+    getProviderFilteredCount: vi.fn(() => 0),
+    accountQueryStates: [],
+    allAccountsFilterAccountIds: [],
+    setAllAccountsFilterAccountIds: vi.fn(),
+  })),
+}))
+
+vi.mock("~/features/ModelList/components/ModelDisplay", () => ({
+  ModelDisplay: ({ onOpenModelKeyDialog }: any) => (
+    <button
+      type="button"
+      onClick={() => onOpenModelKeyDialog(ACCOUNT, "gpt-4", ["vip"])}
+    >
+      Open key dialog
+    </button>
+  ),
+}))
+
+vi.mock("~/features/ModelList/components/AccountSelector", () => ({
+  AccountSelector: () => null,
+}))
+vi.mock("~/features/ModelList/components/AccountSummaryBar", () => ({
+  AccountSummaryBar: () => null,
+}))
+vi.mock("~/features/ModelList/components/ControlPanel", () => ({
+  ControlPanel: () => null,
+}))
+vi.mock("~/features/ModelList/components/Footer", () => ({
+  Footer: () => null,
+}))
+vi.mock("~/features/ModelList/components/StatusIndicator", () => ({
+  StatusIndicator: () => null,
+}))
+
+vi.mock("~/features/ModelList/components/ProviderTabs", async () => {
+  const { TabGroup } = await import("@headlessui/react")
+  return {
+    ProviderTabs: ({ children }: any) => <TabGroup>{children}</TabGroup>,
+  }
+})
+
+describe("Model List → ModelKeyDialog", () => {
+  beforeEach(() => {
+    fetchAccountTokensMock.mockReset()
+    createApiTokenMock.mockReset()
+    fetchAccountAvailableModelsMock.mockReset()
+    fetchUserGroupsMock.mockReset()
+    toastSuccessMock.mockReset()
+    toastErrorMock.mockReset()
+  })
+
+  it("opens dialog and creates a custom key with model limits prefilled", async () => {
+    fetchAccountTokensMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([TOKEN])
+    fetchAccountAvailableModelsMock.mockResolvedValueOnce(["gpt-4"])
+    fetchUserGroupsMock.mockResolvedValueOnce({
+      vip: { desc: "vip", ratio: 1 },
+    })
+    createApiTokenMock.mockResolvedValueOnce(true)
+
+    const user = userEvent.setup()
+
+    render(<ModelList />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Open key dialog" }),
+    )
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "modelList:keyDialog.createCustomKey",
+      }),
+    )
+
+    expect(
+      await screen.findByLabelText(/keyManagement:dialog\.tokenName/),
+    ).toHaveValue("model gpt-4")
+
+    await user.click(
+      screen.getByRole("button", { name: "keyManagement:dialog.createToken" }),
+    )
+
+    await waitFor(() => {
+      expect(createApiTokenMock).toHaveBeenCalledTimes(1)
+    })
+
+    expect(createApiTokenMock.mock.calls[0]?.[1]).toMatchObject({
+      model_limits_enabled: true,
+      model_limits: "gpt-4",
+      group: "vip",
+    })
+  })
+})

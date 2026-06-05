@@ -1,0 +1,255 @@
+{
+  "accountOperations": {
+    "autoProvisionAlreadyHad": "{{accountName}} already has an API key. Skipped auto-creation.",
+    "autoProvisionCreated": "Created a default API key for {{accountName}}.",
+    "autoProvisionFailed": "Account saved, but failed to auto-create an API key. You can use “{{actionLabel}}” in Key Management to retry.",
+    "checkingApiKeys": "Checking API key...",
+    "createTokenFailed": "Failed to create API token",
+    "importingToAxonHub": "Importing to AxonHub...",
+    "importingToClaudeCodeHub": "Importing to Claude Code Hub...",
+    "importingToDoneHub": "Importing to Done Hub...",
+    "importingToNewApi": "Importing to New API...",
+    "importingToOctopus": "Importing to Octopus...",
+    "importingToVeloera": "Importing to Veloera...",
+    "retrying": "An error occurred, attempting retry #{{attempt}}",
+    "tokenNotFound": "Failed to create or find an API token"
+  },
+  "aihubmix": {
+    "createRequiresOneTimeKeyDialog": "AIHubMix keys can only be viewed once. Create the key manually in Key Management and save the full key immediately.",
+    "oneTimeKeyPromptCancelled": "Account saved. You can create an AIHubMix API key manually in Key Management later.",
+    "oneTimeKeyUnavailableAfterCreate": "Account saved, but the full AIHubMix API key could not be retrieved. AIHubMix keys are shown only once after creation; create a new key in Key Management and save the full key immediately."
+  },
+  "autodetect": {
+    "currentTabNeedsReload": "This page may have been opened before the extension was installed or updated, so the extension cannot read data from this tab yet. Reload the current page, then try auto-detect again.",
+    "failed": "Auto-detection failed: {{error}}",
+    "forbidden": "Access denied. Please confirm whether the website firewall is blocking the request",
+    "loginThisSite": "Login to this site",
+    "networkError": "Network connection failed, please check your network connection and try again",
+    "notFound": "Resource not found. Please confirm whether the site address entered is correct",
+    "notLoggedIn": "You are not logged in to the current site, or the login information has expired. Cannot auto-add. Please check the help documentation or click to login first",
+    "serverError": "Server error. Please try again later",
+    "timeout": "Auto-detection timeout, please try adding manually",
+    "unexpectedData": "Auto-detection failed, site returned unexpected data. Please enter information manually or ensure you are logged in to the target site"
+  },
+  "axonhub": {
+    "channelExists": "Channel {{channelName}} already exists, no need to import again",
+    "configMissing": "Please configure AxonHub address, admin email, and password in basic settings first",
+    "deleteFailed": "Failed to delete AxonHub channel",
+    "importFailed": "Import failed, an unknown error occurred",
+    "importSuccess": "Successfully imported new channel {{channelName}}",
+    "modelsMissing": "Please provide at least one model",
+    "noChannelsToSync": "No channels to sync",
+    "unsupportedModelSync": "AxonHub does not support managed-site model sync in this version"
+  },
+  "background": {
+    "cannotCreateWindow": "Unable to create window",
+    "cannotCreateWindowOrTab": "Unable to create window or get tab",
+    "incognitoAccessRequired": "Incognito access is required to use a private temporary window. Please enable \"Allow in incognito\" for this extension and retry.",
+    "invalidFetchRequest": "Invalid fetch request",
+    "pageLoadTimeout": "Page load timeout",
+    "windowCreationUnavailable": "This flow needs the browser to open a temporary window, but window creation is unavailable. Allow extension-created windows or retry in a browser that supports them.",
+    "windowNotFound": "Window or tab not found"
+  },
+  "ccswitch": {
+    "attemptingRedirect": "Attempting to redirect to CC Switch",
+    "invalidApp": "Unsupported CC Switch target app",
+    "invalidEndpoint": "Invalid or missing API endpoint",
+    "invalidHomepage": "Invalid or missing homepage URL",
+    "missingCredentials": "Missing required account or key information",
+    "unableToOpen": "Unable to open CC Switch, please ensure it is installed"
+  },
+  "cherryStudio": {
+    "attemptingRedirect": "Attempting to redirect to Cherry Studio",
+    "missingCredentials": "Missing required account or key information",
+    "unableToOpen": "Unable to open, please ensure Cherry Studio is installed"
+  },
+  "claudecodehub": {
+    "channelExists": "Provider {{channelName}} already exists, no need to import again",
+    "configMissing": "Please configure Claude Code Hub address and admin token in basic settings first",
+    "deleteFailed": "Failed to delete Claude Code Hub provider",
+    "importFailed": "Import failed, an unknown error occurred",
+    "importSuccess": "Successfully imported new provider {{channelName}}",
+    "modelsMissing": "Please provide at least one model",
+    "noChannelsToSync": "No providers to sync",
+    "realProviderKeyRequired": "Claude Code Hub requires a real upstream provider key. Empty or masked keys cannot be used for provider creation.",
+    "unsupportedModelSync": "Claude Code Hub does not support managed-site model sync in this version",
+    "updateFailed": "Failed to update Claude Code Hub provider"
+  },
+  "claudeCodeRouter": {
+    "configMissing": "Please configure Claude Code Router base URL in settings first",
+    "importFailed": "Failed to import provider to Claude Code Router",
+    "importSuccess": "Successfully imported provider {{name}} to Claude Code Router",
+    "modelsMissing": "Please provide at least one model",
+    "updateSuccess": "Successfully updated Claude Code Router provider {{name}}"
+  },
+  "cliproxy": {
+    "configMissing": "Please configure CLIProxyAPI Management API base URL and key in settings first",
+    "importFailed": "Failed to import provider to CLIProxyAPI",
+    "importSuccess": "Successfully imported provider {{name}} to CLIProxyAPI",
+    "managementApiConnectionSuccess": "CLIProxyAPI Management API connection succeeded",
+    "managementApiForbidden": "CLIProxyAPI rejected the request. Check whether the management key has been entered incorrectly too many times or whether access is restricted on the server.",
+    "managementApiHttpError": "CLIProxyAPI Management API returned an unexpected status code (HTTP {{status}})",
+    "managementApiInvalidKey": "The CLIProxyAPI Management Key is invalid. Please verify the key in settings.",
+    "managementApiNotFound": "CLIProxyAPI Management API was not found. Make sure the base URL ends with /v0/management and that CLIProxyAPI has a management key configured.",
+    "managementApiRemoteAccessDisabled": "CLIProxyAPI rejected remote management access. Check whether remote-management.allow-remote: true is enabled in the CLIProxyAPI config, or whether remote management is enabled via MANAGEMENT_PASSWORD, then try again.",
+    "managementApiServerError": "CLIProxyAPI Management API returned a server error (HTTP {{status}})",
+    "managementApiUnreachable": "Could not reach the CLIProxyAPI Management API. Check the base URL, service status, and browser network access to that address.",
+    "updateSuccess": "Successfully updated CLIProxy provider {{name}}"
+  },
+  "content": {
+    "userInfoNotFound": "User information not found, please ensure you are logged in",
+    "waitUserInfoTimeout": "Waiting for user information timeout, please ensure you are logged in"
+  },
+  "donehub": {
+    "channelExists": "Channel {{channelName}} already exists, no need to import again",
+    "configMissing": "Please configure Done Hub address, admin token, and user ID in basic settings first",
+    "importFailed": "Import failed, an unknown error occurred",
+    "importSuccess": "Successfully imported new channel {{channelName}}",
+    "noChannelsToSync": "No channels to sync"
+  },
+  "errors": {
+    "api": {
+      "invalidResponseFormat": "Invalid response format",
+      "onlyJsonSupported": "Only JSON responses are supported",
+      "requestFailed": "Request failed: {{status}}"
+    },
+    "operation": {
+      "accountDataFetchTimeout": "Timed out while fetching account data ({{seconds}}s)",
+      "failed": "Operation failed: {{error}}",
+      "saveFailed": "Save failed: {{error}}"
+    },
+    "tokenSecretUnavailable": "This platform does not support viewing the full key again. Copy and save it when you create it.",
+    "unknown": "Unknown error",
+    "validation": {
+      "bookmarkNameRequired": "Bookmark name cannot be empty",
+      "bookmarkUrlRequired": "Bookmark URL cannot be empty",
+      "doneHubAdminTokenRequired": "Done Hub admin token not configured",
+      "doneHubBaseUrlRequired": "Done Hub base URL not configured",
+      "doneHubUserIdRequired": "Done Hub user ID not configured",
+      "incompleteAccountInfo": "Please fill in all account information",
+      "newApiAdminTokenRequired": "New API admin token not configured",
+      "newApiBaseUrlRequired": "New API base URL not configured",
+      "newApiUserIdRequired": "New API user ID not configured",
+      "updateAccountFailed": "Failed to update account {{error}}",
+      "urlRequired": "Site URL cannot be empty",
+      "userIdNumeric": "User ID must be a number",
+      "veloeraAdminTokenRequired": "Veloera admin token not configured",
+      "veloeraBaseUrlRequired": "Veloera base URL not configured",
+      "veloeraUserIdRequired": "Veloera user ID not configured"
+    }
+  },
+  "newapi": {
+    "channelExists": "Channel {{channelName}} already exists, no need to import again",
+    "channelMatchUnresolved": "A potential duplicate channel exists, but confirming it requires a New API verification step. Complete verification first, then retry the import.",
+    "configMissing": "Please configure New API address, admin token, and user ID in basic settings first",
+    "importFailed": "Import failed, an unknown error occurred",
+    "importSuccess": "Successfully imported new channel {{channelName}}",
+    "noChannelsToSync": "No channels to sync"
+  },
+  "octopus": {
+    "channelExists": "Channel {{channelName}} already exists, no need to import again",
+    "configMissing": "Please configure Octopus address, username, and password in basic settings first",
+    "corsError": "This may be caused by CORS configuration. Please check the CORS whitelist setting in Octopus settings.",
+    "importFailed": "Import failed, an unknown error occurred",
+    "importSuccess": "Successfully imported new channel {{channelName}}",
+    "noChannelsToSync": "No channels to sync"
+  },
+  "operations": {
+    "detection": {
+      "failed": "Auto-detection failed, please enter information manually or ensure you are logged in to the target site",
+      "getAccessTokenFailedDetailed": "The account was detected, but no access token could be retrieved. Confirm the account can create or view API tokens, or enter the token manually.",
+      "getInfoFailed": "Failure to get username or access token",
+      "getSiteStatusFailedDetailed": "The account was detected, but site status could not be read. Try again later; if it still fails, save the account manually first.",
+      "getUserIdFailed": "Could not get user ID",
+      "getUserIdFailedDetailed": "Connected to the site, but could not read the user ID. Make sure you are logged in to the target site and try again.",
+      "getUsernameFailedDetailed": "The account was detected, but the site did not return a username. Make sure you are logged in, or enter the account manually."
+    }
+  },
+  "storage": {
+    "accountDisabled": "Account {{id}} is disabled",
+    "accountNotFound": "Account {{id}} does not exist",
+    "updateFailed": "Failed to update account"
+  },
+  "sub2api": {
+    "createRequiresAvailableGroup": "This account has no group available for key creation. Check the account's available groups and try again.",
+    "createRequiresGroup": "Key creation requires a confirmed group. Choose an available group before continuing.",
+    "createRequiresGroupSelection": "This account has multiple available groups. Choose one before creating the key.",
+    "groupMissing": "Sub2API group '{{group}}' is no longer available. Refresh the group list and try again.",
+    "loginRequired": "Please log in to the Sub2API dashboard first (so the extension can read auth_token/auth_user from localStorage) and try again.",
+    "refreshTokenInvalid": "Sub2API refresh token is invalid/rotated. Re-import the session from the dashboard (recommended: incognito/private window) or paste an updated refresh_token, then try again."
+  },
+  "toast": {
+    "error": {
+      "copyFailed": "Copy failed",
+      "duplicateCleanupFailed": "Failed to delete duplicate accounts: {{error}}",
+      "externalCheckInNonePending": "There are no external check-in stations that haven't been opened today.",
+      "findAccountDetailsFailed": "Could not find account details",
+      "operationFailed": "Operation failed: {{error}}",
+      "operationFailedGeneric": "Operation failed",
+      "refreshAccount": "Failed to refresh {{accountName}}",
+      "saveFailed": "Save failed",
+      "shareSnapshotAccountDisabled": "This account is disabled",
+      "shareSnapshotNoEnabledAccounts": "No enabled accounts to share"
+    },
+    "loading": {
+      "refreshingAccount": "Refreshing {{accountName}}..."
+    },
+    "success": {
+      "accountDisabled": "{{accountName}} disabled",
+      "accountEnabled": "{{accountName}} enabled",
+      "accountPinned": "{{accountName}} pinned",
+      "accountSaveSuccess": "Account saved successfully",
+      "accountsDisabled_one": "{{count}} account disabled",
+      "accountsDisabled_other": "{{count}} accounts disabled",
+      "accountsEnabled_one": "{{count}} account enabled",
+      "accountsEnabled_other": "{{count}} accounts enabled",
+      "accountUnpinned": "{{accountName}} unpinned",
+      "accountUpdateSuccess": "Account updated successfully",
+      "bookmarkAdded": "Bookmark {{name}} added successfully!",
+      "bookmarkDeleted": "Bookmark {{name}} deleted",
+      "bookmarkPinned": "{{name}} pinned",
+      "bookmarkUnpinned": "{{name}} unpinned",
+      "bookmarkUpdated": "Bookmark {{name}} updated successfully!",
+      "bookmarkUrlCopied": "{{name}} URL copied to clipboard",
+      "duplicateCleanupSuccess_one": "Deleted {{count}} account from {{groups}} duplicate set(s).",
+      "duplicateCleanupSuccess_other": "Deleted {{count}} accounts from {{groups}} duplicate set(s).",
+      "externalCheckInModeAll": "all",
+      "externalCheckInModeUnchecked": "unchecked only",
+      "externalCheckInOpened_one": "Opened external check-in for {{count}} account ({{mode}}).",
+      "externalCheckInOpened_other": "Opened external check-ins for {{count}} accounts ({{mode}}).",
+      "operationCompleted": "Operation completed",
+      "refreshAccount": "{{accountName}} refreshed successfully!",
+      "refreshSkipped": "Refresh interval not reached, skipped",
+      "shareSnapshotCaptionCopied": "Caption copied",
+      "shareSnapshotCopied": "Snapshot copied to clipboard",
+      "shareSnapshotDownloaded": "Snapshot downloaded",
+      "urlCopied": "{{accountName}} URL copied to clipboard"
+    }
+  },
+  "veloera": {
+    "channelExists": "Channel {{channelName}} already exists, no need to import again",
+    "configMissing": "Please configure Veloera address, admin token, and user ID in basic settings first",
+    "importFailed": "Import failed, an unknown error occurred",
+    "importSuccess": "Successfully imported new channel {{channelName}}",
+    "noChannelsToSync": "No channels to sync"
+  },
+  "warnings": {
+    "accountSavedWithoutDataRefresh": "Account saved, but the latest balance, quota, and today's usage could not be fetched. The current values may be placeholders. Refresh this account later from the account list.",
+    "accountUpdatedWithoutDataRefresh": "Account settings saved, but the latest balance, quota, and today's usage could not be refreshed. The current values may still be stale. Refresh this account later from the account list."
+  },
+  "webdav": {
+    "authFailed": "Authentication failed, please check username/password",
+    "configIncomplete": "Please fill in WebDAV URL, username and password completely",
+    "connectionFailed": "Connection failed, status code: {{status}}",
+    "decryptFailed": "Failed to decrypt backup, please check your password",
+    "decryptFailedNoPassword": "Backup is encrypted but no password is set",
+    "downloadFailed": "Download failed, status code: {{status}}",
+    "encryptFailedNoPassword": "Encryption is enabled but no password is set",
+    "fileNotFound": "Remote backup file does not exist",
+    "invalidBackupJson": "The cloud backup file is incomplete and cannot be used for sync. Sync was stopped to avoid merging damaged data. If this device has complete local data, use Upload to WebDAV to recreate the cloud backup. If not, upload from another device that has complete data or import a complete backup file first.",
+    "safeCommitFailed": "This WebDAV service could not safely save the backup. Your existing cloud backup was kept. Try again later or use a WebDAV service that supports moving or renaming files.",
+    "syncDataSelectionRequired": "Select at least one data domain to sync",
+    "uploadFailed": "Upload failed, status code: {{status}}",
+    "uploadVerificationFailed": "Backup verification failed after upload. The cloud service may not have saved the file completely. Your existing cloud backup was kept."
+  }
+}

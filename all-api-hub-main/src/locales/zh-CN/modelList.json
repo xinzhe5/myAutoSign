@@ -1,0 +1,225 @@
+{
+  "accountGroupFilterAllIncluded": "保留该账号的全部分组",
+  "accountGroupFilterClearAll": "清空",
+  "accountGroupFilterDescription": "按账号分别排除不参与比价的分组；默认会保留每个账号自己的全部可用分组。",
+  "accountGroupFilterNoGroups": "当前没有可筛选的账号分组。",
+  "accountGroupFilterNoGroupsIncluded": "该账号当前未保留任何分组",
+  "accountGroupFilterResetAll": "恢复全部",
+  "accountGroupFilterSelectAll": "全选",
+  "accountGroupFilterSelectedSummary": "已选 {{selected}} / {{total}}",
+  "accountGroupFilterTitle": "账号分组筛选",
+  "accountGroupFilterTrigger": "筛选账号分组",
+  "accountGroupFilterTriggerCount": "{{count}} 个账号",
+  "accountSummary": {
+    "incompatible": "格式不兼容",
+    "loadFailed": "加载失败",
+    "loading": "加载中",
+    "models": "{{count}} 个模型",
+    "title": "账号概览"
+  },
+  "actions": {
+    "copyModelName": "复制模型名称",
+    "keyForModel": "模型对应密钥",
+    "verifyApi": "验证接口",
+    "verifyCliSupport": "验证 CLI 兼容性"
+  },
+  "aihubmixCatalogFallbackNotice": {
+    "description": "未能确认该账号的实际可用模型范围，当前显示 AIHubMix 完整模型目录。部分模型可能无法通过此账号调用，请以站点账号权限和实际验证结果为准。",
+    "title": "已回退到 AIHubMix 完整模型目录"
+  },
+  "allAccounts": "所有账号",
+  "allBillingModes": "所有计费方式",
+  "allGroups": "所有分组",
+  "allProviders": "所有厂商",
+  "available": "可用",
+  "availableGroups": "可用分组",
+  "batchVerify": {
+    "actions": {
+      "open": "批量测试",
+      "rerun": "重新批量测试",
+      "start": "开始批量测试",
+      "stop": "停止测试"
+    },
+    "apiType": {
+      "auto": "自动识别",
+      "label": "接口类型"
+    },
+    "counts": {
+      "fail": "失败 {{value}}",
+      "pass": "通过 {{value}}",
+      "skipped": "跳过 {{value}}",
+      "total": "总计 {{value}}"
+    },
+    "idleHint": "将按所选测试项目批量验证当前筛选模型。",
+    "messages": {
+      "noApplicableProbes": "当前选择的测试项目不适用于该模型。",
+      "noCompatibleToken": "未找到兼容该模型的可用密钥。",
+      "notSelected": "未选择该模型，本次批量测试已跳过。",
+      "pending": "等待测试",
+      "probeSummary": "已运行 {{count}} 项，通过 {{pass}}，失败 {{fail}}，不支持 {{unsupported}}",
+      "stopped": "已停止，未启动该模型测试。",
+      "unexpected": "测试失败"
+    },
+    "modelSelection": {
+      "clearAll": "清空选择",
+      "label": "执行模型",
+      "noneSelected": "请至少选择一个要测试的模型。",
+      "selectAll": "全选模型",
+      "selectedSummary": "已选 {{selected}} / {{total}}",
+      "toggle": "选择模型 {{model}}"
+    },
+    "probes": {
+      "label": "测试项目",
+      "noneSelected": "请至少选择一个测试项目。"
+    },
+    "status": {
+      "fail": "失败",
+      "pass": "通过",
+      "pending": "待运行",
+      "running": "测试中",
+      "skipped": "跳过"
+    },
+    "subtitle": "当前筛选 {{count}} 个模型",
+    "summary": "已完成 {{completed}} / {{count}}，通过 {{pass}}，失败 {{fail}}，跳过 {{skipped}}",
+    "title": "批量测试模型",
+    "tokenUsed": "密钥：{{name}}",
+    "warning": "批量测试会按每个模型解析后的接口类型执行所选项目；不适用的项目会自动跳过。检测结果仅供参考，请以工具实际调用情况为准。"
+  },
+  "billingMode": "计费方式",
+  "clickSwitchGroup": "点击切换到 {{group}} 分组",
+  "collapseDetails": "收起详细信息",
+  "copyAllNames": "复制所有模型名称",
+  "description": "查看和管理可用的AI模型",
+  "detailedPricing": "详细定价",
+  "displayOptions": "显示选项:",
+  "endpointType": "端点类型",
+  "endpointTypes": "端点类型",
+  "expandDetails": "展开详细信息",
+  "fallbackSourceNotice": {
+    "description": "当前模型目录通过账号密钥回退加载，仅支持模型发现与验证。点击刷新数据会重新尝试账号接口。",
+    "title": "账号密钥回退目录"
+  },
+  "groupRatioTooltip": "{{group}} 分组倍率: {{ratio}}x",
+  "groupSelectionHint": "留空表示所有分组；价格排序会在已选分组范围内自动取最优价",
+  "input": "输入:",
+  "input1MTokens": "输入(1M tokens)",
+  "keyDialog": {
+    "copyFailed": "复制失败",
+    "createAnotherKey": "再创建一个密钥",
+    "createCustomKey": "自定义创建",
+    "createDisabledTitle": "无法创建密钥",
+    "createErrorTitle": "创建密钥失败",
+    "createFailed": "创建失败：{{error}}",
+    "createGroupHint": "请选择分组（仅列出该模型可用分组）。",
+    "createGroupLabel": "新密钥分组",
+    "createGroupPlaceholder": "请选择分组",
+    "createGroupRequired": "请先选择分组再创建密钥。",
+    "createKey": "创建密钥",
+    "createNotSupported": "该账号暂不支持创建密钥。",
+    "createSuccess": "密钥创建成功",
+    "getFailed": "加载密钥失败",
+    "ineligible": {
+      "accountDisabled": "该账号已被禁用。",
+      "missingAuth": "该账号未配置认证信息。",
+      "missingCredentials": "该账号缺少必要的凭据。"
+    },
+    "keyCopied": "密钥已复制",
+    "loadFailed": "加载密钥失败：{{error}}",
+    "loading": "正在加载密钥...",
+    "noCompatibleDescription": "为该模型创建一个密钥，或调整已有密钥的模型限制。",
+    "noCompatibleFoundAfterCreate": "密钥创建成功，但仍未找到可用于 {{modelId}} 的密钥。",
+    "noCompatibleTitle": "{{modelId}} 无可用密钥",
+    "openKeyManagement": "前往 {{accountName}} 的密钥管理",
+    "selectHint": "请选择要用于该模型的密钥。",
+    "selectLabel": "可用密钥",
+    "selectPlaceholder": "请选择密钥",
+    "subtitle": "账号：{{accountName}} · 模型：{{modelId}}",
+    "title": "模型对应密钥"
+  },
+  "lowestPrice": "最低价",
+  "lowestPriceWithinAccountFilters": "在当前账号筛选范围内，该行是相同计费模式下价格最低的选项",
+  "lowestPriceWithinBillingMode": "该行是相同计费模式下价格最低的选项",
+  "messages": {
+    "copyFailed": "复制失败",
+    "modelNameCopied": "模型名称已复制",
+    "modelNamesCopied": "模型名称已复制"
+  },
+  "noMatchingModels": "没有找到匹配的模型",
+  "noSourcesDescription": "请先添加站点账号或 API 凭据，然后查看模型列表。",
+  "noSourcesTitle": "暂无可用数据源",
+  "optimalGroup": "最优组: {{group}}",
+  "optimalGroupLowestPriceWithinAccountFilters": "已在当前账号分组筛选范围内自动选择最优组: {{group}}；且在相同计费模式下价格最低",
+  "optimalGroupLowestPriceWithinBillingMode": "已在当前筛选分组范围内自动选择最优组: {{group}}；且在相同计费模式下价格最低",
+  "optimalGroupWithinAccountFilters": "已在当前账号分组筛选范围内自动选择最优组: {{group}}",
+  "optimalGroupWithinSelectedGroups": "已在当前筛选分组范围内自动选择最优组: {{group}}",
+  "output": "输出:",
+  "output1MTokens": "输出(1M tokens)",
+  "perCall": "每次调用:",
+  "pleaseSelectFirst": "请先选择一个账号或 API 凭据查看模型列表",
+  "pleaseSelectSource": "请选择数据源",
+  "pricingDescription": "价格信息来源于站点提供的 API 接口，实际费用以各站点公布的价格为准。按量计费模型的价格为每 1M tokens 的费用，按次计费模型显示每次调用的费用",
+  "pricingNote": "模型定价说明",
+  "profileSourceNotice": {
+    "description": "已保存的 API 凭据仅支持模型发现与验证，不提供定价、分组筛选、账号概览或密钥兼容性能力。",
+    "title": "API 凭据模型目录"
+  },
+  "providerTabs": {
+    "scrollLeft": "向左滚动厂商标签",
+    "scrollRight": "向右滚动厂商标签"
+  },
+  "ratio": "倍率:",
+  "realAmount": "真实充值金额",
+  "refreshData": "刷新数据",
+  "searchModels": "搜索模型",
+  "searchPlaceholder": "输入模型名称或描述...",
+  "selectSource": "选择数据源",
+  "selectSourceToContinue": "请先在上方选择一个数据源，然后查看模型列表。",
+  "showing": "显示 {{count}} 个模型",
+  "showRatio": "显示倍率",
+  "sortBy": "排序方式",
+  "sortOptions": {
+    "default": "默认顺序",
+    "modelCheapestFirst": "同模型最低价优先",
+    "priceAsc": "价格从低到高",
+    "priceDesc": "价格从高到低"
+  },
+  "sourceLabels": {
+    "profileBadge": "凭据：{{name}} · {{host}}",
+    "profileOption": "API 凭据：{{name}} · {{host}}"
+  },
+  "status": {
+    "dataLoaded": "模型数据加载成功",
+    "fallback": {
+      "catalogLoadFailedTitle": "使用密钥加载模型失败",
+      "description": "如果账号定价接口暂时不可用，可以改用该账号下的密钥加载一个仅供浏览的模型目录。",
+      "loadingKeys": "正在加载账号密钥...",
+      "loadKeysFailed": "加载账号密钥失败：{{errorMessage}}",
+      "loadKeysFailedFallback": "加载账号密钥失败，请稍后重试。",
+      "loadModelsFailedFallback": "使用所选密钥加载模型失败，请稍后重试。",
+      "loadWithKey": "使用所选密钥加载",
+      "noKeysDescription": "当前账号下没有可用于回退加载的可用密钥。",
+      "noKeysTitle": "未找到可用密钥",
+      "reloadKeys": "重新加载密钥",
+      "retryLoadWithKey": "重试所选密钥",
+      "selectHint": "该账号存在多个可用密钥，请先明确选择要使用的密钥。",
+      "selectLabel": "用于回退加载的密钥",
+      "selectPlaceholder": "请选择密钥",
+      "title": "改用账号密钥加载模型",
+      "tokensLoadFailedTitle": "加载账号密钥失败"
+    },
+    "formatNotStandard": "当前站点的模型数据格式不符合标准，请手动查看站点定价页面",
+    "genericLoadFailedTitle": "加载模型数据失败",
+    "goToSitePricing": "前往站点查看定价信息",
+    "incompatibleDesc": "当前站点的模型数据接口返回格式不符合标准规范，可能是经过二次开发的站点。插件暂时无法解析该站点的模型定价信息",
+    "incompatibleFormat": "数据格式不兼容",
+    "loadFailed": "加载模型数据失败，请稍后重试",
+    "loading": "正在加载模型数据...",
+    "profileLoadFailed": "加载该 API 凭据的模型失败：{{errorMessage}}",
+    "profileLoadFailedTitle": "加载该 API 凭据的模型失败",
+    "retryLoad": "重新尝试加载"
+  },
+  "title": "模型列表",
+  "totalModels": "总计 {{count}} 个模型",
+  "unavailable": "不可用",
+  "userGroup": "用户分组"
+}

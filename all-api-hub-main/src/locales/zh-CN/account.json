@@ -1,0 +1,199 @@
+{
+  "actions": {
+    "channelLocateConfigMissing": "托管站点管理员配置不可用，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateFailed": "定位渠道失败",
+    "channelLocateFuzzyUrlOnly": "目前只能确认 URL 级别的模糊匹配，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateInputPreparationFallback": "无法准备排序匹配所需的输入，已仅按 URL 过滤渠道列表。",
+    "channelLocateKeyMatchedModelsDrifted": "同一渠道命中了 key，但模型集合只达到了近似匹配，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateKeyMatchOnly": "在同一 URL 范围内找到了 key 命中的渠道，但模型集合不匹配，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateMultipleKeysFallback": "检测到多个密钥，已仅按 URL 过滤渠道列表。",
+    "channelLocateNoKeyFallback": "当前没有可用于排序匹配的 API 密钥，已仅按 URL 过滤渠道列表。",
+    "channelLocateSecondaryExactModels": "已找到一个按模型集合完全一致的次级匹配，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateSecondaryModelsContained": "已找到一个按模型包含关系命中的次级匹配，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateSecondaryModelsSimilar": "已找到一个按模型相似度命中的次级匹配，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateSignalsConflict": "key 和模型检查分别指向了不同的候选渠道，已按 URL 过滤渠道列表供你确认。",
+    "channelLocateUnresolved": "暂时无法确认最可能的渠道，已仅按 URL 过滤渠道列表。",
+    "copyKey": "复制密钥",
+    "copyUrl": "复制网址",
+    "delete": "删除",
+    "disableAccount": "禁用账号",
+    "edit": "编辑",
+    "enableAccount": "启用账号",
+    "fetchKeyInfoFailed": "获取密钥信息失败",
+    "fetchKeyListFailed": "获取密钥列表失败: {{errorMessage}}",
+    "keyCopied": "密钥已复制到剪贴板",
+    "keyList": "密钥列表",
+    "keyManagement": "密钥管理",
+    "locateManagedSiteChannel": "定位对应渠道",
+    "locateManagedSiteChannelUnsupported": "因为当前托管站点暂不支持使用URL搜索渠道，相关功能无法正常工作",
+    "locateManagedSiteChannelUnsupportedHint": "不支持",
+    "modelManagement": "模型管理",
+    "openAllExternalCheckIn": "一键打开外部签到",
+    "openAllExternalCheckInHint": "默认仅打开未签到；Ctrl/Cmd 打开全部；Shift 在新窗口打开；Ctrl/Cmd+Shift 同时生效。",
+    "pin": "置顶账号",
+    "pinned": "已置顶",
+    "quickCheckin": "快速签到",
+    "redeemPage": "充值页面",
+    "refresh": "刷新",
+    "refreshDisabledAccounts": "刷新已禁用账号",
+    "scanDuplicates": "扫描重复账号",
+    "scanDuplicatesHint": "按 URL 源站 + 用户 ID 扫描重复账号并安全清理。",
+    "unpin": "取消置顶",
+    "urlCopied": "网址已复制到剪贴板",
+    "usageLog": "用量日志",
+    "viewOnLdoh": "在 LDOH 查看"
+  },
+  "addAccount": "新增账号",
+  "addFirstAccount": "添加你的第一个站点账号",
+  "bulk": {
+    "clearAll": "清空全部选择",
+    "clearVisible": "取消当前结果选择",
+    "deleteConfirmAction": "删除已选账号",
+    "deleteConfirmDescription": "你将删除 {{count}} 个已选账号。请在确认前仔细检查这些选择。",
+    "deleteConfirmTitle": "删除已选账号",
+    "deleteConfirmWarningTitle": "批量删除确认",
+    "deleteHiddenSelectedHint": "其中包含 {{count}} 个被当前搜索/筛选隐藏的已选账号。",
+    "deletePreviewRemainder": "以及另外 {{count}} 个已选账号。",
+    "deletePreviewTitle": "即将删除的账号",
+    "deleteSelected": "删除已选",
+    "deleteSuccess": "已删除 {{count}} 个已选账号。",
+    "deleting": "正在删除 {{count}} 个已选账号...",
+    "disableSelected": "禁用已选",
+    "exit": "退出批量模式",
+    "hiddenSelectedHint": "有 {{count}} 个已选账号被当前搜索/筛选隐藏，批量操作仍会作用于它们。",
+    "manage": "批量操作",
+    "selectAccount": "选择 {{accountName}}",
+    "selectedSummary": "已选择 {{selected}} 个账号（当前可见 {{visibleSelected}} 个）",
+    "selectVisible": "选择当前结果"
+  },
+  "currentLoginAdded": "⚠️{{siteName}} 的当前登录账号已在列表中",
+  "currentSiteAdded": "⚠️{{siteName}} 已有账号",
+  "currentSiteAddedCount": "⚠️当前站点已有 {{count}} 个账号",
+  "description": "一键管理所有AI中转站",
+  "emptyState": "暂无站点账号",
+  "filter": {
+    "checkIn": {
+      "all": "全部签到状态",
+      "checked-in": "已签到",
+      "not-checked-in": "未签到",
+      "outdated": "状态过期",
+      "placeholder": "签到状态",
+      "unsupported": "不支持"
+    },
+    "disabled": {
+      "all": "全部账号",
+      "placeholder": "账号状态"
+    },
+    "refresh": {
+      "all": "全部刷新状态",
+      "neverSynced": "未同步",
+      "placeholder": "刷新状态"
+    },
+    "siteType": {
+      "all": "全部站点类型",
+      "placeholder": "站点类型"
+    },
+    "summary": "共 {{count}} 个账号",
+    "tagsAllLabel": "全部"
+  },
+  "filteredTotals": {
+    "balance": "余额",
+    "consumption": "今日消耗",
+    "income": "今日收入"
+  },
+  "healthStatus": {
+    "apiError": "API错误",
+    "error": "错误",
+    "healthy": "健康",
+    "httpError": "HTTP {{statusCode}}: {{message}}",
+    "networkFailed": "网络连接失败",
+    "normal": "账号状态正常",
+    "tempWindowDisabled": "过盾功能已关闭，请在 设置 > 数据刷新 中启用",
+    "tempWindowPermissionRequired": "Firefox 过盾功能需要 Cookie 拦截权限，请在 设置 > 权限管理 中授予",
+    "unknown": "未知",
+    "unknownError": "未知错误",
+    "warning": "警告"
+  },
+  "list": {
+    "balance": {
+      "refreshBalance": "点击刷新余额",
+      "refreshCashflow": "点击刷新今日消费",
+      "refreshIncome": "点击刷新今日收入"
+    },
+    "dragHandle": "拖动排序",
+    "header": {
+      "account": "账号",
+      "balance": "余额",
+      "createdAt": "创建时间",
+      "todayConsumption": "今日消费",
+      "todayIncome": "今日收入"
+    },
+    "site": {
+      "checkedInToday": "今日已签到，点我查看",
+      "checkInStatusOutdated": "签到状态不是今日检测（上次检测时间：{{time}}），点我刷新",
+      "checkInUnsupported": "站点可能不支持签到",
+      "currentSite": "当前站点",
+      "currentSiteExists": "与当前标签页站点相同",
+      "disabled": "已禁用",
+      "lastSync": "上次同步",
+      "notAvailable": "不可用",
+      "notCheckedInToday": "今日未签到，点我去签到",
+      "reason": "原因",
+      "refreshHealthStatus": "点击刷新健康状态",
+      "status": "状态",
+      "unknown": "未知"
+    },
+    "sort": "排序"
+  },
+  "newcomerSupport": {
+    "actions": {
+      "about": "访问项目主页",
+      "docs": "打开新手指引",
+      "star": "给项目点个 Star"
+    },
+    "description": "可以先为项目点个 Star，也可以先看看文档，了解如何管理中转站和 New API 账号",
+    "hint": "在添加账号之前，也可以先随意看看文档和项目信息",
+    "title": "欢迎使用 All API Hub"
+  },
+  "refresh": {
+    "refreshComplete": "刷新完成: {{success}} 成功, {{failed}} 失败",
+    "refreshDisabledComplete": "已禁用账号探测完成：恢复 {{restored}} 个，仍禁用 {{stillDisabled}} 个",
+    "refreshDisabledCompleteWithFailures": "已禁用账号探测完成：恢复 {{restored}} 个，仍禁用 {{stillDisabled}} 个，失败 {{failed}} 个",
+    "refreshDisabledFailed": "刷新已禁用账号失败，请稍后重试",
+    "refreshFailed": "刷新失败，请稍后重试",
+    "refreshingAll": "正在刷新所有账号...",
+    "refreshingDisabled": "正在刷新已禁用账号...",
+    "refreshPartialSkipped": "刷新完成: {{success}} 成功, {{skipped}} 跳过",
+    "refreshSuccess": "所有账号刷新成功！"
+  },
+  "search": {
+    "noResults": "没有找到匹配的账号",
+    "placeholder": "输入站点信息或账号信息进行搜索"
+  },
+  "sponsor": {
+    "actions": {
+      "continueAddAccount": "继续添加此账号",
+      "openApiCredentialProfilesFallback": "可将其 API 密钥添加为 API 凭证",
+      "openBookmarkManagerFallback": "暂不添加账号，先收藏服务商",
+      "visitProvider": "访问服务商"
+    },
+    "recommendedProviders": "推荐服务商",
+    "supportStatus": {
+      "fallbackApiCredentialProfiles": "可加为凭证",
+      "fallbackBookmark": "可先收藏",
+      "fallbackBookmarkAndApi": "可先收藏 / 可加为凭证",
+      "supported": "可直接添加",
+      "unsupported": "可能需要手动设置"
+    }
+  },
+  "stats": {
+    "completion": "补全",
+    "estimatedTodayIncome": "估算收入",
+    "prompt": "提示",
+    "todayConsumption": "今日消耗",
+    "todayIncome": "今日收入",
+    "totalBalance": "总余额",
+    "trustedTodayIncome": "可信收入"
+  },
+  "title": "账户管理"
+}

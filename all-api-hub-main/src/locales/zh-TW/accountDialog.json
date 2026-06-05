@@ -1,0 +1,210 @@
+{
+  "actions": {
+    "autoConfigAriaLabel": "儲存帳號並前往 {{managedSite}} 渠道設定",
+    "autoConfigRequiresValidAccount": "請先補齊目前帳號資訊",
+    "autoConfigTitle": "儲存目前帳號，並開啟 {{managedSite}} 的預填渠道設定",
+    "configToManagedSite": "儲存並配置到 {{managedSite}}",
+    "configuring": "配置中...",
+    "confirmAdd": "確認新增",
+    "helpDocument": "幫助文件",
+    "reloadCurrentPage": "重新整理當前頁面",
+    "reloadExtensionAndRetry": "重新載入擴充套件後重試",
+    "reportUnsupportedSite": "反饋未適配站點",
+    "saveAccount": "儲存帳號",
+    "saveChanges": "儲存更改",
+    "workflow": {
+      "checkingToken": "正在檢查 API 金鑰...",
+      "creatingToken": "正在建立預設金鑰...",
+      "loadingSavedAccount": "正在讀取已儲存帳號...",
+      "openingManagedSiteDialog": "正在開啟渠道配置...",
+      "savingAccount": "正在儲存帳號...",
+      "waitingForOneTimeKey": "請先保存一次性金鑰...",
+      "waitingForSub2ApiGroup": "請選擇 Sub2API 分組..."
+    }
+  },
+  "aihubmixDefaultKeyPrompt": {
+    "cancel": "稍後手動建立",
+    "cancelHint": "取消不會影響帳號儲存。你之後也可以在金鑰管理中手動建立 AIHubMix API 金鑰。",
+    "confirm": "立即建立並查看",
+    "creating": "正在建立...",
+    "description": "{{accountName}} 已儲存。AIHubMix API 金鑰建立後只會顯示一次，請確認你現在可以立即複製並保存完整金鑰。",
+    "title": "建立 AIHubMix 預設金鑰？",
+    "warningTitle": "完整金鑰只顯示一次"
+  },
+  "form": {
+    "accessToken": "訪問令牌",
+    "autoCheckInEnabled": "啟用每日自動簽到",
+    "autoCheckInEnabledDesc": "在全域性自動簽到功能啟用時，此帳號是否參與每日簽到",
+    "checkInStatus": "簽到狀態檢測（需站點本身已開啟簽到功能）",
+    "cookieAuthSessionCookie": "會話 Cookie",
+    "cookieAuthSessionCookieDesc": "從當前已登入的瀏覽器標籤頁匯入該帳號的會話 Cookie（同站點多帳號需分別匯入）",
+    "cookieAuthSessionCookiePlaceholder": "貼上 Cookie 頭部值",
+    "cookiePermissionEnableCookieAuth": "授予 Cookie 多帳號所需權限",
+    "cookiePermissionHelpAction": "前往權限設定",
+    "cookiePermissionRecommendationDesc": "用於從當前登入頁讀取 Cookie，並在重新整理、簽到等請求中按帳號帶上對應 Cookie，支援同站點多帳號穩定工作。",
+    "customCheckInDesc": "外部簽到站、福利站等可以獲得帳號餘額或兌換碼的站點地址",
+    "customCheckInUrl": "外部簽到站點 URL（可選）",
+    "customRedeemUrl": "自定義充值/兌換頁面 URL（可選）",
+    "customRedeemUrlDesc": "充值/兌換頁面的 URL",
+    "exchangeRate": "充值金額比例（CNY/USD）",
+    "exchangeRateDesc": "表示充值 1 美元需要多少人民幣。系統會嘗試自動獲取，如未獲取到請手動填寫",
+    "exchangeRatePlaceholder": "請輸入充值比例",
+    "excludeFromTodayIncome": "不計入今日收入",
+    "excludeFromTodayIncomeDesc": "僅影響“今日收入”合計，不會停用重新整理、簽到或帳號顯示",
+    "excludeFromTotalBalance": "不計入總餘額",
+    "excludeFromTotalBalanceDesc": "僅影響“總餘額”統計，不會禁用重新整理、簽到等功能",
+    "hideAccessToken": "隱藏訪問令牌",
+    "hideRefreshToken": "隱藏 Refresh Token",
+    "importCookieAuthSessionCookie": "從當前登入匯入",
+    "manualBalanceUsd": "手動餘額 (USD)",
+    "manualBalanceUsdDesc": "當站點無法自動獲取餘額/額度時，可手動填寫",
+    "manualBalanceUsdError": "請輸入有效的金額（>= 0）",
+    "manualBalanceUsdPlaceholder": "留空則自動獲取",
+    "notes": "備註",
+    "notesPlaceholder": "選填，輸入備註資訊",
+    "openRedeemWithCheckIn": "使用外部簽到時同時開啟充值頁面",
+    "showAccessToken": "顯示訪問令牌",
+    "showRefreshToken": "顯示 Refresh Token",
+    "siteName": "網站名稱",
+    "siteType": "站點型別",
+    "sub2apiCheckInUnsupported": "Sub2API 暫不支援站點簽到功能（已自動關閉）。",
+    "sub2apiImportRefreshToken": "從當前登入帳號匯入",
+    "sub2apiRefreshToken": "Refresh Token",
+    "sub2apiRefreshTokenMode": "外掛託管會話（多帳號）",
+    "sub2apiRefreshTokenModeDesc": "可選。將當前登入帳號的 refresh_token 存入擴充套件，使每個帳號可後臺自動獨立重新整理和續期認證，支援同站點多帳號。",
+    "sub2apiRefreshTokenPlaceholder": "貼上 refresh_token 值",
+    "sub2apiRefreshTokenWarningDesc": "refresh_token 用於讓擴充套件獨立續期登入態，會隨帳號備份一起儲存。為減少輪轉衝突，建議在無痕/隱私視窗登入後匯入，隨後關閉該視窗，避免與日常控制台並行重新整理同一會話。",
+    "sub2apiRefreshTokenWarningTitle": "提示",
+    "sub2apiTokenExpiresAt": "訪問令牌過期時間",
+    "tags": "標籤",
+    "tagsCreate": "建立“{{name}}”",
+    "tagsDelete": "刪除",
+    "tagsDeleteCancel": "取消",
+    "tagsDeleteConfirm": "刪除",
+    "tagsDeleteDescription": "全域性刪除“{{name}}”。此操作會從所有帳號中移除該標籤。",
+    "tagsDeleteTitle": "刪除標籤",
+    "tagsDescription": "使用標籤對帳號進行分類，便於快速篩選",
+    "tagsNoResults": "未找到標籤",
+    "tagsPlaceholder": "新增或選擇標籤",
+    "tagsRemove": "移除 {{name}}",
+    "tagsRename": "重新命名",
+    "tagsRenameCancel": "取消",
+    "tagsRenameSave": "儲存",
+    "tagsSearchPlaceholder": "搜尋標籤…",
+    "tagsSelectedCount_other": "已選擇 {{count}} 個標籤",
+    "userId": "使用者 ID",
+    "userIdNumber": "使用者 ID（數字）",
+    "username": "使用者名稱",
+    "validRateError": "請輸入有效的匯率，大於 0"
+  },
+  "infoPanel": {
+    "autoDetect": "自動識別",
+    "autoDetectInfo": "請先在目標站點登入，外掛會自動識別並補全新增帳號所需資訊",
+    "confirmAddInfo": "請確認帳號資訊無誤後點擊\"確認新增\"按鈕",
+    "confirmation": "帳號資訊確認",
+    "editInfo": "編輯帳號資訊",
+    "editInfoDesc": "修改帳號資訊後，系統會重新驗證並獲取最新的餘額資料",
+    "ldohSiteListHint": "沒有站點？LDOH 提供了 Linux.do 社羣內大量公益 AI 站點的目錄。",
+    "manualAdd": "手動新增",
+    "manualInfo": "手動填寫帳號資訊。帳號將被安全地儲存在本地儲存中",
+    "openLdohSiteList": "開啟 LDOH 站點列表",
+    "reDetectInfo": "如果站點資訊有變化，建議點擊\"重新識別\"按鈕（需要在目標站點先自行登入）"
+  },
+  "messages": {
+    "addSuccess": "帳號 {{name}} 新增成功!",
+    "autoDetectCookiePermissionReloadHint": "如果剛授予 Cookie 多帳號權限後首次識別一直沒有結果，可重新載入擴充套件後再試。",
+    "autoDetectFailed": "自動識別失敗: {{error}}",
+    "autoDetectSuccess": "自動識別成功！",
+    "autoDetectTakingTooLong": "自動識別耗時較長？點擊開啟排查文件",
+    "cookiePermissionGranted": "權限已授權",
+    "cookiePermissionGrantFailed": "未獲得權限授權",
+    "importCookiesEmpty": "未找到目前站點的瀏覽器 Cookie，請先確認已在該站點登入後再重試",
+    "importCookiesFailed": "匯入 Cookie 失敗：{{error}}",
+    "importCookiesFailedUnknown": "匯入 Cookie 失敗，發生未知錯誤",
+    "importCookiesLoading": "正在匯入 Cookie...",
+    "importCookiesPermissionDenied": "擴充套件無法讀取該站點的 Cookie，請先檢查瀏覽器中此站點的 Cookie / 站點權限後再重試",
+    "importCookiesSuccess": "Cookie 匯入成功",
+    "importSub2apiSessionMissing": "未找到 refresh_token。請先登入 Sub2API 控制台後重試。",
+    "importSub2apiSessionSuccess": "已匯入 Sub2API 會話",
+    "loadFailed": "載入帳號資料失敗",
+    "newApiConfigFailed": "自動配置到 New API失敗: {{error}}",
+    "operationFailed": "操作失敗: {{error}}",
+    "reloadExtensionConfirm": "重新載入擴充套件會關閉目前擴充套件頁面，請確認已儲存需要的資訊。",
+    "saveAccountFailed": "儲存帳號失敗",
+    "saveFailed": "儲存失敗",
+    "updateSuccess": "帳號 {{name}} 更新成功!",
+    "urlRequired": "請先輸入 URL"
+  },
+  "mode": {
+    "autoDetect": "自動識別",
+    "detecting": "識別中...",
+    "manualAdd": "手動新增",
+    "reDetect": "重新識別"
+  },
+  "sections": {
+    "accountAuth": {
+      "title": "帳號認證"
+    },
+    "balanceAndStats": {
+      "title": "餘額與統計"
+    },
+    "checkInConfig": {
+      "title": "簽到設定"
+    },
+    "siteInfo": {
+      "title": "站點資訊"
+    },
+    "tagsAndNotes": {
+      "description": "標籤用於組織、篩選與快速識別帳號，備註則補充上下文。",
+      "title": "標籤與備註"
+    }
+  },
+  "siteInfo": {
+    "alreadyAdded": "該站點已存在帳號",
+    "authMethod": "認證方式",
+    "authMethodPlaceholder": "認證方式",
+    "authType": {
+      "accessToken": "訪問令牌認證",
+      "cookieAuth": "Cookie 認證"
+    },
+    "cookieWarning": "推薦優先使用訪問令牌。Cookie 認證需要匯入會話 Cookie，且可能因過期/續期導致失效，需要失效後重新匯入；同站點多帳號需為每個帳號分別匯入，非必要不建議使用。",
+    "currentLoginAlreadyAdded": "當前登入帳號已新增",
+    "currentSite": "當前站點",
+    "editNow": "立即編輯",
+    "siteUrl": "網站 URL",
+    "sub2apiAuthOnly": "Sub2API 僅支援訪問令牌認證（JWT）",
+    "sub2apiHint": "Sub2API 使用短期 JWT，當失效時，擴充套件會自動使用臨時視窗嘗試獲取新的 JWT（需要在該站點已登入）。啟用“外掛託管會話”後，每個帳號可後臺自動獨立重新整理和續期認證，支援同站點多帳號。",
+    "unknown": "無法獲取",
+    "useCurrent": "使用當前站點"
+  },
+  "title": {
+    "add": "新增帳號",
+    "edit": "編輯帳號"
+  },
+  "warnings": {
+    "duplicateAccount": {
+      "actions": {
+        "continue": "繼續",
+        "disableAndContinue": "以後不再提醒，並繼續"
+      },
+      "description_other": "你已在 {{siteUrl}} 新增了 {{count}} 個帳號。繼續新增可能會造成重複，是否繼續？",
+      "descriptionExact": "在 {{siteUrl}} 上，使用者 ID {{userId}} 的帳號已存在（{{username}}）。繼續新增可能會造成重複，是否繼續？",
+      "title": "重複帳號",
+      "warningTitle": "該站點已存在帳號"
+    },
+    "managedSiteConfig": {
+      "actions": {
+        "later": "稍後再說",
+        "openSettings": "前往設定"
+      },
+      "description": "{{message}}",
+      "guide": "這個功能會先儲存目前帳號，再自動準備可用的 API Key，並預填到 {{managedSite}} 的新建渠道中，幫你更快完成渠道建立。完成託管站點配置後即可使用。",
+      "title": "先配置 {{managedSite}}",
+      "warningTitle": "{{managedSite}} 尚未完成配置"
+    },
+    "reloadExtension": {
+      "title": "重新載入擴充套件",
+      "warningTitle": "確認重新載入擴充套件？"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+import { CursorArrowRaysIcon } from "@heroicons/react/24/outline"
+import { useTranslation } from "react-i18next"
+
+import { ResponsiveToggleGroup } from "~/components/ResponsiveButtonGroup"
+import { SettingSection } from "~/components/SettingSection"
+import { Card, CardItem, CardList } from "~/components/ui"
+import { useUserPreferencesContext } from "~/contexts/UserPreferencesContext"
+import { getSidePanelSupport } from "~/utils/browser/browserApi"
+import { showResultToast, showUpdateToast } from "~/utils/core/toastHelpers"
+
+/**
+ * Lets users choose what the toolbar icon does (popup vs side panel), while
+ * reflecting runtime support and fallback messaging for unsupported devices.
+ */
+export default function ActionClickBehaviorSettings() {
+  const { t } = useTranslation("settings")
+  const { actionClickBehavior, updateActionClickBehavior } =
+    useUserPreferencesContext()
+  const sidePanelSupport = getSidePanelSupport()
+  const sidePanelSupported = sidePanelSupport.supported
+
+  const handleChange = async (behavior: "popup" | "sidepanel") => {
+    if (behavior === actionClickBehavior) return
+    const success = await updateActionClickBehavior(behavior)
+    if (!success) {
+      showUpdateToast(false, t("actionClick.title"))
+      return
+    }
+
+    if (behavior === "sidepanel" && !sidePanelSupported) {
+      showResultToast(true, t("actionClick.sidepanelFallbackToast"))
+      return
+    }
+
+    showUpdateToast(true, t("actionClick.title"))
+  }
+
+  return (
+    <SettingSection
+      id="action-click"
+      title={t("actionClick.title")}
+      description={t("actionClick.description")}
+    >
+      <Card padding="none">
+        <CardList>
+          <CardItem
+            id="action-click-behavior"
+            icon={
+              <CursorArrowRaysIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            }
+            title={t("actionClick.actionIconClickTitle")}
+            description={
+              sidePanelSupported
+                ? t("actionClick.actionIconClickDesc")
+                : t("actionClick.sidepanelUnsupportedHelper")
+            }
+            rightContent={
+              <ResponsiveToggleGroup
+                aria-label={t("actionClick.actionIconClickTitle")}
+                value={actionClickBehavior}
+                onValueChange={handleChange}
+                options={[
+                  {
+                    value: "popup",
+                    label: t("actionClick.popupLabel"),
+                    ariaLabel: t("actionClick.popupTitle"),
+                  },
+                  {
+                    value: "sidepanel",
+                    label: t("actionClick.sidepanelLabel"),
+                    ariaLabel: t("actionClick.sidepanelTitle"),
+                  },
+                ]}
+              />
+            }
+          />
+        </CardList>
+      </Card>
+    </SettingSection>
+  )
+}

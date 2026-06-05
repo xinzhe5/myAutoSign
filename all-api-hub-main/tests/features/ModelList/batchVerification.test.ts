@@ -1,0 +1,229 @@
+import { describe, expect, it } from "vitest"
+
+import {
+  createBatchVerifyModelItems,
+  MODEL_LIST_BATCH_VERIFY_API_TYPE_MODES,
+  pickBatchVerifyCompatibleToken,
+  resolveBatchVerifyApiType,
+} from "~/features/ModelList/batchVerification"
+import { MODEL_MANAGEMENT_SOURCE_KINDS } from "~/features/ModelList/modelManagementSources"
+import { DEFAULT_MODEL_GROUP } from "~/services/models/constants"
+import { API_TYPES } from "~/services/verification/aiApiVerification"
+
+describe("model list batch verification helpers", () => {
+  it("deduplicates model items by model-list row key", () => {
+    const source = {
+      kind: MODEL_MANAGEMENT_SOURCE_KINDS.ACCOUNT,
+      account: { id: "acc-1" },
+    } as any
+
+    const result = createBatchVerifyModelItems([
+      {
+        model: { model_name: "gpt-4o", enable_groups: [DEFAULT_MODEL_GROUP] },
+        source,
+      },
+      {
+        model: { model_name: "gpt-4o", enable_groups: [DEFAULT_MODEL_GROUP] },
+        source,
+      },
+      {
+        model: { model_name: "claude-3-5-sonnet", enable_groups: ["vip"] },
+        source,
+      },
+    ] as any)
+
+    expect(result).toHaveLength(2)
+    expect(result.map((item) => item.modelId)).toEqual([
+      "gpt-4o",
+      "claude-3-5-sonnet",
+    ])
+  })
+
+  it("keeps matching model names from different accounts as separate items", () => {
+    const firstAccountSource = {
+      kind: MODEL_MANAGEMENT_SOURCE_KINDS.ACCOUNT,
+      account: { id: "acc-1" },
+    } as any
+    const secondAccountSource = {
+      kind: MODEL_MANAGEMENT_SOURCE_KINDS.ACCOUNT,
+      account: { id: "acc-2" },
+    } as any
+
+    const result = createBatchVerifyModelItems([
+      {
+        model: { model_name: "gpt-4o", enable_groups: [DEFAULT_MODEL_GROUP] },
+        source: firstAccountSource,
+      },
+      {
+        model: { model_name: "gpt-4o", enable_groups: [DEFAULT_MODEL_GROUP] },
+        source: secondAccountSource,
+      },
+      {
+        model: { model_name: "gpt-4o", enable_groups: [DEFAULT_MODEL_GROUP] },
+        source: firstAccountSource,
+      },
+    ] as any)
+
+    expect(result).toHaveLength(2)
+    expect(result.map((item) => item.key)).toEqual([
+      "account:acc-1:gpt-4o",
+      "account:acc-2:gpt-4o",
+    ])
+  })
+
+  it("keeps missing model group metadata unrestricted", () => {
+    const source = {
+      kind: MODEL_MANAGEMENT_SOURCE_KINDS.ACCOUNT,
+      account: { id: "acc-1" },
+    } as any
+
+    const [item] = createBatchVerifyModelItems([
+      {
+        model: { model_name: "gpt-4o" },
+        source,
+      },
+    ] as any)
+
+    expect(item.enableGroups).toBeNull()
+  })
+
+  it("omits rows whose source cannot provide verification credentials", () => {
+    const supportedSource = {
+      kind: MODEL_MANAGEMENT_SOURCE_KINDS.ACCOUNT,
+      account: { id: "supported-account" },
+      capabilities: {
+        supportsBatchCredentialVerification: true,
+      },
+    } as any
+    const unsupportedSource = {
+      kind: MODEL_MANAGEMENT_SOURCE_KINDS.ACCOUNT,
+      account: { id: "aihubmix-account" },
+      capabilities: {
+        supportsBatchCredentialVerification: false,
+      },
+    } as any
+
+    const result = createBatchVerifyModelItems([
+      {
+        model: { model_name: "gpt-4o", enable_groups: [DEFAULT_MODEL_GROUP] },
+        source: supportedSource,
+      },
+      {
+        model: { model_name: "gpt-aihubmix", enable_groups: [] },
+        source: unsupportedSource,
+      },
+    ] as any)
+
+    expect(result.map((item) => item.key)).toEqual([
+      "account:supported-account:gpt-4o",
+    ])
+  })
+
+  it("auto-detects the closest verification API type from model id", () => {
+    expect(
+      resolveBatchVerifyApiType(
+        MODEL_LIST_BATCH_VERIFY_API_TYPE_MODES.AUTO,
+        "claude-3-5-sonnet",
+      ),
+    ).toBe(API_TYPES.ANTHROPIC)
+    expect(
+      resolveBatchVerifyApiType(
+        MODEL_LIST_BATCH_VERIFY_API_TYPE_MODES.AUTO,
+        "gemini-2.5-flash",
+      ),
+    ).toBe(API_TYPES.GOOGLE)
+    expect(
+      resolveBatchVerifyApiType(
+        MODEL_LIST_BATCH_VERIFY_API_TYPE_MODES.AUTO,
+        "gpt-4o-mini",
+      ),
+    ).toBe(API_TYPES.OPENAI_COMPATIBLE)
+    expect(resolveBatchVerifyApiType(API_TYPES.OPENAI, "gpt-4o-mini")).toBe(
+      API_TYPES.OPENAI,
+    )
+  })
+
+  it("selects the first enabled token compatible with model and group", () => {
+    const tokens = [
+      {
+        id: 1,
+        status: 0,
+        group: DEFAULT_MODEL_GROUP,
+        model_limits_enabled: false,
+        model_limits: "",
+        models: "",
+      },
+      {
+        id: 2,
+        status: 1,
+        group: "vip",
+        model_limits_enabled: false,
+        model_limits: "",
+        models: "",
+      },
+      {
+        id: 3,
+        status: 1,
+        group: DEFAULT_MODEL_GROUP,
+        model_limits_enabled: true,
+        model_limits: "gpt-4o-mini",
+        models: "",
+      },
+      {
+        id: 4,
+        status: 1,
+        group: DEFAULT_MODEL_GROUP,
+        model_limits_enabled: false,
+        model_limits: "",
+        models: "",
+      },
+    ] as any
+
+    expect(
+      pickBatchVerifyCompatibleToken(tokens, {
+        modelId: "gpt-4o-mini",
+        enableGroups: [DEFAULT_MODEL_GROUP],
+      })?.id,
+    ).toBe(3)
+  })
+
+  it("selects an enabled token when model group metadata is unavailable", () => {
+    const tokens = [
+      {
+        id: 1,
+        status: 1,
+        group: "vip",
+        model_limits_enabled: false,
+        model_limits: "",
+        models: "",
+      },
+    ] as any
+
+    expect(
+      pickBatchVerifyCompatibleToken(tokens, {
+        modelId: "gpt-4o-mini",
+        enableGroups: null,
+      })?.id,
+    ).toBe(1)
+  })
+
+  it("returns null when no enabled token is model-compatible", () => {
+    const tokens = [
+      {
+        id: 1,
+        status: 1,
+        group: "vip",
+        model_limits_enabled: false,
+        model_limits: "",
+        models: "",
+      },
+    ] as any
+
+    expect(
+      pickBatchVerifyCompatibleToken(tokens, {
+        modelId: "gpt-4o-mini",
+        enableGroups: [DEFAULT_MODEL_GROUP],
+      }),
+    ).toBeNull()
+  })
+})

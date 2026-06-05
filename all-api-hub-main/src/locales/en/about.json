@@ -1,0 +1,69 @@
+{
+  "copyrightAck": "Copyright & Acknowledgements",
+  "devMaintenance": "Development & Maintenance",
+  "features": "Features",
+  "feedbackSection": {
+    "bugReport": {
+      "button": "Open bug report",
+      "description": "Report broken behavior, errors, or unexpected results with the bug-report template."
+    },
+    "community": {
+      "button": "Open community hub",
+      "description": "See the WeChat QR code, multilingual Discord community, Telegram group, and other channels for questions, setup discussions, and troubleshooting."
+    },
+    "discussion": {
+      "button": "Open discussions",
+      "description": "Ask questions, compare setups, or start a broader community discussion on GitHub Discussions."
+    },
+    "featureRequest": {
+      "button": "Open feature request",
+      "description": "Share an improvement idea or workflow request through the feature-request template."
+    },
+    "title": "Feedback & Support"
+  },
+  "githubDesc": "View source code, submit issues or participate in project development",
+  "githubRepo": "GitHub Repository",
+  "homepage": "Project Homepage",
+  "homepageDesc": "View detailed documentation, user guides and more information",
+  "implementedFeatures": "Implemented Features",
+  "intro": "All API Hub is a browser extension for managing both third-party New API-compatible relay sites and your own New API instance. It centralizes account and balance monitoring, smart sorting, and site detection, and provides automation features such as auto-refresh and temp-window firewall bypass. For self-hosted New API, it also offers channel management and model list synchronization, and integrates with CLIProxyAPI, WebDAV backup, and import/export tools.",
+  "privacyText": "Sensitive data such as accounts, API keys, cookies, balances, request content, and user input stays local by default. Optional anonymous product analytics are used only to prioritize fixes for common issues, improve core workflows and compatibility, and reduce unnecessary friction, and they do not collect that sensitive data.",
+  "privacyTitle": "Privacy Protection",
+  "projectLinks": "Project Links",
+  "releaseUpdate": {
+    "currentVersion": "Current version: v{{version}}",
+    "latestVersion": "Latest stable: v{{version}}",
+    "title": "Version Updates"
+  },
+  "starRepo": "Go star it",
+  "stores": {
+    "chrome": "Chrome Web Store",
+    "edge": "Microsoft Edge Add-ons",
+    "firefox": "Firefox Add-ons"
+  },
+  "storesSection": {
+    "download": {
+      "button": "Open store",
+      "description": "Download from {{store}}."
+    },
+    "review": {
+      "button": "Rate on {{store}}",
+      "description": "If All API Hub helps you, a positive review on {{store}} really helps.",
+      "title": "Leave a positive review"
+    },
+    "title": "Rate & Download"
+  },
+  "techStack": {
+    "headlessui": "Unstyled UI components",
+    "react": "User interface library",
+    "tailwindcss": "Atomic CSS framework",
+    "title": "Tech Stack",
+    "typescript": "Type-safe JavaScript",
+    "wxt": "Browser extension development framework"
+  },
+  "thanksDesc": "Thanks to all developers who have contributed to the open source community, the development of this plugin benefits from these excellent open source projects and tools",
+  "title": "About",
+  "upcomingFeatures": "Upcoming Features",
+  "version": "Version:",
+  "visitHomepage": "Visit Homepage"
+}
