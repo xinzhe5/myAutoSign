@@ -218,9 +218,7 @@ async function clearNewApiHeaderRule() {
 function buildNewApiHeaders(account) {
   const headers = {
     Accept: "application/json",
-    "Content-Type": "application/json",
-    Pragma: "no-cache",
-    ...buildCompatUserIdHeaders(account.userId)
+    "Content-Type": "application/json"
   };
 
   if (account.authType === AUTH_TYPES.ACCESS_TOKEN && account.accessToken) {
