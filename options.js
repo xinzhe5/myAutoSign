@@ -1,333 +1,690 @@
-const STORAGE_KEY = "scheduleTime";
-const LAST_OPEN_RESULT_KEY = "lastOpenResult";
-const NEW_API_CONFIG_KEY = "newApiCheckinConfig";
-const LAST_CHECKIN_RESULT_KEY = "lastNewApiCheckinResult";
-const DEFAULT_TIME = "09:00";
+const {
+  SITE_TYPES,
+  SITE_TYPE_LABELS,
+  AUTH_TYPES,
+  CHECKIN_STATUS,
+  STORAGE_KEYS,
+  DEFAULTS,
+  normalizeBaseUrl,
+  detectSiteType,
+  getDefaultAuthType,
+  normalizeAccount,
+  normalizeSettings,
+  statusIsSuccess
+} = globalThis.MyAutoSignShared;
+
 const TRIGGER_TEXT_MAP = {
   alarm: "定时触发",
-  "catch-up": "补开触发",
+  "catch-up": "补执行",
   manual: "手动触发",
-  schedule: "计划触发"
+  retry: "失败重试"
 };
 
-const form = document.getElementById("settings-form");
-const timeInput = document.getElementById("schedule-time");
-const status = document.getElementById("status");
-const lastOpenTime = document.getElementById("last-open-time");
-const lastOpenStatus = document.getElementById("last-open-status");
-const lastOpenDetail = document.getElementById("last-open-detail");
-const newApiForm = document.getElementById("new-api-form");
-const newApiEnabled = document.getElementById("new-api-enabled");
-const siteList = document.getElementById("new-api-site-list");
-const addSiteButton = document.getElementById("add-new-api-site");
-const newApiStatus = document.getElementById("new-api-status");
-const runCheckinButton = document.getElementById("run-checkin");
-const lastCheckinTime = document.getElementById("last-checkin-time");
-const lastCheckinStatus = document.getElementById("last-checkin-status");
-const lastCheckinDetail = document.getElementById("last-checkin-detail");
+let appState = {
+  accounts: [],
+  autoCheckinSettings: normalizeSettings(),
+  autoCheckinStatus: null,
+  lastOpenResult: null,
+  scheduleTime: DEFAULTS.scheduleTime
+};
+let editingAccountId = null;
+let siteTypeTouched = false;
+let authTypeTouched = false;
 
-function createEmptySite() {
-  return {
-    id: `site-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    enabled: true,
-    name: "",
-    baseUrl: "",
-    accessToken: "",
-    userId: "",
-    turnstileToken: "",
-    cookie: ""
-  };
-}
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
-function normalizeSite(site = {}, index = 0) {
-  return {
-    id: String(site.id || `site-${index + 1}`),
-    enabled: site.enabled !== false,
-    name: String(site.name || ""),
-    baseUrl: String(site.baseUrl || "").trim().replace(/\/+$/, ""),
-    accessToken: String(site.accessToken || "").trim(),
-    userId: String(site.userId || "").trim(),
-    turnstileToken: String(site.turnstileToken || "").trim(),
-    cookie: String(site.cookie || "").trim()
-  };
-}
+const elements = {
+  navLinks: $$(".nav-tabs a"),
+  pages: $$(".page"),
+  newAccountButton: $("#new-account-button"),
+  accountEditor: $("#account-editor"),
+  accountEditorTitle: $("#account-editor-title"),
+  accountForm: $("#account-form"),
+  accountId: $("#account-id"),
+  accountBaseUrl: $("#account-base-url"),
+  accountSiteType: $("#account-site-type"),
+  accountAuthType: $("#account-auth-type"),
+  accountName: $("#account-name"),
+  accountUsername: $("#account-username"),
+  accountUserId: $("#account-user-id"),
+  accountAccessToken: $("#account-access-token"),
+  accountCookie: $("#account-cookie"),
+  accountTurnstileToken: $("#account-turnstile-token"),
+  accountNotes: $("#account-notes"),
+  accountEnabled: $("#account-enabled"),
+  accountAutoCheckinEnabled: $("#account-auto-checkin-enabled"),
+  accountAccessTokenField: $("#account-access-token-field"),
+  accountCookieField: $("#account-cookie-field"),
+  accountTurnstileField: $("#account-turnstile-field"),
+  accountFormStatus: $("#account-form-status"),
+  detectAccountButton: $("#detect-account-button"),
+  cancelAccountEdit: $("#cancel-account-edit"),
+  accountList: $("#account-list"),
+  accountEmpty: $("#account-empty"),
+  accountSearch: $("#account-search"),
+  accountTypeFilter: $("#account-type-filter"),
+  accountEnabledFilter: $("#account-enabled-filter"),
+  autoForm: $("#auto-checkin-settings-form"),
+  autoEnabled: $("#auto-checkin-enabled"),
+  autoWindowStart: $("#auto-window-start"),
+  autoWindowEnd: $("#auto-window-end"),
+  autoRetryEnabled: $("#auto-retry-enabled"),
+  autoMaxRetry: $("#auto-max-retry"),
+  autoRetryInterval: $("#auto-retry-interval"),
+  autoSettingsStatus: $("#auto-settings-status"),
+  runAutoCheckinButton: $("#run-auto-checkin-button"),
+  retryFailedButton: $("#retry-failed-button"),
+  metricLastRun: $("#metric-last-run"),
+  metricNextDaily: $("#metric-next-daily"),
+  metricNextRetry: $("#metric-next-retry"),
+  metricSummary: $("#metric-summary"),
+  resultsBody: $("#checkin-results-body"),
+  checkinEmpty: $("#checkin-empty"),
+  openForm: $("#open-settings-form"),
+  scheduleTime: $("#schedule-time"),
+  openSettingsStatus: $("#open-settings-status"),
+  lastOpenTime: $("#last-open-time"),
+  lastOpenStatus: $("#last-open-status"),
+  lastOpenDetail: $("#last-open-detail")
+};
 
-function normalizeConfig(config = {}) {
-  const rawSites = Array.isArray(config.sites)
-    ? config.sites
-    : config.baseUrl
-      ? [config]
-      : [createEmptySite()];
-
-  return {
-    enabled: Boolean(config.enabled),
-    sites: rawSites.map(normalizeSite)
-  };
-}
-
-async function loadSettings() {
-  const stored = await chrome.storage.sync.get(STORAGE_KEY);
-  timeInput.value = stored[STORAGE_KEY] || DEFAULT_TIME;
-}
-
-function createSiteCard(site, index) {
-  const card = document.createElement("section");
-  card.className = "site-card";
-  card.dataset.siteId = site.id;
-
-  card.innerHTML = `
-    <div class="site-card-header">
-      <label class="checkbox-row">
-        <input class="site-enabled" type="checkbox">
-        <span>启用站点 ${index + 1}</span>
-      </label>
-      <button class="secondary-button remove-site" type="button">删除</button>
-    </div>
-
-    <label>备注名称（可选）</label>
-    <input class="site-name" type="text" autocomplete="off" placeholder="例如 主站">
-
-    <label>站点地址</label>
-    <input class="site-base-url" type="url" placeholder="https://网站域名">
-
-    <label>Access Token</label>
-    <input class="site-access-token" type="password" autocomplete="off" placeholder="你的 access_token">
-
-    <label>用户 ID</label>
-    <input class="site-user-id" type="text" autocomplete="off" placeholder="你的用户 ID">
-
-    <label>Turnstile Token（可选）</label>
-    <input class="site-turnstile-token" type="password" autocomplete="off">
-
-    <label>Cookie（可选，用于 Cloudflare/WAF 场景）</label>
-    <textarea class="site-cookie" rows="3" spellcheck="false"></textarea>
-  `;
-
-  card.querySelector(".site-enabled").checked = site.enabled;
-  card.querySelector(".site-name").value = site.name;
-  card.querySelector(".site-base-url").value = site.baseUrl;
-  card.querySelector(".site-access-token").value = site.accessToken;
-  card.querySelector(".site-user-id").value = site.userId;
-  card.querySelector(".site-turnstile-token").value = site.turnstileToken;
-  card.querySelector(".site-cookie").value = site.cookie;
-  card.querySelector(".remove-site").addEventListener("click", () => {
-    card.remove();
-
-    if (!siteList.children.length) {
-      addSiteCard(createEmptySite());
+function sendMessage(type, payload = {}) {
+  return chrome.runtime.sendMessage({ type, ...payload }).then((response) => {
+    if (!response?.ok) {
+      throw new Error(response?.error || "后台未返回成功结果");
     }
+    return response;
   });
-
-  return card;
 }
 
-function addSiteCard(site = createEmptySite()) {
-  siteList.appendChild(createSiteCard(site, siteList.children.length));
-}
-
-async function loadNewApiSettings() {
-  const stored = await chrome.storage.sync.get(NEW_API_CONFIG_KEY);
-  const config = normalizeConfig(stored[NEW_API_CONFIG_KEY]);
-
-  newApiEnabled.checked = config.enabled;
-  siteList.replaceChildren();
-  config.sites.forEach((site) => addSiteCard(site));
-}
-
-function readSitesFromForm() {
-  return [...siteList.querySelectorAll(".site-card")]
-    .map((card, index) => normalizeSite({
-      id: card.dataset.siteId || `site-${index + 1}`,
-      enabled: card.querySelector(".site-enabled").checked,
-      name: card.querySelector(".site-name").value,
-      baseUrl: card.querySelector(".site-base-url").value,
-      accessToken: card.querySelector(".site-access-token").value,
-      userId: card.querySelector(".site-user-id").value,
-      turnstileToken: card.querySelector(".site-turnstile-token").value,
-      cookie: card.querySelector(".site-cookie").value
-    }, index))
-    .filter((site) => site.baseUrl || site.accessToken || site.userId || site.cookie);
-}
-
-function formatDateTime(isoDateTime) {
-  if (!isoDateTime) {
-    return "暂无记录";
+function formatDateTime(value) {
+  if (!value) {
+    return "暂无";
   }
-
-  const parsed = new Date(isoDateTime);
-  if (Number.isNaN(parsed.getTime())) {
-    return "时间格式异常";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "时间异常";
   }
-
-  return parsed.toLocaleString("zh-CN", { hour12: false });
+  return date.toLocaleString("zh-CN", { hour12: false });
 }
 
-function getStatusType(result) {
-  if (result.failureCount === 0) {
+function formatTimestamp(value) {
+  return value ? formatDateTime(value) : "暂无";
+}
+
+function getStatusClass(status) {
+  if (statusIsSuccess(status)) {
     return "success";
   }
+  if (status === CHECKIN_STATUS.SKIPPED || status === CHECKIN_STATUS.CONFIG_ERROR || status === CHECKIN_STATUS.TURNSTILE_REQUIRED) {
+    return "warning";
+  }
+  return "error";
+}
 
-  if (result.successCount === 0) {
-    return "error";
+function getStatusLabel(status) {
+  switch (status) {
+    case CHECKIN_STATUS.SUCCESS:
+      return "成功";
+    case CHECKIN_STATUS.ALREADY_CHECKED:
+      return "已签到";
+    case CHECKIN_STATUS.FAILED:
+      return "失败";
+    case CHECKIN_STATUS.SKIPPED:
+      return "跳过";
+    case CHECKIN_STATUS.CONFIG_ERROR:
+      return "配置错误";
+    case CHECKIN_STATUS.TURNSTILE_REQUIRED:
+      return "需要验证";
+    default:
+      return status || "未知";
+  }
+}
+
+function routeTo(hash) {
+  const route = (hash || location.hash || "#accounts").replace("#", "") || "accounts";
+  elements.pages.forEach((page) => {
+    page.hidden = page.dataset.page !== route;
+  });
+  elements.navLinks.forEach((link) => {
+    link.classList.toggle("active", link.dataset.route === route);
+  });
+}
+
+async function loadState() {
+  const response = await sendMessage("get-state");
+  appState = response.state;
+  renderAll();
+}
+
+function renderAll() {
+  renderAccountFormAuthFields();
+  renderAccounts();
+  renderAutoCheckinSettings();
+  renderAutoCheckinStatus();
+  renderOpenSettings();
+}
+
+function renderAccountFormAuthFields() {
+  const siteType = elements.accountSiteType.value;
+  const authType = elements.accountAuthType.value;
+  const isAccessToken = authType === AUTH_TYPES.ACCESS_TOKEN;
+  const isCookie = authType === AUTH_TYPES.COOKIE;
+
+  elements.accountAccessTokenField.hidden = !isAccessToken;
+  elements.accountCookieField.hidden = !isCookie;
+  elements.accountTurnstileField.hidden = siteType !== SITE_TYPES.NEW_API;
+  elements.accountAccessToken.required = isAccessToken;
+  elements.accountCookie.required = isCookie;
+}
+
+function getAccountLastResult(accountId) {
+  return appState.autoCheckinStatus?.perAccount?.[accountId] || null;
+}
+
+function accountMatchesFilters(account) {
+  const keyword = elements.accountSearch.value.trim().toLowerCase();
+  const typeFilter = elements.accountTypeFilter.value;
+  const enabledFilter = elements.accountEnabledFilter.value;
+
+  if (typeFilter !== "all" && account.siteType !== typeFilter) {
+    return false;
   }
 
-  return "warning";
+  if (enabledFilter === "enabled" && !account.enabled) {
+    return false;
+  }
+
+  if (enabledFilter === "disabled" && account.enabled) {
+    return false;
+  }
+
+  if (!keyword) {
+    return true;
+  }
+
+  return [
+    account.name,
+    account.baseUrl,
+    account.username,
+    account.userId,
+    SITE_TYPE_LABELS[account.siteType]
+  ].some((value) => String(value || "").toLowerCase().includes(keyword));
+}
+
+function renderAccounts() {
+  const accounts = appState.accounts.filter(accountMatchesFilters);
+  elements.accountList.replaceChildren();
+  elements.accountEmpty.hidden = appState.accounts.length > 0;
+
+  for (const account of accounts) {
+    const result = getAccountLastResult(account.id);
+    const item = document.createElement("article");
+    item.className = "account-card";
+    item.dataset.accountId = account.id;
+
+    const statusHtml = result
+      ? `<span class="badge ${getStatusClass(result.status)}">${getStatusLabel(result.status)}</span>`
+      : `<span class="badge neutral">暂无记录</span>`;
+
+    item.innerHTML = `
+      <div class="account-main">
+        <div>
+          <h3>${escapeHtml(account.name || account.username || account.baseUrl)}</h3>
+          <p>${escapeHtml(account.baseUrl)}</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge">${escapeHtml(SITE_TYPE_LABELS[account.siteType] || account.siteType)}</span>
+          <span class="badge">${account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token"}</span>
+          <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "已启用" : "已停用"}</span>
+          <span class="badge ${account.autoCheckinEnabled !== false ? "success" : "neutral"}">${account.autoCheckinEnabled !== false ? "自动签到" : "不签到"}</span>
+          ${statusHtml}
+        </div>
+      </div>
+      <div class="account-meta">
+        <span>用户：${escapeHtml(account.username || "-")}</span>
+        <span>ID：${escapeHtml(account.userId || "-")}</span>
+        <span>最近：${escapeHtml(result ? formatTimestamp(result.timestamp) : "暂无")}</span>
+      </div>
+      <div class="account-actions">
+        <button type="button" class="secondary-button" data-action="run">签到</button>
+        <button type="button" class="secondary-button" data-action="open">打开</button>
+        <button type="button" class="secondary-button" data-action="edit">编辑</button>
+        <button type="button" class="danger-button" data-action="delete">删除</button>
+      </div>
+    `;
+
+    elements.accountList.appendChild(item);
+  }
+}
+
+function renderAutoCheckinSettings() {
+  const settings = appState.autoCheckinSettings || normalizeSettings();
+  elements.autoEnabled.checked = settings.enabled;
+  elements.autoWindowStart.value = settings.windowStart || DEFAULTS.windowStart;
+  elements.autoWindowEnd.value = settings.windowEnd || DEFAULTS.windowEnd;
+  elements.autoRetryEnabled.checked = settings.retryEnabled;
+  elements.autoMaxRetry.value = settings.maxRetryPerDay;
+  elements.autoRetryInterval.value = settings.retryIntervalMinutes;
+}
+
+function renderAutoCheckinStatus() {
+  const status = appState.autoCheckinStatus;
+  const summary = status?.summary || {
+    successCount: 0,
+    failedCount: 0,
+    skippedCount: 0
+  };
+
+  elements.metricLastRun.textContent = formatDateTime(status?.lastRunAt);
+  elements.metricNextDaily.textContent = formatDateTime(status?.nextDailyRunAt);
+  elements.metricNextRetry.textContent = formatDateTime(status?.nextRetryRunAt);
+  elements.metricSummary.textContent = `${summary.successCount || 0} / ${summary.failedCount || 0} / ${summary.skippedCount || 0}`;
+  elements.resultsBody.replaceChildren();
+
+  const results = Object.values(status?.perAccount || {})
+    .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  elements.checkinEmpty.hidden = results.length > 0;
+
+  for (const result of results) {
+    const row = document.createElement("tr");
+    row.dataset.accountId = result.accountId;
+    row.innerHTML = `
+      <td>
+        <strong>${escapeHtml(result.accountName || "-")}</strong>
+        <small>${escapeHtml(result.baseUrl || "")}</small>
+      </td>
+      <td>${escapeHtml(SITE_TYPE_LABELS[result.siteType] || result.siteType || "-")}</td>
+      <td><span class="badge ${getStatusClass(result.status)}">${getStatusLabel(result.status)}</span></td>
+      <td>${escapeHtml(formatResultMessage(result))}</td>
+      <td>${escapeHtml(formatTimestamp(result.timestamp))}</td>
+      <td>
+        <button type="button" class="secondary-button table-button" data-result-action="retry">重试</button>
+        <button type="button" class="secondary-button table-button" data-result-action="edit">编辑</button>
+      </td>
+    `;
+    elements.resultsBody.appendChild(row);
+  }
+}
+
+function formatResultMessage(result) {
+  const parts = [result.message || "-"];
+  if (result.rewardToday) {
+    parts.push(`本次奖励 ${result.rewardToday}`);
+  }
+  if (result.currentQuota) {
+    parts.push(`当前额度 ${result.currentQuota}`);
+  }
+  return parts.join("；");
+}
+
+function renderOpenSettings() {
+  elements.scheduleTime.value = appState.scheduleTime || DEFAULTS.scheduleTime;
+  renderLastOpenResult(appState.lastOpenResult);
 }
 
 function renderLastOpenResult(result) {
   if (!result) {
-    lastOpenTime.textContent = "暂无记录";
-    lastOpenStatus.textContent = "暂无记录";
-    lastOpenStatus.className = "feedback-status";
-    lastOpenDetail.textContent = "扩展执行过自动打开后会显示结果。";
+    elements.lastOpenTime.textContent = "暂无记录";
+    elements.lastOpenStatus.textContent = "暂无记录";
+    elements.lastOpenStatus.className = "feedback-status";
+    elements.lastOpenDetail.textContent = "扩展执行过自动打开后会显示结果。";
     return;
   }
 
-  const statusType = getStatusType(result);
+  const statusType = result.failureCount === 0
+    ? "success"
+    : result.successCount === 0
+      ? "error"
+      : "warning";
+  const statusText = statusType === "success" ? "成功" : statusType === "warning" ? "部分成功" : "失败";
   const triggerText = TRIGGER_TEXT_MAP[result.trigger] || "未知触发";
-  const statusText = statusType === "success"
-    ? "成功"
-    : statusType === "warning"
-      ? "部分成功"
-      : "失败";
   const failedUrls = (result.failures || [])
     .map((item) => item.message ? `${item.url}：${item.message}` : item.url)
     .join("；");
 
-  lastOpenTime.textContent = formatDateTime(result.openedAt);
-  lastOpenStatus.textContent = `${statusText}（${result.successCount}/${result.targetCount}）`;
-  lastOpenStatus.className = `feedback-status ${statusType}`;
-  lastOpenDetail.textContent = failedUrls
+  elements.lastOpenTime.textContent = formatDateTime(result.openedAt);
+  elements.lastOpenStatus.textContent = `${statusText}（${result.successCount}/${result.targetCount}）`;
+  elements.lastOpenStatus.className = `feedback-status ${statusType}`;
+  elements.lastOpenDetail.textContent = failedUrls
     ? `${triggerText}：${result.failureCount} 个页面打开失败（${failedUrls}）。`
     : `${triggerText}：全部页面打开成功。`;
 }
 
-function getCheckinStatusType(result) {
-  if (result.status === "CHECKED_IN" || result.status === "ALREADY_CHECKED_IN") {
-    return "success";
-  }
-
-  if (result.status === "PARTIAL_SUCCESS" || result.status === "TURNSTILE_REQUIRED" || result.status === "CONFIG_ERROR") {
-    return "warning";
-  }
-
-  if (result.status === "DISABLED") {
-    return "";
-  }
-
-  return "error";
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-function formatSiteResult(result) {
-  const name = result.siteName || result.baseUrl || "未命名站点";
-  const parts = [`${name}: ${result.status} - ${result.message}`];
-
-  if (result.rewardToday) {
-    parts.push(`本次奖励 ${result.rewardToday}`);
-  }
-
-  if (result.currentQuota) {
-    parts.push(`当前额度 ${result.currentQuota}`);
-  }
-
-  return parts.join("；");
+function getEmptyAccount() {
+  return normalizeAccount({
+    enabled: true,
+    autoCheckinEnabled: true,
+    siteType: SITE_TYPES.NEW_API,
+    authType: AUTH_TYPES.ACCESS_TOKEN
+  });
 }
 
-function renderLastCheckinResult(result) {
-  if (!result) {
-    lastCheckinTime.textContent = "暂无记录";
-    lastCheckinStatus.textContent = "暂无记录";
-    lastCheckinStatus.className = "feedback-status";
-    lastCheckinDetail.textContent = "扩展执行过 new-api 签到后会显示结果。";
+function fillAccountForm(account) {
+  editingAccountId = account?.id || null;
+  const draft = account || getEmptyAccount();
+  elements.accountEditorTitle.textContent = editingAccountId ? "编辑账号" : "添加账号";
+  elements.accountId.value = draft.id || "";
+  elements.accountBaseUrl.value = draft.baseUrl || "";
+  elements.accountSiteType.value = draft.siteType || SITE_TYPES.NEW_API;
+  elements.accountAuthType.value = draft.authType || getDefaultAuthType(draft.siteType, draft.baseUrl);
+  elements.accountName.value = draft.name || "";
+  elements.accountUsername.value = draft.username || "";
+  elements.accountUserId.value = draft.userId || "";
+  elements.accountAccessToken.value = draft.accessToken || "";
+  elements.accountCookie.value = draft.cookie || "";
+  elements.accountTurnstileToken.value = draft.turnstileToken || "";
+  elements.accountNotes.value = draft.notes || "";
+  elements.accountEnabled.checked = draft.enabled !== false;
+  elements.accountAutoCheckinEnabled.checked = draft.autoCheckinEnabled !== false;
+  elements.accountFormStatus.textContent = "";
+  siteTypeTouched = Boolean(editingAccountId);
+  authTypeTouched = Boolean(editingAccountId);
+  renderAccountFormAuthFields();
+  elements.accountEditor.hidden = false;
+  elements.accountBaseUrl.focus();
+}
+
+function readAccountForm() {
+  const baseUrl = normalizeBaseUrl(elements.accountBaseUrl.value);
+  const siteType = elements.accountSiteType.value;
+  const authType = elements.accountAuthType.value;
+
+  return normalizeAccount({
+    id: elements.accountId.value || undefined,
+    baseUrl,
+    siteType,
+    authType,
+    name: elements.accountName.value,
+    username: elements.accountUsername.value,
+    userId: elements.accountUserId.value,
+    accessToken: elements.accountAccessToken.value,
+    cookie: elements.accountCookie.value,
+    turnstileToken: elements.accountTurnstileToken.value,
+    notes: elements.accountNotes.value,
+    enabled: elements.accountEnabled.checked,
+    autoCheckinEnabled: elements.accountAutoCheckinEnabled.checked,
+    createdAt: appState.accounts.find((account) => account.id === elements.accountId.value)?.createdAt
+  });
+}
+
+function validateAccount(account) {
+  if (!account.baseUrl) {
+    return "请填写站点地址。";
+  }
+  if (!account.userId) {
+    return "请填写用户 ID，或先使用自动识别。";
+  }
+  if (account.authType === AUTH_TYPES.ACCESS_TOKEN && !account.accessToken) {
+    return "Access Token 认证需要填写 Access Token。";
+  }
+  if (account.authType === AUTH_TYPES.COOKIE && !account.cookie) {
+    return "Cookie 认证需要填写或自动识别导入 Cookie。";
+  }
+  return "";
+}
+
+function applyUrlDefaults() {
+  const baseUrl = normalizeBaseUrl(elements.accountBaseUrl.value);
+  if (!baseUrl) {
     return;
   }
 
-  const statusType = getCheckinStatusType(result);
-  const triggerText = TRIGGER_TEXT_MAP[result.trigger] || "未知触发";
-  const siteDetails = Array.isArray(result.results) && result.results.length
-    ? result.results.map(formatSiteResult).join("\n")
-    : result.message;
-
-  lastCheckinTime.textContent = formatDateTime(result.checkedAt);
-  lastCheckinStatus.textContent = result.status || "未知";
-  lastCheckinStatus.className = statusType
-    ? `feedback-status ${statusType}`
-    : "feedback-status";
-  lastCheckinDetail.textContent = `${triggerText}：\n${siteDetails}`;
+  const detectedType = detectSiteType(baseUrl, elements.accountSiteType.value);
+  if (!siteTypeTouched) {
+    elements.accountSiteType.value = detectedType;
+  }
+  if (!authTypeTouched) {
+    elements.accountAuthType.value = getDefaultAuthType(elements.accountSiteType.value, baseUrl);
+  }
+  if (!elements.accountName.value.trim()) {
+    try {
+      elements.accountName.value = new URL(baseUrl).hostname;
+    } catch (error) {
+      // Keep the user's current input.
+    }
+  }
+  renderAccountFormAuthFields();
 }
 
-async function loadLastOpenResult() {
-  const stored = await chrome.storage.local.get(LAST_OPEN_RESULT_KEY);
-  renderLastOpenResult(stored[LAST_OPEN_RESULT_KEY]);
-}
-
-async function loadLastCheckinResult() {
-  const stored = await chrome.storage.local.get(LAST_CHECKIN_RESULT_KEY);
-  renderLastCheckinResult(stored[LAST_CHECKIN_RESULT_KEY]);
-}
-
-form.addEventListener("submit", async (event) => {
+async function saveAccountFromForm(event) {
   event.preventDefault();
+  const account = readAccountForm();
+  const validationError = validateAccount(account);
+  if (validationError) {
+    elements.accountFormStatus.textContent = validationError;
+    elements.accountFormStatus.className = "status error";
+    return;
+  }
 
-  await chrome.storage.sync.set({ [STORAGE_KEY]: timeInput.value });
-  status.textContent = `保存成功。网页会在每天 ${timeInput.value} 后的 30 分钟内随机自动打开 Linux.do 和 AnyRouter 控制台。`;
-});
+  elements.accountFormStatus.textContent = "正在保存账号...";
+  elements.accountFormStatus.className = "status";
 
-addSiteButton.addEventListener("click", () => {
-  addSiteCard(createEmptySite());
-});
+  try {
+    await sendMessage("save-account", { account });
+    elements.accountFormStatus.textContent = "账号已保存。";
+    elements.accountFormStatus.className = "status success";
+    elements.accountEditor.hidden = true;
+    editingAccountId = null;
+    await loadState();
+  } catch (error) {
+    elements.accountFormStatus.textContent = `保存失败：${error.message}`;
+    elements.accountFormStatus.className = "status error";
+  }
+}
 
-newApiForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+async function autoDetectAccount() {
+  applyUrlDefaults();
+  const input = readAccountForm();
+  elements.detectAccountButton.disabled = true;
+  elements.accountFormStatus.textContent = "正在从目标站点自动识别账号...";
+  elements.accountFormStatus.className = "status";
 
-  const sites = readSitesFromForm();
-  await chrome.storage.sync.set({
-    [NEW_API_CONFIG_KEY]: {
-      enabled: newApiEnabled.checked,
-      sites
+  try {
+    const response = await sendMessage("detect-account", { input });
+    const detected = response.data;
+    elements.accountBaseUrl.value = detected.baseUrl || input.baseUrl;
+    elements.accountSiteType.value = detected.siteType || input.siteType;
+    elements.accountAuthType.value = detected.authType || input.authType;
+    elements.accountName.value = elements.accountName.value || detected.name || "";
+    elements.accountUsername.value = detected.username || elements.accountUsername.value;
+    elements.accountUserId.value = detected.userId || elements.accountUserId.value;
+    elements.accountAccessToken.value = detected.accessToken || elements.accountAccessToken.value;
+    elements.accountCookie.value = detected.cookie || elements.accountCookie.value;
+    siteTypeTouched = true;
+    authTypeTouched = true;
+    renderAccountFormAuthFields();
+    elements.accountFormStatus.textContent = "自动识别完成，请确认后保存账号。";
+    elements.accountFormStatus.className = "status success";
+  } catch (error) {
+    elements.accountFormStatus.textContent = `自动识别失败：${error.message}`;
+    elements.accountFormStatus.className = "status error";
+  } finally {
+    elements.detectAccountButton.disabled = false;
+  }
+}
+
+async function runAutoCheckin(options, button, messageTarget) {
+  if (button) {
+    button.disabled = true;
+  }
+  if (messageTarget) {
+    messageTarget.textContent = "正在执行签到...";
+    messageTarget.className = "status";
+  }
+
+  try {
+    await sendMessage("run-auto-checkin", { options });
+    await loadState();
+    if (messageTarget) {
+      messageTarget.textContent = "签到执行完成。";
+      messageTarget.className = "status success";
+    }
+  } catch (error) {
+    if (messageTarget) {
+      messageTarget.textContent = `签到失败：${error.message}`;
+      messageTarget.className = "status error";
+    }
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+  }
+}
+
+function bindEvents() {
+  window.addEventListener("hashchange", () => routeTo(location.hash));
+
+  elements.newAccountButton.addEventListener("click", () => fillAccountForm(null));
+  elements.cancelAccountEdit.addEventListener("click", () => {
+    elements.accountEditor.hidden = true;
+    editingAccountId = null;
+  });
+  elements.accountForm.addEventListener("submit", saveAccountFromForm);
+  elements.detectAccountButton.addEventListener("click", () => void autoDetectAccount());
+  elements.accountBaseUrl.addEventListener("blur", applyUrlDefaults);
+  elements.accountBaseUrl.addEventListener("input", () => {
+    if (!siteTypeTouched || !authTypeTouched) {
+      applyUrlDefaults();
+    }
+  });
+  elements.accountSiteType.addEventListener("change", () => {
+    siteTypeTouched = true;
+    if (!authTypeTouched || elements.accountSiteType.value === SITE_TYPES.ANYROUTER) {
+      elements.accountAuthType.value = getDefaultAuthType(elements.accountSiteType.value, elements.accountBaseUrl.value);
+    }
+    renderAccountFormAuthFields();
+  });
+  elements.accountAuthType.addEventListener("change", () => {
+    authTypeTouched = true;
+    renderAccountFormAuthFields();
+  });
+  elements.accountSearch.addEventListener("input", renderAccounts);
+  elements.accountTypeFilter.addEventListener("change", renderAccounts);
+  elements.accountEnabledFilter.addEventListener("change", renderAccounts);
+
+  elements.accountList.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const card = button.closest(".account-card");
+    const account = appState.accounts.find((item) => item.id === card?.dataset.accountId);
+    if (!account) return;
+
+    if (button.dataset.action === "edit") {
+      fillAccountForm(account);
+      return;
+    }
+    if (button.dataset.action === "open") {
+      await sendMessage("open-account-site", { url: account.baseUrl });
+      return;
+    }
+    if (button.dataset.action === "run") {
+      await runAutoCheckin({ trigger: "manual", accountIds: [account.id] }, button, elements.autoSettingsStatus);
+      return;
+    }
+    if (button.dataset.action === "delete") {
+      if (confirm(`确定删除账号「${account.name || account.baseUrl}」吗？`)) {
+        await sendMessage("delete-account", { accountId: account.id });
+        await loadState();
+      }
     }
   });
 
-  newApiStatus.textContent = newApiEnabled.checked
-    ? `签到配置已保存，共 ${sites.length} 个站点。扩展会在每日任务触发时逐个执行 new-api 签到。`
-    : "签到配置已保存，当前未启用自动签到。";
-});
+  elements.autoForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const settings = {
+      enabled: elements.autoEnabled.checked,
+      windowStart: elements.autoWindowStart.value,
+      windowEnd: elements.autoWindowEnd.value,
+      retryEnabled: elements.autoRetryEnabled.checked,
+      maxRetryPerDay: elements.autoMaxRetry.value,
+      retryIntervalMinutes: elements.autoRetryInterval.value
+    };
 
-runCheckinButton.addEventListener("click", async () => {
-  runCheckinButton.disabled = true;
-  newApiStatus.textContent = "正在执行 new-api 签到...";
+    try {
+      await sendMessage("save-auto-checkin-settings", { settings });
+      elements.autoSettingsStatus.textContent = "自动签到设置已保存。";
+      elements.autoSettingsStatus.className = "status success";
+      await loadState();
+    } catch (error) {
+      elements.autoSettingsStatus.textContent = `保存失败：${error.message}`;
+      elements.autoSettingsStatus.className = "status error";
+    }
+  });
 
-  try {
-    const response = await chrome.runtime.sendMessage({ type: "run-new-api-checkin" });
+  elements.runAutoCheckinButton.addEventListener("click", () => (
+    runAutoCheckin({ trigger: "manual" }, elements.runAutoCheckinButton, elements.autoSettingsStatus)
+  ));
+  elements.retryFailedButton.addEventListener("click", () => (
+    runAutoCheckin({ trigger: "manual", retryOnly: true }, elements.retryFailedButton, elements.autoSettingsStatus)
+  ));
 
-    if (!response?.ok) {
-      throw new Error(response?.error || "后台未返回签到结果");
+  elements.resultsBody.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-result-action]");
+    if (!button) return;
+    const row = button.closest("tr");
+    const account = appState.accounts.find((item) => item.id === row?.dataset.accountId);
+    if (!account) return;
+
+    if (button.dataset.resultAction === "edit") {
+      location.hash = "#accounts";
+      fillAccountForm(account);
+      return;
     }
 
-    renderLastCheckinResult(response.result);
-    newApiStatus.textContent = response.result.message || "签到执行完成。";
-  } catch (error) {
-    newApiStatus.textContent = `签到执行失败：${error?.message || String(error)}`;
-  } finally {
-    runCheckinButton.disabled = false;
-  }
-});
+    if (button.dataset.resultAction === "retry") {
+      await runAutoCheckin({ trigger: "manual", accountIds: [account.id] }, button, elements.autoSettingsStatus);
+    }
+  });
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local" && changes[LAST_OPEN_RESULT_KEY]) {
-    renderLastOpenResult(changes[LAST_OPEN_RESULT_KEY].newValue);
-  }
+  elements.openForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await sendMessage("save-open-settings", { scheduleTime: elements.scheduleTime.value });
+      elements.openSettingsStatus.textContent = "自动打开设置已保存。";
+      elements.openSettingsStatus.className = "status success";
+      await loadState();
+    } catch (error) {
+      elements.openSettingsStatus.textContent = `保存失败：${error.message}`;
+      elements.openSettingsStatus.className = "status error";
+    }
+  });
 
-  if (areaName === "local" && changes[LAST_CHECKIN_RESULT_KEY]) {
-    renderLastCheckinResult(changes[LAST_CHECKIN_RESULT_KEY].newValue);
-  }
-});
-
-async function init() {
-  await loadSettings();
-  await loadNewApiSettings();
-  await loadLastOpenResult();
-  await loadLastCheckinResult();
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (
+      (areaName === "local" && (
+        changes[STORAGE_KEYS.ACCOUNTS] ||
+        changes[STORAGE_KEYS.AUTO_CHECKIN_STATUS] ||
+        changes[STORAGE_KEYS.LAST_OPEN_RESULT]
+      )) ||
+      (areaName === "sync" && (
+        changes[STORAGE_KEYS.AUTO_CHECKIN_SETTINGS] ||
+        changes[STORAGE_KEYS.LEGACY_SCHEDULE_TIME]
+      ))
+    ) {
+      void loadState();
+    }
+  });
 }
 
-init();
+async function init() {
+  if (!location.hash) {
+    location.hash = "#accounts";
+  }
+  routeTo(location.hash);
+  bindEvents();
+  await loadState();
+}
+
+init().catch((error) => {
+  console.error(error);
+});

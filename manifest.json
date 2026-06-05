@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "每日自动打开网页与 new-api 签到",
-  "version": "1.3.2",
-  "description": "按照设定时间每天自动打开 Linux.do 和 AnyRouter 控制台，并可自动执行 new-api 签到。",
+  "name": "每日自动签到与账号管理",
+  "version": "2.0.0",
+  "description": "管理 new-api 与 AnyRouter 账号，支持自动识别账号信息、每日自动签到和辅助打开常用页面。",
   "permissions": [
     "alarms",
     "cookies",
@@ -24,9 +24,20 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
   "options_page": "options.html",
   "action": {
-    "default_title": "每日自动打开网页与 new-api 签到",
+    "default_title": "每日自动签到与账号管理",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"

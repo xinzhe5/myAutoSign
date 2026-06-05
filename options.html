@@ -3,64 +3,229 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>每日自动打开网页与 new-api 签到</title>
+  <title>每日自动签到与账号管理</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <main class="panel">
-    <h1>每日自动打开网页与 new-api 签到</h1>
-    <p class="lead">设置一个本地时间，让 Chrome 每天在该时间后的 30 分钟内随机打开 Linux.do 英文页面和 AnyRouter 控制台页面，并可自动执行 new-api 签到。</p>
-
-    <form id="settings-form">
-      <label for="schedule-time">每天打开时间</label>
-      <div class="row">
-        <input id="schedule-time" name="schedule-time" type="time" required>
-        <button type="submit">保存</button>
+  <main class="app-shell">
+    <aside class="sidebar" aria-label="页面导航">
+      <div class="brand">
+        <span class="brand-mark">A</span>
+        <div>
+          <h1>自动签到</h1>
+          <p>账号管理与每日任务</p>
+        </div>
       </div>
-    </form>
+      <nav class="nav-tabs">
+        <a href="#accounts" data-route="accounts">账号管理</a>
+        <a href="#auto-checkin" data-route="auto-checkin">自动签到</a>
+        <a href="#basic" data-route="basic">基础设置</a>
+      </nav>
+    </aside>
 
-    <p id="status" class="status" aria-live="polite"></p>
+    <section class="content">
+      <section id="accounts-page" class="page" data-page="accounts">
+        <div class="page-header">
+          <div>
+            <h2>账号管理</h2>
+            <p>添加、识别和维护参与自动签到的站点账号。</p>
+          </div>
+          <button id="new-account-button" type="button">添加账号</button>
+        </div>
 
-    <form id="new-api-form" class="stacked-form">
-      <h2>new-api 签到配置</h2>
-      <label class="checkbox-row">
-        <input id="new-api-enabled" name="new-api-enabled" type="checkbox">
-        <span>启用每日 new-api 签到</span>
-      </label>
+        <div class="toolbar">
+          <label class="field compact">
+            <span>搜索</span>
+            <input id="account-search" type="search" placeholder="账号名、站点、用户">
+          </label>
+          <label class="field compact">
+            <span>站点类型</span>
+            <select id="account-type-filter">
+              <option value="all">全部</option>
+              <option value="new-api">New API</option>
+              <option value="anyrouter">AnyRouter</option>
+            </select>
+          </label>
+          <label class="field compact">
+            <span>状态</span>
+            <select id="account-enabled-filter">
+              <option value="all">全部</option>
+              <option value="enabled">已启用</option>
+              <option value="disabled">已停用</option>
+            </select>
+          </label>
+        </div>
 
-      <div id="new-api-site-list" class="site-list"></div>
+        <section id="account-editor" class="editor" hidden>
+          <div class="section-title">
+            <h3 id="account-editor-title">添加账号</h3>
+            <button id="cancel-account-edit" type="button" class="ghost-button">取消</button>
+          </div>
 
-      <div class="row">
-        <button id="add-new-api-site" type="button" class="secondary-button">添加站点</button>
-        <button type="submit">保存签到配置</button>
-        <button id="run-checkin" type="button" class="secondary-button">立即签到</button>
-      </div>
-    </form>
+          <form id="account-form" class="form-grid">
+            <input id="account-id" type="hidden">
+            <label class="field">
+              <span>站点地址</span>
+              <input id="account-base-url" type="url" placeholder="https://example.com" required>
+            </label>
+            <label class="field">
+              <span>站点类型</span>
+              <select id="account-site-type">
+                <option value="new-api">New API</option>
+                <option value="anyrouter">AnyRouter</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>认证方式</span>
+              <select id="account-auth-type">
+                <option value="access-token">Access Token</option>
+                <option value="cookie">Cookie</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>站点名称</span>
+              <input id="account-name" type="text" placeholder="主站">
+            </label>
+            <label class="field">
+              <span>用户名</span>
+              <input id="account-username" type="text" autocomplete="off">
+            </label>
+            <label class="field">
+              <span>用户 ID</span>
+              <input id="account-user-id" type="text" autocomplete="off" required>
+            </label>
+            <label id="account-access-token-field" class="field field-wide">
+              <span>Access Token</span>
+              <input id="account-access-token" type="password" autocomplete="off">
+            </label>
+            <label id="account-cookie-field" class="field field-wide">
+              <span>Cookie</span>
+              <textarea id="account-cookie" rows="3" spellcheck="false"></textarea>
+            </label>
+            <label id="account-turnstile-field" class="field field-wide">
+              <span>Turnstile Token（可选）</span>
+              <input id="account-turnstile-token" type="password" autocomplete="off">
+            </label>
+            <label class="field field-wide">
+              <span>备注</span>
+              <textarea id="account-notes" rows="2"></textarea>
+            </label>
+            <div class="switch-row">
+              <label><input id="account-enabled" type="checkbox"> 启用账号</label>
+              <label><input id="account-auto-checkin-enabled" type="checkbox"> 参与自动签到</label>
+            </div>
+            <div class="action-row">
+              <button id="detect-account-button" type="button" class="secondary-button">自动识别</button>
+              <button type="submit">保存账号</button>
+            </div>
+          </form>
+          <p id="account-form-status" class="status" aria-live="polite"></p>
+        </section>
 
-    <p id="new-api-status" class="status" aria-live="polite"></p>
+        <div id="account-list" class="account-list"></div>
+        <p id="account-empty" class="empty-state" hidden>还没有账号。添加账号后即可在自动签到页运行任务。</p>
+      </section>
 
-    <section class="feedback" aria-live="polite">
-      <h2>最近自动打开反馈</h2>
-      <p><strong>最近打开时间：</strong><span id="last-open-time">暂无记录</span></p>
-      <p><strong>执行状态：</strong><span id="last-open-status" class="feedback-status">暂无记录</span></p>
-      <p id="last-open-detail" class="feedback-detail">扩展执行过自动打开后会显示结果。</p>
-    </section>
+      <section id="auto-checkin-page" class="page" data-page="auto-checkin" hidden>
+        <div class="page-header">
+          <div>
+            <h2>自动签到</h2>
+            <p>按账号执行 new-api 和 AnyRouter 的真实签到，并查看逐账号结果。</p>
+          </div>
+          <div class="header-actions">
+            <button id="run-auto-checkin-button" type="button">立即签到全部</button>
+            <button id="retry-failed-button" type="button" class="secondary-button">重试失败账号</button>
+          </div>
+        </div>
 
-    <section class="feedback" aria-live="polite">
-      <h2>最近 new-api 签到反馈</h2>
-      <p><strong>最近签到时间：</strong><span id="last-checkin-time">暂无记录</span></p>
-      <p><strong>执行状态：</strong><span id="last-checkin-status" class="feedback-status">暂无记录</span></p>
-      <p id="last-checkin-detail" class="feedback-detail">扩展执行过 new-api 签到后会显示结果。</p>
-    </section>
+        <form id="auto-checkin-settings-form" class="settings-grid">
+          <label class="switch-card">
+            <input id="auto-checkin-enabled" type="checkbox">
+            <span>
+              <strong>启用每日自动签到</strong>
+              <small>后台会在时间窗口内随机执行一次。</small>
+            </span>
+          </label>
+          <label class="field">
+            <span>窗口开始</span>
+            <input id="auto-window-start" type="time" required>
+          </label>
+          <label class="field">
+            <span>窗口结束</span>
+            <input id="auto-window-end" type="time" required>
+          </label>
+          <label class="field">
+            <span>最大重试次数</span>
+            <input id="auto-max-retry" type="number" min="0" max="10">
+          </label>
+          <label class="field">
+            <span>重试间隔（分钟）</span>
+            <input id="auto-retry-interval" type="number" min="1" max="1440">
+          </label>
+          <label class="switch-card">
+            <input id="auto-retry-enabled" type="checkbox">
+            <span>
+              <strong>启用失败重试</strong>
+              <small>只重试当天失败的账号。</small>
+            </span>
+          </label>
+          <button type="submit">保存自动签到设置</button>
+        </form>
+        <p id="auto-settings-status" class="status" aria-live="polite"></p>
 
-    <section class="notes">
-      <h2>说明</h2>
-      <p>建议允许 Chrome 在后台运行扩展，否则定时任务可能会延迟到浏览器启动后才执行。</p>
-      <p>如果 Chrome 正在运行，扩展会在设定时间后的 30 分钟内随机打开一次页面（Linux.do 和 AnyRouter 控制台），并执行一次 new-api 签到；如果当时 Chrome 没开，会在当天稍后启动浏览器时补执行一次。</p>
-      <p>可添加多个 new-api 站点，扩展会按列表顺序逐个签到。Cookie 会尽量写入浏览器 Cookie 存储后随请求发送；如果站点要求实时 Cloudflare/Turnstile 校验，仍可能需要更新 Cookie 或 Turnstile Token。</p>
+        <div class="status-grid">
+          <article class="metric"><span>最近运行</span><strong id="metric-last-run">暂无</strong></article>
+          <article class="metric"><span>下次每日</span><strong id="metric-next-daily">暂无</strong></article>
+          <article class="metric"><span>下次重试</span><strong id="metric-next-retry">暂无</strong></article>
+          <article class="metric"><span>成功 / 失败 / 跳过</span><strong id="metric-summary">0 / 0 / 0</strong></article>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>账号</th>
+                <th>类型</th>
+                <th>状态</th>
+                <th>消息</th>
+                <th>时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="checkin-results-body"></tbody>
+          </table>
+        </div>
+        <p id="checkin-empty" class="empty-state" hidden>还没有执行记录。</p>
+      </section>
+
+      <section id="basic-page" class="page" data-page="basic" hidden>
+        <div class="page-header">
+          <div>
+            <h2>基础设置</h2>
+            <p>保留原来的每日自动打开页面能力，签到结果在自动签到页查看。</p>
+          </div>
+        </div>
+
+        <form id="open-settings-form" class="settings-grid compact-grid">
+          <label class="field">
+            <span>每天打开时间</span>
+            <input id="schedule-time" type="time" required>
+          </label>
+          <button type="submit">保存自动打开设置</button>
+        </form>
+        <p id="open-settings-status" class="status" aria-live="polite"></p>
+
+        <section class="feedback" aria-live="polite">
+          <h3>最近自动打开反馈</h3>
+          <p><strong>最近打开时间：</strong><span id="last-open-time">暂无记录</span></p>
+          <p><strong>执行状态：</strong><span id="last-open-status" class="feedback-status">暂无记录</span></p>
+          <p id="last-open-detail" class="feedback-detail">扩展执行过自动打开后会显示结果。</p>
+        </section>
+      </section>
     </section>
   </main>
 
+  <script src="shared.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

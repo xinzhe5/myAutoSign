@@ -1,108 +1,46 @@
-const STORAGE_KEY = "scheduleTime";
-const LAST_OPENED_KEY = "lastOpenedDate";
-const LAST_OPEN_RESULT_KEY = "lastOpenResult";
-const NEW_API_CONFIG_KEY = "newApiCheckinConfig";
-const LAST_CHECKIN_DATE_KEY = "lastNewApiCheckinDate";
-const LAST_CHECKIN_RESULT_KEY = "lastNewApiCheckinResult";
-const ALARM_NAME = "open-linuxdo-daily";
+importScripts("shared.js");
+
+const {
+  SITE_TYPES,
+  AUTH_TYPES,
+  CHECKIN_STATUS,
+  STORAGE_KEYS,
+  DEFAULTS,
+  normalizeBaseUrl,
+  detectSiteType,
+  getDefaultAuthType,
+  isKnownSiteType,
+  isKnownAuthType,
+  normalizeAccount,
+  normalizeAccounts,
+  normalizeSettings,
+  parseTimeMinutes,
+  getTodayKey,
+  statusIsSuccess,
+  getRunResult,
+  summarizeResults,
+  createId
+} = globalThis.MyAutoSignShared;
+
+const OPEN_ALARM_NAME = "open-target-pages-daily";
+const LEGACY_OPEN_ALARM_NAME = "open-linuxdo-daily";
+const AUTO_DAILY_ALARM_NAME = "auto-checkin-daily";
+const AUTO_RETRY_ALARM_NAME = "auto-checkin-retry";
 const NEW_API_HEADER_RULE_ID = 100;
-const TARGET_URLS = [
-  "https://linux.do/?tl=en",
-  "https://anyrouter.top/console"
-];
-const PROTECTED_TARGET_HOSTS = new Set(
-  TARGET_URLS.map((url) => new URL(url).hostname)
-);
-const DEFAULT_TIME = "09:00";
-const RANDOM_WINDOW_MINUTES = 30;
 const STARTUP_CATCH_UP_DELAY_MS = 3000;
 const DEFAULT_QUOTA_PER_UNIT = 500000;
 const DEFAULT_QUOTA_DISPLAY_TYPE = "USD";
 const DEFAULT_USD_EXCHANGE_RATE = 1;
 const DEFAULT_CUSTOM_CURRENCY_SYMBOL = "¤";
 const DEFAULT_CUSTOM_CURRENCY_EXCHANGE_RATE = 1;
+const AUTO_DETECT_MESSAGE_TYPE = "myautosign-detect-site";
 
-async function getScheduledTime() {
-  const stored = await chrome.storage.sync.get(STORAGE_KEY);
-  return stored[STORAGE_KEY] || DEFAULT_TIME;
-}
+const TARGET_URLS = [
+  "https://linux.do/?tl=en",
+  "https://anyrouter.top/console"
+];
 
-function normalizeBaseUrl(baseUrl) {
-  return String(baseUrl || "").trim().replace(/\/+$/, "");
-}
-
-async function getNewApiConfig() {
-  const stored = await chrome.storage.sync.get(NEW_API_CONFIG_KEY);
-  const config = stored[NEW_API_CONFIG_KEY] || {};
-  const rawSites = Array.isArray(config.sites)
-    ? config.sites
-    : config.baseUrl
-      ? [config]
-      : [];
-  const sites = rawSites
-    .map((site, index) => ({
-      id: String(site.id || `site-${index + 1}`),
-      enabled: site.enabled !== false,
-      name: String(site.name || "").trim(),
-      baseUrl: normalizeBaseUrl(site.baseUrl),
-      accessToken: String(site.accessToken || "").trim(),
-      userId: String(site.userId || "").trim(),
-      turnstileToken: String(site.turnstileToken || "").trim(),
-      cookie: String(site.cookie || "").trim()
-    }))
-    .filter((site) => site.baseUrl);
-
-  return {
-    enabled: Boolean(config.enabled),
-    sites
-  };
-}
-
-function getNextTriggerDate(timeString) {
-  const [hours, minutes] = timeString.split(":").map(Number);
-  const now = new Date();
-  const next = new Date(now);
-
-  next.setHours(hours, minutes, 0, 0);
-
-  if (next <= now) {
-    next.setDate(next.getDate() + 1);
-  }
-
-  return next;
-}
-
-function getRandomDelayMs() {
-  return Math.floor(Math.random() * RANDOM_WINDOW_MINUTES * 60 * 1000);
-}
-
-async function scheduleAlarm() {
-  const timeString = await getScheduledTime();
-  const baseTrigger = getNextTriggerDate(timeString);
-  const nextTrigger = new Date(baseTrigger.getTime() + getRandomDelayMs());
-
-  await chrome.alarms.clear(ALARM_NAME);
-  await chrome.alarms.create(ALARM_NAME, {
-    when: nextTrigger.getTime()
-  });
-}
-
-function getTodayKey() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function buildJsonResult(status, message, extra = {}) {
-  return {
-    status,
-    message,
-    checkedAt: new Date().toISOString(),
-    ...extra
-  };
-}
+const PROTECTED_TARGET_HOSTS = new Set(TARGET_URLS.map((url) => new URL(url).hostname));
 
 function getDisplayType(statusData) {
   return String(statusData?.quota_display_type || DEFAULT_QUOTA_DISPLAY_TYPE).toUpperCase();
@@ -124,9 +62,7 @@ function formatDisplayQuota(quota, statusData, digits = 6) {
 
   if (displayType === "CUSTOM") {
     const symbol = String(statusData?.custom_currency_symbol || DEFAULT_CUSTOM_CURRENCY_SYMBOL);
-    const rate = Number(
-      statusData?.custom_currency_exchange_rate || DEFAULT_CUSTOM_CURRENCY_EXCHANGE_RATE
-    );
+    const rate = Number(statusData?.custom_currency_exchange_rate || DEFAULT_CUSTOM_CURRENCY_EXCHANGE_RATE);
     return `${symbol}${(usdAmount * rate).toFixed(digits)}`;
   }
 
@@ -140,11 +76,7 @@ function parseCookiePairs(cookie) {
     .filter(Boolean)
     .map((part) => {
       const separatorIndex = part.indexOf("=");
-
-      if (separatorIndex <= 0) {
-        return null;
-      }
-
+      if (separatorIndex <= 0) return null;
       return {
         name: part.slice(0, separatorIndex).trim(),
         value: part.slice(separatorIndex + 1).trim()
@@ -155,7 +87,6 @@ function parseCookiePairs(cookie) {
 
 async function applyConfiguredCookies(baseUrl, cookie) {
   const pairs = parseCookiePairs(cookie);
-
   if (!pairs.length || !chrome.cookies?.set) {
     return;
   }
@@ -170,21 +101,79 @@ async function applyConfiguredCookies(baseUrl, cookie) {
   );
 }
 
-function buildNewApiHeaders(config) {
-  const headers = {
-    Accept: "application/json",
-    "Content-Type": "application/json"
+async function getCookieHeader(baseUrl) {
+  if (!chrome.cookies?.getAll) {
+    return "";
+  }
+
+  try {
+    const cookies = await chrome.cookies.getAll({ url: baseUrl });
+    return cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
+  } catch (error) {
+    return "";
+  }
+}
+
+function formatNonJsonError(body) {
+  const text = String(body || "");
+  const snippet = text.trim().replace(/\s+/g, " ").slice(0, 300);
+  const lowered = text.toLowerCase();
+
+  if (lowered.includes("error code: 1010") || lowered.includes("cloudflare")) {
+    return `请求被站点前面的 Cloudflare/WAF 拦截，请求尚未到达接口。片段: ${snippet}`;
+  }
+
+  return `接口返回的不是合法 JSON: ${snippet}`;
+}
+
+async function requestJson(method, url, headers = {}, body) {
+  let response;
+  let text;
+
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body,
+      credentials: "include"
+    });
+    text = await response.text();
+  } catch (error) {
+    throw new Error(`请求失败: ${error?.message || String(error)}`);
+  }
+
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (error) {
+    throw new Error(formatNonJsonError(text));
+  }
+
+  return {
+    statusCode: response.status,
+    data
   };
+}
 
-  if (config.accessToken) {
-    headers.Authorization = `Bearer ${config.accessToken}`;
+function buildAccountResult(account, status, message, extra = {}) {
+  return {
+    accountId: account.id,
+    accountName: account.name || account.username || account.baseUrl || "未命名账号",
+    siteType: account.siteType,
+    baseUrl: account.baseUrl,
+    status,
+    message,
+    timestamp: Date.now(),
+    ...extra
+  };
+}
+
+function isProtectedTargetHost(baseUrl) {
+  try {
+    return PROTECTED_TARGET_HOSTS.has(new URL(baseUrl).hostname);
+  } catch (error) {
+    return false;
   }
-
-  if (config.userId) {
-    headers["New-Api-User"] = config.userId;
-  }
-
-  return headers;
 }
 
 async function configureNewApiHeaderRule(baseUrl) {
@@ -192,8 +181,9 @@ async function configureNewApiHeaderRule(baseUrl) {
     return;
   }
 
-  const origin = new URL(baseUrl).origin;
-  const host = new URL(baseUrl).host;
+  const parsed = new URL(baseUrl);
+  const origin = parsed.origin;
+  const host = parsed.host;
 
   await chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: [NEW_API_HEADER_RULE_ID],
@@ -225,204 +215,148 @@ async function clearNewApiHeaderRule() {
   });
 }
 
-function isProtectedTargetHost(baseUrl) {
-  try {
-    return PROTECTED_TARGET_HOSTS.has(new URL(baseUrl).hostname);
-  } catch (error) {
-    return false;
+function buildNewApiHeaders(account) {
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Pragma: "no-cache",
+    ...buildCompatUserIdHeaders(account.userId)
+  };
+
+  if (account.authType === AUTH_TYPES.ACCESS_TOKEN && account.accessToken) {
+    headers.Authorization = `Bearer ${account.accessToken}`;
   }
+
+  if (account.userId) {
+    headers["New-Api-User"] = account.userId;
+  }
+
+  return headers;
 }
 
-function formatNonJsonError(body) {
-  const snippet = body.trim().replace(/\s+/g, " ").slice(0, 300);
-  const lowered = body.toLowerCase();
-
-  if (lowered.includes("error code: 1010") || lowered.includes("cloudflare")) {
-    return `请求被站点前面的 Cloudflare/WAF 拦截，请求尚未到达 new-api。片段: ${snippet}`;
+function buildCompatUserIdHeaders(userId) {
+  if (!userId) {
+    return {};
   }
 
-  return `接口返回的不是合法 JSON: ${snippet}`;
-}
-
-async function requestNewApiJson(method, url, headers) {
-  let response;
-  let body;
-
-  try {
-    response = await fetch(url, {
-      method,
-      headers,
-      credentials: "include"
-    });
-    body = await response.text();
-  } catch (error) {
-    throw new Error(`请求失败: ${error?.message || String(error)}`);
-  }
-
-  let data = {};
-  try {
-    data = body ? JSON.parse(body) : {};
-  } catch (error) {
-    throw new Error(formatNonJsonError(body));
-  }
-
+  const value = String(userId);
   return {
-    statusCode: response.status,
-    data
+    "New-API-User": value,
+    "Veloera-User": value,
+    "X-Api-User": value,
+    "voapi-user": value,
+    "User-id": value,
+    "Rix-Api-User": value,
+    "neo-api-user": value
   };
 }
 
-async function tryGetStatus(baseUrl, headers) {
+async function tryGetNewApiStatus(baseUrl, headers) {
   try {
-    const { statusCode, data } = await requestNewApiJson("GET", `${baseUrl}/api/status`, headers);
-
-    if (statusCode !== 200) {
-      return {};
-    }
-
-    return data.data || data;
+    const { statusCode, data } = await requestJson("GET", `${baseUrl}/api/status`, headers);
+    return statusCode === 200 ? data.data || data : {};
   } catch (error) {
     return {};
   }
 }
 
-async function getSelf(baseUrl, headers) {
-  const { statusCode, data } = await requestNewApiJson("GET", `${baseUrl}/api/user/self`, headers);
-
+async function getNewApiSelf(baseUrl, headers) {
+  const { statusCode, data } = await requestJson("GET", `${baseUrl}/api/user/self`, headers);
   if (statusCode !== 200) {
     throw new Error(`查询用户信息失败，HTTP ${statusCode}: ${JSON.stringify(data)}`);
   }
-
   if (!data.success) {
     throw new Error(`查询用户信息失败: ${data.message || JSON.stringify(data)}`);
   }
-
   return data.data || {};
 }
 
-async function getCheckinStatus(baseUrl, headers) {
-  const { statusCode, data } = await requestNewApiJson("GET", `${baseUrl}/api/user/checkin`, headers);
-
+async function getNewApiCheckinStatus(baseUrl, headers) {
+  const { statusCode, data } = await requestJson("GET", `${baseUrl}/api/user/checkin`, headers);
   if (statusCode !== 200) {
     throw new Error(`查询签到状态失败，HTTP ${statusCode}: ${JSON.stringify(data)}`);
   }
-
   if (!data.success) {
     throw new Error(`查询签到状态失败: ${data.message || JSON.stringify(data)}`);
   }
-
   return data.data || {};
 }
 
-async function doCheckin(baseUrl, headers, turnstileToken) {
+async function doNewApiCheckin(baseUrl, headers, turnstileToken) {
   let url = `${baseUrl}/api/user/checkin`;
-
   if (turnstileToken) {
     url = `${url}?${new URLSearchParams({ turnstile: turnstileToken })}`;
   }
 
-  const { statusCode, data } = await requestNewApiJson("POST", url, headers);
-
+  const { statusCode, data } = await requestJson("POST", url, headers);
   if (statusCode !== 200) {
     throw new Error(`执行签到失败，HTTP ${statusCode}: ${JSON.stringify(data)}`);
   }
-
   return data;
 }
 
-async function recordNewApiCheckinResult(result) {
-  const values = {
-    [LAST_CHECKIN_RESULT_KEY]: result
-  };
-
-  if (result.status === "CHECKED_IN" || result.status === "ALREADY_CHECKED_IN") {
-    values[LAST_CHECKIN_DATE_KEY] = getTodayKey();
+async function runNewApiProvider(account) {
+  if (!account.baseUrl) {
+    return buildAccountResult(account, CHECKIN_STATUS.CONFIG_ERROR, "缺少站点地址");
   }
 
-  await chrome.storage.local.set(values);
-}
-
-async function runSingleNewApiCheckin(site, trigger) {
-  const missing = [];
-  if (!site.baseUrl) missing.push("BASE_URL");
-
-  if (missing.length) {
-    return buildJsonResult("CONFIG_ERROR", `缺少配置: ${missing.join(", ")}`, {
-      trigger,
-      siteName: site.name,
-      baseUrl: site.baseUrl
-    });
+  if (!account.userId) {
+    return buildAccountResult(account, CHECKIN_STATUS.CONFIG_ERROR, "缺少用户 ID");
   }
 
-  if (isProtectedTargetHost(site.baseUrl)) {
-    return buildJsonResult(
-      "CONFIG_ERROR",
-      "该地址是自动打开目标，不应作为 new-api 签到站点；为避免覆盖站点登录 Cookie 已跳过",
-      {
-        trigger,
-        siteName: site.name,
-        baseUrl: site.baseUrl
-      }
+  if (account.authType === AUTH_TYPES.ACCESS_TOKEN && !account.accessToken) {
+    return buildAccountResult(account, CHECKIN_STATUS.CONFIG_ERROR, "缺少 Access Token");
+  }
+
+  if (isProtectedTargetHost(account.baseUrl)) {
+    return buildAccountResult(
+      account,
+      CHECKIN_STATUS.CONFIG_ERROR,
+      "该地址是自动打开目标，不应作为 new-api 签到站点；为避免覆盖站点登录 Cookie 已跳过"
     );
   }
 
-  const headers = buildNewApiHeaders(site);
+  const headers = buildNewApiHeaders(account);
 
   try {
-    await configureNewApiHeaderRule(site.baseUrl);
-    await applyConfiguredCookies(site.baseUrl, site.cookie);
+    await configureNewApiHeaderRule(account.baseUrl);
+    await applyConfiguredCookies(account.baseUrl, account.cookie);
 
-    const statusData = await tryGetStatus(site.baseUrl, headers);
+    const statusData = await tryGetNewApiStatus(account.baseUrl, headers);
     const displayType = getDisplayType(statusData);
-    const selfData = await getSelf(site.baseUrl, headers);
-    const current = await getCheckinStatus(site.baseUrl, headers);
+    const selfData = await getNewApiSelf(account.baseUrl, headers);
+    const current = await getNewApiCheckinStatus(account.baseUrl, headers);
     const stats = current.stats || {};
     const currentQuota = formatDisplayQuota(selfData.quota, statusData, 6);
     const rewardTotal = formatDisplayQuota(stats.total_quota, statusData, 6);
     const totalCheckins = stats.total_checkins || "";
 
     if (stats.checked_in_today) {
-      const result = buildJsonResult("ALREADY_CHECKED_IN", "今天已经签到过了", {
-        trigger,
-        siteName: site.name,
-        baseUrl: site.baseUrl,
+      return buildAccountResult(account, CHECKIN_STATUS.ALREADY_CHECKED, "今天已经签到过了", {
         totalCheckins,
         rewardTotal,
         currentQuota,
         displayType
       });
-      return result;
     }
 
-    const checkinResult = await doCheckin(site.baseUrl, headers, site.turnstileToken);
-
+    const checkinResult = await doNewApiCheckin(account.baseUrl, headers, account.turnstileToken);
     if (!checkinResult.success) {
       const apiMessage = checkinResult.message || JSON.stringify(checkinResult);
-      const result = buildJsonResult(
-        apiMessage.includes("Turnstile token 为空") ? "TURNSTILE_REQUIRED" : "API_ERROR",
-        apiMessage.includes("Turnstile token 为空")
-          ? "站点开启了 Turnstile，需要提供 turnstile token"
-          : `签到失败: ${apiMessage}`,
-        {
-          trigger,
-          siteName: site.name,
-          baseUrl: site.baseUrl,
-          totalCheckins,
-          rewardTotal,
-          currentQuota,
-          displayType
-        }
+      const turnstileRequired = apiMessage.includes("Turnstile token 为空");
+      return buildAccountResult(
+        account,
+        turnstileRequired ? CHECKIN_STATUS.TURNSTILE_REQUIRED : CHECKIN_STATUS.FAILED,
+        turnstileRequired ? "站点开启了 Turnstile，需要提供 turnstile token" : `签到失败: ${apiMessage}`,
+        { totalCheckins, rewardTotal, currentQuota, displayType }
       );
-      return result;
     }
 
     const data = checkinResult.data || {};
-    const selfAfter = await getSelf(site.baseUrl, headers);
+    const selfAfter = await getNewApiSelf(account.baseUrl, headers);
     const quotaAwarded = Number(data.quota_awarded || 0);
-    const result = buildJsonResult("CHECKED_IN", checkinResult.message || "签到成功", {
-      trigger,
-      siteName: site.name,
-      baseUrl: site.baseUrl,
+
+    return buildAccountResult(account, CHECKIN_STATUS.SUCCESS, checkinResult.message || "签到成功", {
       checkinDate: String(data.checkin_date || ""),
       totalCheckins: String(Number(stats.total_checkins || 0) + 1),
       rewardToday: formatDisplayQuota(quotaAwarded, statusData, 6),
@@ -430,128 +364,532 @@ async function runSingleNewApiCheckin(site, trigger) {
       currentQuota: formatDisplayQuota(selfAfter.quota, statusData, 6),
       displayType
     });
-    return result;
   } catch (error) {
     let message = error?.message || String(error);
-    let status = "ERROR";
+    let status = CHECKIN_STATUS.FAILED;
 
-    if (message.includes("签到功能未启用")) {
-      status = "CHECKIN_DISABLED";
-    } else if (message.includes("Turnstile token 为空")) {
-      status = "TURNSTILE_REQUIRED";
+    if (message.includes("Turnstile token 为空")) {
+      status = CHECKIN_STATUS.TURNSTILE_REQUIRED;
       message = "站点开启了 Turnstile，需要提供 turnstile token";
-    } else if (message.includes("签到失败") || message.includes("查询") || message.includes("请求失败")) {
-      status = "API_ERROR";
     }
 
-    return buildJsonResult(status, message, {
-      trigger,
-      siteName: site.name,
-      baseUrl: site.baseUrl
-    });
+    return buildAccountResult(account, status, message);
   } finally {
     await clearNewApiHeaderRule();
   }
 }
 
-function getAggregateCheckinStatus(results) {
-  const successStatuses = new Set(["CHECKED_IN", "ALREADY_CHECKED_IN"]);
-
-  if (results.every((result) => successStatuses.has(result.status))) {
-    return results.some((result) => result.status === "CHECKED_IN")
-      ? "CHECKED_IN"
-      : "ALREADY_CHECKED_IN";
-  }
-
-  if (results.some((result) => successStatuses.has(result.status))) {
-    return "PARTIAL_SUCCESS";
-  }
-
-  return "API_ERROR";
+function normalizeCheckinMessage(message) {
+  return String(message || "").trim();
 }
 
-async function runNewApiCheckin(trigger = "schedule") {
-  await clearNewApiHeaderRule();
-
-  const config = await getNewApiConfig();
-
-  if (!config.enabled) {
-    return buildJsonResult("DISABLED", "new-api 签到未启用", { trigger, results: [] });
+function isAlreadyCheckedMessage(message) {
+  const normalized = normalizeCheckinMessage(message).toLowerCase();
+  if (!normalized) {
+    return true;
   }
 
-  const enabledSites = config.sites.filter((site) => site.enabled);
+  return (
+    normalized.includes("already") ||
+    normalized.includes("checked") ||
+    normalized.includes("今日已") ||
+    normalized.includes("今天已") ||
+    normalized.includes("已签到")
+  );
+}
 
-  if (!enabledSites.length) {
-    const result = buildJsonResult("CONFIG_ERROR", "没有启用的 new-api 站点配置", {
-      trigger,
-      results: []
+async function runAnyRouterProvider(account) {
+  if (!account.baseUrl) {
+    return buildAccountResult(account, CHECKIN_STATUS.CONFIG_ERROR, "缺少站点地址");
+  }
+
+  if (!account.userId) {
+    return buildAccountResult(account, CHECKIN_STATUS.CONFIG_ERROR, "缺少用户 ID");
+  }
+
+  try {
+    await applyConfiguredCookies(account.baseUrl, account.cookie);
+
+    const { statusCode, data } = await requestJson(
+      "POST",
+      `${account.baseUrl}/api/user/sign_in`,
+      {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Pragma: "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+        ...buildCompatUserIdHeaders(account.userId)
+      },
+      "{}"
+    );
+
+    if (statusCode < 200 || statusCode >= 300) {
+      return buildAccountResult(account, CHECKIN_STATUS.FAILED, `签到失败，HTTP ${statusCode}: ${JSON.stringify(data)}`);
+    }
+
+    const rawMessage = normalizeCheckinMessage(data.message);
+    const lowered = rawMessage.toLowerCase();
+
+    if (!data.success) {
+      return buildAccountResult(
+        account,
+        isAlreadyCheckedMessage(rawMessage) ? CHECKIN_STATUS.ALREADY_CHECKED : CHECKIN_STATUS.FAILED,
+        rawMessage || "签到失败",
+        { rawMessage, data }
+      );
+    }
+
+    if (lowered.includes("success") || rawMessage.includes("签到成功")) {
+      return buildAccountResult(account, CHECKIN_STATUS.SUCCESS, rawMessage || "签到成功", {
+        rawMessage,
+        data
+      });
+    }
+
+    if (isAlreadyCheckedMessage(rawMessage)) {
+      return buildAccountResult(account, CHECKIN_STATUS.ALREADY_CHECKED, rawMessage || "今天已经签到过了", {
+        rawMessage,
+        data
+      });
+    }
+
+    return buildAccountResult(account, CHECKIN_STATUS.FAILED, rawMessage || "签到失败", {
+      rawMessage,
+      data
     });
-    await recordNewApiCheckinResult(result);
-    return result;
+  } catch (error) {
+    const message = error?.message || String(error);
+    return buildAccountResult(
+      account,
+      isAlreadyCheckedMessage(message) ? CHECKIN_STATUS.ALREADY_CHECKED : CHECKIN_STATUS.FAILED,
+      message
+    );
   }
+}
+
+function resolveProvider(account) {
+  if (account.siteType === SITE_TYPES.ANYROUTER) {
+    return runAnyRouterProvider;
+  }
+  if (account.siteType === SITE_TYPES.NEW_API) {
+    return runNewApiProvider;
+  }
+  return null;
+}
+
+async function runAccountCheckin(account) {
+  if (!account.enabled) {
+    return buildAccountResult(account, CHECKIN_STATUS.SKIPPED, "账号已停用");
+  }
+
+  if (account.autoCheckinEnabled === false) {
+    return buildAccountResult(account, CHECKIN_STATUS.SKIPPED, "账号未启用自动签到");
+  }
+
+  const provider = resolveProvider(account);
+  if (!provider) {
+    return buildAccountResult(account, CHECKIN_STATUS.SKIPPED, "当前站点类型暂不支持自动签到");
+  }
+
+  return provider(account);
+}
+
+async function migrateLegacyData() {
+  const local = await chrome.storage.local.get([
+    STORAGE_KEYS.ACCOUNTS,
+    STORAGE_KEYS.MIGRATION_STATE
+  ]);
+  const sync = await chrome.storage.sync.get([
+    STORAGE_KEYS.LEGACY_NEW_API_CONFIG,
+    STORAGE_KEYS.LEGACY_SCHEDULE_TIME,
+    STORAGE_KEYS.AUTO_CHECKIN_SETTINGS
+  ]);
+
+  let accounts = normalizeAccounts(local[STORAGE_KEYS.ACCOUNTS]);
+
+  if (!accounts.length) {
+    const legacyConfig = sync[STORAGE_KEYS.LEGACY_NEW_API_CONFIG] || {};
+    const legacySites = Array.isArray(legacyConfig.sites)
+      ? legacyConfig.sites
+      : legacyConfig.baseUrl
+        ? [legacyConfig]
+        : [];
+
+    accounts = legacySites
+      .map((site, index) => normalizeAccount({
+        id: site.id ? `account-${site.id}` : createId("account"),
+        enabled: site.enabled !== false,
+        name: site.name || "",
+        siteType: SITE_TYPES.NEW_API,
+        baseUrl: site.baseUrl,
+        authType: AUTH_TYPES.ACCESS_TOKEN,
+        userId: site.userId,
+        accessToken: site.accessToken,
+        cookie: site.cookie,
+        turnstileToken: site.turnstileToken,
+        autoCheckinEnabled: site.enabled !== false
+      }, index))
+      .filter((account) => account.baseUrl);
+
+    if (accounts.length) {
+      await chrome.storage.local.set({ [STORAGE_KEYS.ACCOUNTS]: accounts });
+    }
+  }
+
+  if (!sync[STORAGE_KEYS.AUTO_CHECKIN_SETTINGS]) {
+    const legacyConfig = sync[STORAGE_KEYS.LEGACY_NEW_API_CONFIG] || {};
+    const settings = normalizeSettings({
+      enabled: Boolean(legacyConfig.enabled)
+    }, sync[STORAGE_KEYS.LEGACY_SCHEDULE_TIME] || DEFAULTS.scheduleTime);
+    await chrome.storage.sync.set({ [STORAGE_KEYS.AUTO_CHECKIN_SETTINGS]: settings });
+  }
+
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.MIGRATION_STATE]: {
+      ...local[STORAGE_KEYS.MIGRATION_STATE],
+      accountsV2: true,
+      updatedAt: new Date().toISOString()
+    }
+  });
+}
+
+async function getAccounts() {
+  await migrateLegacyData();
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.ACCOUNTS);
+  const accounts = normalizeAccounts(stored[STORAGE_KEYS.ACCOUNTS]);
+  if (accounts.length !== (stored[STORAGE_KEYS.ACCOUNTS] || []).length) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.ACCOUNTS]: accounts });
+  }
+  return accounts;
+}
+
+async function saveAccounts(accounts) {
+  const normalized = normalizeAccounts(accounts);
+  await chrome.storage.local.set({ [STORAGE_KEYS.ACCOUNTS]: normalized });
+  return normalized;
+}
+
+async function upsertAccount(input) {
+  const accounts = await getAccounts();
+  const nowIso = new Date().toISOString();
+  const normalized = normalizeAccount({
+    ...input,
+    id: input.id || createId("account"),
+    createdAt: input.createdAt || nowIso,
+    updatedAt: nowIso
+  });
+  const existingIndex = accounts.findIndex((account) => account.id === normalized.id);
+
+  if (existingIndex >= 0) {
+    accounts.splice(existingIndex, 1, {
+      ...accounts[existingIndex],
+      ...normalized,
+      createdAt: accounts[existingIndex].createdAt || normalized.createdAt,
+      updatedAt: nowIso
+    });
+  } else {
+    accounts.push(normalized);
+  }
+
+  await saveAccounts(accounts);
+  return normalized;
+}
+
+async function deleteAccount(accountId) {
+  const accounts = await getAccounts();
+  await saveAccounts(accounts.filter((account) => account.id !== accountId));
+
+  const status = await getAutoCheckinStatus();
+  if (status?.perAccount?.[accountId]) {
+    const nextPerAccount = { ...status.perAccount };
+    delete nextPerAccount[accountId];
+    await saveAutoCheckinStatus({
+      ...status,
+      perAccount: nextPerAccount,
+      summary: summarizeResults(Object.values(nextPerAccount))
+    });
+  }
+}
+
+async function getAutoCheckinSettings() {
+  const sync = await chrome.storage.sync.get([
+    STORAGE_KEYS.AUTO_CHECKIN_SETTINGS,
+    STORAGE_KEYS.LEGACY_SCHEDULE_TIME
+  ]);
+  return normalizeSettings(
+    sync[STORAGE_KEYS.AUTO_CHECKIN_SETTINGS],
+    sync[STORAGE_KEYS.LEGACY_SCHEDULE_TIME] || DEFAULTS.scheduleTime
+  );
+}
+
+async function saveAutoCheckinSettings(settings) {
+  const normalized = normalizeSettings(settings);
+  await chrome.storage.sync.set({ [STORAGE_KEYS.AUTO_CHECKIN_SETTINGS]: normalized });
+  await scheduleAutoCheckinDaily();
+  return normalized;
+}
+
+async function getAutoCheckinStatus() {
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.AUTO_CHECKIN_STATUS);
+  return stored[STORAGE_KEYS.AUTO_CHECKIN_STATUS] || null;
+}
+
+async function saveAutoCheckinStatus(status) {
+  await chrome.storage.local.set({ [STORAGE_KEYS.AUTO_CHECKIN_STATUS]: status });
+  await recordLegacyCheckinResult(status);
+}
+
+async function patchAutoCheckinStatus(patch) {
+  const current = await getAutoCheckinStatus();
+  await saveAutoCheckinStatus({
+    ...(current || {}),
+    ...patch
+  });
+}
+
+async function recordLegacyCheckinResult(status) {
+  if (!status?.summary) {
+    return;
+  }
+
+  const legacyStatus = status.lastRunResult === "success"
+    ? "CHECKED_IN"
+    : status.lastRunResult === "partial"
+      ? "PARTIAL_SUCCESS"
+      : status.lastRunResult === "skipped"
+        ? "DISABLED"
+        : "API_ERROR";
+
+  await chrome.storage.local.set({
+    [STORAGE_KEYS.LEGACY_LAST_CHECKIN_RESULT]: {
+      status: legacyStatus,
+      message: `${status.summary.successCount}/${status.summary.totalEligible} 个账号签到成功`,
+      checkedAt: status.lastRunAt,
+      trigger: status.trigger,
+      successCount: status.summary.successCount,
+      targetCount: status.summary.totalEligible,
+      results: Object.values(status.perAccount || {})
+    }
+  });
+}
+
+function getFailedAccountIds(status) {
+  return Object.values(status?.perAccount || {})
+    .filter((result) => result.status === CHECKIN_STATUS.FAILED)
+    .map((result) => result.accountId);
+}
+
+async function runAutoCheckin(options = {}) {
+  await migrateLegacyData();
+
+  const trigger = options.trigger || "manual";
+  const settings = await getAutoCheckinSettings();
+  const accounts = await getAccounts();
+  const previousStatus = await getAutoCheckinStatus();
+  const today = getTodayKey();
+  let targetIds = Array.isArray(options.accountIds) ? options.accountIds : null;
+
+  if (options.retryOnly) {
+    const retryState = previousStatus?.retryState?.day === today
+      ? previousStatus.retryState
+      : { day: today, pendingAccountIds: getFailedAccountIds(previousStatus), attemptsByAccount: {} };
+
+    targetIds = (retryState.pendingAccountIds || []).filter((accountId) => {
+      const attempts = Number(retryState.attemptsByAccount?.[accountId] || 0);
+      return attempts < settings.maxRetryPerDay;
+    });
+  }
+
+  const targetAccounts = targetIds
+    ? accounts.filter((account) => targetIds.includes(account.id))
+    : accounts;
 
   const results = [];
-
-  for (const site of enabledSites) {
-    results.push(await runSingleNewApiCheckin(site, trigger));
+  for (const account of targetAccounts) {
+    results.push(await runAccountCheckin(account));
   }
 
-  const successCount = results.filter((result) => (
-    result.status === "CHECKED_IN" || result.status === "ALREADY_CHECKED_IN"
-  )).length;
-  const status = getAggregateCheckinStatus(results);
-  const result = buildJsonResult(status, `${successCount}/${results.length} 个 new-api 站点签到成功`, {
+  const perAccount = (options.retryOnly || targetIds)
+    ? { ...(previousStatus?.perAccount || {}) }
+    : {};
+  for (const result of results) {
+    perAccount[result.accountId] = result;
+  }
+
+  const summary = summarizeResults(Object.values(perAccount));
+  const failedAccountIds = getFailedAccountIds({ perAccount });
+  const previousRetryState = previousStatus?.retryState?.day === today
+    ? previousStatus.retryState
+    : { day: today, pendingAccountIds: [], attemptsByAccount: {} };
+  const attemptsByAccount = { ...(previousRetryState.attemptsByAccount || {}) };
+
+  if (options.retryOnly) {
+    for (const result of results) {
+      if (result.status === CHECKIN_STATUS.FAILED) {
+        attemptsByAccount[result.accountId] = Number(attemptsByAccount[result.accountId] || 0) + 1;
+      }
+    }
+  }
+
+  const pendingAccountIds = failedAccountIds.filter((accountId) => (
+    Number(attemptsByAccount[accountId] || 0) < settings.maxRetryPerDay
+  ));
+
+  const nextStatus = {
+    lastRunAt: new Date().toISOString(),
     trigger,
-    successCount,
-    targetCount: results.length,
-    results
-  });
+    lastRunResult: getRunResult(summary),
+    summary,
+    perAccount,
+    accountsSnapshot: accounts.map((account) => ({
+      accountId: account.id,
+      accountName: account.name || account.baseUrl,
+      siteType: account.siteType,
+      enabled: account.enabled,
+      autoCheckinEnabled: account.autoCheckinEnabled !== false,
+      lastResult: perAccount[account.id] || null
+    })),
+    retryState: {
+      day: today,
+      pendingAccountIds,
+      attemptsByAccount
+    },
+    nextDailyRunAt: previousStatus?.nextDailyRunAt || null,
+    nextRetryRunAt: previousStatus?.nextRetryRunAt || null
+  };
 
-  await recordNewApiCheckinResult(result);
-  return result;
+  await saveAutoCheckinStatus(nextStatus);
+
+  if (options.markDailyRun) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.LAST_AUTO_CHECKIN_DAILY_RUN_DAY]: today });
+  }
+
+  if (settings.retryEnabled && pendingAccountIds.length) {
+    await scheduleRetryAlarm(settings.retryIntervalMinutes);
+  } else {
+    await clearRetryAlarm();
+  }
+
+  return nextStatus;
 }
 
-async function runNewApiCheckinSafely(trigger) {
-  try {
-    return await runNewApiCheckin(trigger);
-  } catch (error) {
-    const result = buildJsonResult("ERROR", error?.message || String(error), { trigger });
-    await recordNewApiCheckinResult(result);
-    return result;
+function makeDateForMinutes(minutes, dayOffset = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + dayOffset);
+  date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return date;
+}
+
+async function getNextAutoCheckinDate(settings) {
+  const startMinutes = parseTimeMinutes(settings.windowStart) ?? parseTimeMinutes(DEFAULTS.windowStart);
+  let endMinutes = parseTimeMinutes(settings.windowEnd) ?? parseTimeMinutes(DEFAULTS.windowEnd);
+  if (endMinutes <= startMinutes) {
+    endMinutes = startMinutes + 30;
+  }
+
+  const now = new Date();
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.LAST_AUTO_CHECKIN_DAILY_RUN_DAY);
+  const ranToday = stored[STORAGE_KEYS.LAST_AUTO_CHECKIN_DAILY_RUN_DAY] === getTodayKey();
+  const todayEnd = makeDateForMinutes(Math.min(endMinutes, 1439));
+  const runToday = !ranToday && now < todayEnd;
+  const baseStart = makeDateForMinutes(startMinutes, runToday ? 0 : 1);
+  const baseEnd = makeDateForMinutes(Math.min(endMinutes, 1439), runToday ? 0 : 1);
+  const minTime = Math.max(baseStart.getTime(), now.getTime() + 60 * 1000);
+  const maxTime = Math.max(baseEnd.getTime(), minTime + 60 * 1000);
+
+  return new Date(minTime + Math.floor(Math.random() * (maxTime - minTime)));
+}
+
+async function scheduleAutoCheckinDaily() {
+  const settings = await getAutoCheckinSettings();
+  await chrome.alarms.clear(AUTO_DAILY_ALARM_NAME);
+
+  if (!settings.enabled) {
+    await patchAutoCheckinStatus({ nextDailyRunAt: null });
+    return null;
+  }
+
+  const nextDate = await getNextAutoCheckinDate(settings);
+  await chrome.alarms.create(AUTO_DAILY_ALARM_NAME, { when: nextDate.getTime() });
+  await patchAutoCheckinStatus({ nextDailyRunAt: nextDate.toISOString() });
+  return nextDate;
+}
+
+async function scheduleRetryAlarm(delayMinutes) {
+  await chrome.alarms.clear(AUTO_RETRY_ALARM_NAME);
+  await chrome.alarms.create(AUTO_RETRY_ALARM_NAME, { delayInMinutes: delayMinutes });
+  const nextRetryRunAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
+  await patchAutoCheckinStatus({ nextRetryRunAt });
+}
+
+async function clearRetryAlarm() {
+  await chrome.alarms.clear(AUTO_RETRY_ALARM_NAME);
+  await patchAutoCheckinStatus({ nextRetryRunAt: null });
+}
+
+async function maybeCatchUpAutoCheckin() {
+  const settings = await getAutoCheckinSettings();
+  if (!settings.enabled) {
+    return;
+  }
+
+  const startMinutes = parseTimeMinutes(settings.windowStart);
+  let endMinutes = parseTimeMinutes(settings.windowEnd);
+  if (startMinutes === null) {
+    return;
+  }
+  if (endMinutes === null || endMinutes <= startMinutes) {
+    endMinutes = startMinutes + 30;
+  }
+
+  const now = new Date();
+  const todayEnd = makeDateForMinutes(Math.min(endMinutes, 1439));
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.LAST_AUTO_CHECKIN_DAILY_RUN_DAY);
+  const ranToday = stored[STORAGE_KEYS.LAST_AUTO_CHECKIN_DAILY_RUN_DAY] === getTodayKey();
+
+  if (!ranToday && now > todayEnd) {
+    await runAutoCheckin({ trigger: "catch-up", markDailyRun: true });
+    await scheduleAutoCheckinDaily();
   }
 }
 
-function hasScheduledTimePassed(timeString) {
+async function getScheduledOpenTime() {
+  const stored = await chrome.storage.sync.get(STORAGE_KEYS.LEGACY_SCHEDULE_TIME);
+  return stored[STORAGE_KEYS.LEGACY_SCHEDULE_TIME] || DEFAULTS.scheduleTime;
+}
+
+function getNextOpenTriggerDate(timeString) {
+  const [hours, minutes] = timeString.split(":").map(Number);
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(hours, minutes, 0, 0);
+  if (next <= now) {
+    next.setDate(next.getDate() + 1);
+  }
+  const randomDelayMs = Math.floor(Math.random() * 30 * 60 * 1000);
+  return new Date(next.getTime() + randomDelayMs);
+}
+
+async function scheduleOpenAlarm() {
+  const timeString = await getScheduledOpenTime();
+  const nextTrigger = getNextOpenTriggerDate(timeString);
+  await chrome.alarms.clear(LEGACY_OPEN_ALARM_NAME);
+  await chrome.alarms.clear(OPEN_ALARM_NAME);
+  await chrome.alarms.create(OPEN_ALARM_NAME, { when: nextTrigger.getTime() });
+}
+
+function hasScheduledOpenTimePassed(timeString) {
   const [hours, minutes] = timeString.split(":").map(Number);
   const now = new Date();
   const scheduled = new Date(now);
-
   scheduled.setHours(hours, minutes, 0, 0);
   return now >= scheduled;
 }
 
-function delay(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 function isTodayDate(value) {
-  if (!value) {
-    return false;
-  }
-
+  if (!value) return false;
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0")
-  ].join("-") === getTodayKey();
+  return !Number.isNaN(date.getTime()) && getTodayKey(date) === getTodayKey();
 }
 
 function normalizePathname(pathname) {
@@ -560,13 +898,10 @@ function normalizePathname(pathname) {
 }
 
 function isMatchingTargetUrl(existingUrl, targetUrl) {
-  if (!existingUrl) {
-    return false;
-  }
+  if (!existingUrl) return false;
 
   let existing;
   let target;
-
   try {
     existing = new URL(existingUrl);
     target = new URL(targetUrl);
@@ -604,23 +939,19 @@ function isMatchingTargetUrl(existingUrl, targetUrl) {
 
 async function getExistingTargetTabs() {
   const tabs = await chrome.tabs.query({});
-
   return TARGET_URLS.map((targetUrl) => (
     tabs.find((tab) => isMatchingTargetUrl(tab.url, targetUrl)) || null
   ));
 }
 
 async function getExistingNormalWindowId() {
-  const windows = await chrome.windows.getAll({
-    windowTypes: ["normal"]
-  });
+  const windows = await chrome.windows.getAll({ windowTypes: ["normal"] });
   const focusedWindow = windows.find((item) => item.focused);
   const targetWindow = focusedWindow || windows[0];
-
   return targetWindow?.id;
 }
 
-async function openTargetUrl() {
+async function openTargetUrls() {
   const failures = [];
   let successCount = 0;
   let existingCount = 0;
@@ -636,21 +967,14 @@ async function openTargetUrl() {
         windowId = existingTargetTabs[0].windowId;
         existingCount += 1;
       } else {
-        const createdWindow = await chrome.windows.create({
-          url: TARGET_URLS[0],
-          focused: true
-        });
-
+        const createdWindow = await chrome.windows.create({ url: TARGET_URLS[0], focused: true });
         windowId = createdWindow.id;
         successCount += 1;
       }
       startIndex = 1;
     }
   } catch (error) {
-    failures.push({
-      url: TARGET_URLS[0],
-      message: error?.message || String(error)
-    });
+    failures.push({ url: TARGET_URLS[0], message: error?.message || String(error) });
     startIndex = 1;
   }
 
@@ -661,22 +985,14 @@ async function openTargetUrl() {
     }
 
     try {
-      const createProperties = {
-        url: TARGET_URLS[index],
-        active: index === 0
-      };
-
+      const createProperties = { url: TARGET_URLS[index], active: index === 0 };
       if (typeof windowId === "number") {
         createProperties.windowId = windowId;
       }
-
       await chrome.tabs.create(createProperties);
       successCount += 1;
     } catch (error) {
-      failures.push({
-        url: TARGET_URLS[index],
-        message: error?.message || String(error)
-      });
+      failures.push({ url: TARGET_URLS[index], message: error?.message || String(error) });
     }
   }
 
@@ -691,7 +1007,7 @@ async function openTargetUrl() {
 
 async function recordOpenResult(trigger, result) {
   await chrome.storage.local.set({
-    [LAST_OPEN_RESULT_KEY]: {
+    [STORAGE_KEYS.LAST_OPEN_RESULT]: {
       ...result,
       trigger,
       openedAt: new Date().toISOString()
@@ -700,89 +1016,279 @@ async function recordOpenResult(trigger, result) {
 }
 
 async function markOpenedToday() {
-  await chrome.storage.local.set({
-    [LAST_OPENED_KEY]: getTodayKey()
-  });
+  await chrome.storage.local.set({ [STORAGE_KEYS.LAST_OPENED_DATE]: getTodayKey() });
 }
 
 async function hasOpenedToday() {
   const stored = await chrome.storage.local.get([
-    LAST_OPENED_KEY,
-    LAST_OPEN_RESULT_KEY
+    STORAGE_KEYS.LAST_OPENED_DATE,
+    STORAGE_KEYS.LAST_OPEN_RESULT
   ]);
 
-  return stored[LAST_OPENED_KEY] === getTodayKey()
-    || isTodayDate(stored[LAST_OPEN_RESULT_KEY]?.openedAt);
+  return stored[STORAGE_KEYS.LAST_OPENED_DATE] === getTodayKey() ||
+    isTodayDate(stored[STORAGE_KEYS.LAST_OPEN_RESULT]?.openedAt);
 }
 
 async function maybeCatchUpOpen() {
-  const timeString = await getScheduledTime();
+  const timeString = await getScheduledOpenTime();
   const openedToday = await hasOpenedToday();
-
-  if (openedToday || !hasScheduledTimePassed(timeString)) {
+  if (openedToday || !hasScheduledOpenTimePassed(timeString)) {
     return;
   }
 
-  const result = await openTargetUrl();
+  const result = await openTargetUrls();
   await recordOpenResult("catch-up", result);
 
   if (result.successCount > 0 || result.existingCount > 0) {
     await markOpenedToday();
   }
+}
 
-  await runNewApiCheckinSafely("catch-up");
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function extractUser(data) {
+  const value = data?.data && typeof data.data === "object" ? data.data : data;
+  const user = value?.user && typeof value.user === "object" ? value.user : value;
+  if (!user || typeof user !== "object") {
+    return {};
+  }
+  return {
+    userId: user.id ?? user.user_id ?? user.userId ?? user.uid ?? value.userId ?? "",
+    username: user.username || user.name || user.display_name || user.email || value.username || "",
+    accessToken: user.access_token || user.accessToken || user.token || value.access_token || value.accessToken || ""
+  };
+}
+
+async function detectViaDirectApi(baseUrl, accessToken) {
+  const headers = { Accept: "application/json" };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  try {
+    const { statusCode, data } = await requestJson("GET", `${baseUrl}/api/user/self`, headers);
+    if (statusCode >= 200 && statusCode < 300) {
+      return extractUser(data);
+    }
+  } catch (error) {
+    return {};
+  }
+
+  return {};
+}
+
+async function getActiveTabForUrl(baseUrl) {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const activeTab = tabs[0];
+  if (!activeTab?.id || !activeTab.url) {
+    return null;
+  }
+
+  try {
+    const activeOrigin = new URL(activeTab.url).origin;
+    const targetOrigin = new URL(baseUrl).origin;
+    return activeOrigin === targetOrigin ? activeTab : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function detectFromContentScript(baseUrl) {
+  const tab = await getActiveTabForUrl(baseUrl);
+  if (!tab?.id) {
+    return { data: {}, unavailable: false };
+  }
+
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      type: AUTO_DETECT_MESSAGE_TYPE,
+      baseUrl
+    });
+    return {
+      data: response?.data || {},
+      unavailable: false,
+      apiStatus: response?.apiStatus
+    };
+  } catch (error) {
+    return {
+      data: {},
+      unavailable: true,
+      error: error?.message || String(error)
+    };
+  }
+}
+
+async function detectAccount(input = {}) {
+  const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const activeUrl = activeTabs[0]?.url || "";
+  const baseUrl = normalizeBaseUrl(input.baseUrl || activeUrl);
+  if (!baseUrl) {
+    throw new Error("请先填写站点地址，或打开目标站点后再自动识别。");
+  }
+
+  const siteType = isKnownSiteType(input.siteType)
+    ? input.siteType
+    : detectSiteType(baseUrl, SITE_TYPES.NEW_API);
+  const contentResult = await detectFromContentScript(baseUrl);
+  const directUser = await detectViaDirectApi(baseUrl, contentResult.data.accessToken);
+  const cookie = await getCookieHeader(baseUrl);
+  const merged = {
+    ...contentResult.data,
+    ...directUser
+  };
+  const resolvedAuthType = isKnownAuthType(input.authType)
+    ? input.authType
+    : siteType === SITE_TYPES.ANYROUTER
+      ? AUTH_TYPES.COOKIE
+      : merged.accessToken
+        ? AUTH_TYPES.ACCESS_TOKEN
+        : getDefaultAuthType(siteType, baseUrl);
+
+  if (!merged.userId && !merged.username && !merged.accessToken && !cookie) {
+    if (contentResult.unavailable) {
+      throw new Error("当前目标页面还不能响应自动识别，请刷新目标站点页面后重试。");
+    }
+    throw new Error("未识别到账号信息，请确认已在目标站点登录。");
+  }
+
+  return {
+    siteType,
+    authType: resolvedAuthType,
+    baseUrl,
+    name: input.name || new URL(baseUrl).hostname,
+    username: String(merged.username || ""),
+    userId: merged.userId === undefined || merged.userId === null ? "" : String(merged.userId),
+    accessToken: siteType === SITE_TYPES.ANYROUTER ? "" : String(merged.accessToken || ""),
+    cookie
+  };
+}
+
+async function getState() {
+  await migrateLegacyData();
+  const [accounts, settings, status, local, sync] = await Promise.all([
+    getAccounts(),
+    getAutoCheckinSettings(),
+    getAutoCheckinStatus(),
+    chrome.storage.local.get(STORAGE_KEYS.LAST_OPEN_RESULT),
+    chrome.storage.sync.get(STORAGE_KEYS.LEGACY_SCHEDULE_TIME)
+  ]);
+
+  return {
+    accounts,
+    autoCheckinSettings: settings,
+    autoCheckinStatus: status,
+    lastOpenResult: local[STORAGE_KEYS.LAST_OPEN_RESULT] || null,
+    scheduleTime: sync[STORAGE_KEYS.LEGACY_SCHEDULE_TIME] || DEFAULTS.scheduleTime
+  };
 }
 
 async function ensureDefaults() {
-  const stored = await chrome.storage.sync.get(STORAGE_KEY);
-  if (!stored[STORAGE_KEY]) {
-    await chrome.storage.sync.set({ [STORAGE_KEY]: DEFAULT_TIME });
+  const stored = await chrome.storage.sync.get(STORAGE_KEYS.LEGACY_SCHEDULE_TIME);
+  if (!stored[STORAGE_KEYS.LEGACY_SCHEDULE_TIME]) {
+    await chrome.storage.sync.set({ [STORAGE_KEYS.LEGACY_SCHEDULE_TIME]: DEFAULTS.scheduleTime });
   }
+  await migrateLegacyData();
+}
+
+async function initialize() {
+  await ensureDefaults();
+  await clearNewApiHeaderRule();
+  await scheduleOpenAlarm();
+  await scheduleAutoCheckinDaily();
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
-  await ensureDefaults();
-  await clearNewApiHeaderRule();
-
-  await scheduleAlarm();
+  await initialize();
   await maybeCatchUpOpen();
+  await maybeCatchUpAutoCheckin();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  await ensureDefaults();
-  await clearNewApiHeaderRule();
-  await scheduleAlarm();
+  await initialize();
   await delay(STARTUP_CATCH_UP_DELAY_MS);
   await maybeCatchUpOpen();
+  await maybeCatchUpAutoCheckin();
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name !== ALARM_NAME) {
+  if (alarm.name === OPEN_ALARM_NAME || alarm.name === LEGACY_OPEN_ALARM_NAME) {
+    const result = await openTargetUrls();
+    await recordOpenResult("alarm", result);
+    if (result.successCount > 0 || result.existingCount > 0) {
+      await markOpenedToday();
+    }
+    await scheduleOpenAlarm();
     return;
   }
 
-  const result = await openTargetUrl();
-  await recordOpenResult("alarm", result);
-
-  if (result.successCount > 0 || result.existingCount > 0) {
-    await markOpenedToday();
+  if (alarm.name === AUTO_DAILY_ALARM_NAME) {
+    await runAutoCheckin({ trigger: "alarm", markDailyRun: true });
+    await scheduleAutoCheckinDaily();
+    return;
   }
 
-  await runNewApiCheckinSafely("alarm");
-  await scheduleAlarm();
+  if (alarm.name === AUTO_RETRY_ALARM_NAME) {
+    await runAutoCheckin({ trigger: "retry", retryOnly: true });
+  }
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type !== "run-new-api-checkin") {
+  const knownTypes = new Set([
+    "get-state",
+    "save-account",
+    "delete-account",
+    "save-auto-checkin-settings",
+    "save-open-settings",
+    "run-auto-checkin",
+    "detect-account",
+    "open-account-site",
+    "run-new-api-checkin"
+  ]);
+
+  if (!knownTypes.has(message?.type)) {
     return false;
   }
 
-  runNewApiCheckin("manual")
-    .then((result) => sendResponse({ ok: true, result }))
-    .catch((error) => sendResponse({
-      ok: false,
-      error: error?.message || String(error)
-    }));
+  (async () => {
+    switch (message?.type) {
+      case "get-state":
+        return { ok: true, state: await getState() };
+      case "save-account":
+        return { ok: true, account: await upsertAccount(message.account || {}) };
+      case "delete-account":
+        await deleteAccount(message.accountId);
+        return { ok: true };
+      case "save-auto-checkin-settings":
+        return { ok: true, settings: await saveAutoCheckinSettings(message.settings || {}) };
+      case "save-open-settings":
+        await chrome.storage.sync.set({ [STORAGE_KEYS.LEGACY_SCHEDULE_TIME]: message.scheduleTime || DEFAULTS.scheduleTime });
+        await scheduleOpenAlarm();
+        await maybeCatchUpOpen();
+        return { ok: true };
+      case "run-auto-checkin":
+        return { ok: true, status: await runAutoCheckin(message.options || { trigger: "manual" }) };
+      case "detect-account":
+        return { ok: true, data: await detectAccount(message.input || {}) };
+      case "open-account-site":
+        await chrome.tabs.create({ url: message.url, active: true });
+        return { ok: true };
+      case "run-new-api-checkin":
+        return { ok: true, result: await runAutoCheckin({ trigger: "manual" }) };
+    }
+  })()
+    .then((response) => {
+      sendResponse(response);
+    })
+    .catch((error) => {
+      sendResponse({
+        ok: false,
+        error: error?.message || String(error)
+      });
+    });
 
   return true;
 });
@@ -792,10 +1298,12 @@ chrome.action.onClicked.addListener(async () => {
 });
 
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
-  if (areaName !== "sync" || !changes[STORAGE_KEY]) {
-    return;
+  if (areaName === "sync") {
+    if (changes[STORAGE_KEYS.LEGACY_SCHEDULE_TIME]) {
+      await scheduleOpenAlarm();
+    }
+    if (changes[STORAGE_KEYS.AUTO_CHECKIN_SETTINGS]) {
+      await scheduleAutoCheckinDaily();
+    }
   }
-
-  await scheduleAlarm();
-  await maybeCatchUpOpen();
 });
