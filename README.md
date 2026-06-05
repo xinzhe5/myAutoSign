@@ -55,46 +55,92 @@
 ## 文件说明
 
 - `manifest.json`：Chrome Manifest V3 配置文件
-- `background.js`：负责定时调度、补开逻辑和 new-api 签到请求
-- `options.html`、`options.css`、`options.js`：设置页面，用来选择每天打开时间并配置签到参数
+- `shared.js`：站点类型、认证方式、状态枚举、账号归一化和时间工具
+- `content.js`：在目标站点内执行自动识别，读取登录态、用户信息和候选访问令牌
+- `background.js`：负责账号迁移、自动打开、自动签到调度、失败重试和 provider 请求
+- `options.html`、`options.css`、`options.js`：设置页面，包含账号管理、自动签到和基础设置三个视图
+- `DEVELOPMENT_PLAN.md`：本轮升级计划、实现进度和验证记录
 
 ## 加载扩展
 
 1. 打开 Chrome 或 Edge，访问 `chrome://extensions/` 或 `edge://extensions/`
 2. 打开右上角“开发者模式”
 3. 点击“加载已解压的扩展程序”
-4. 选择这个文件夹：`D:\ProgramAdd\Extensions\LinuxDo`
+4. 选择本项目文件夹
 
-## 设置时间与签到
+## 页面说明
 
-1. 加载完成后，在扩展列表里点“详细信息”
-2. 打开“扩展程序选项”
-3. 选择每天打开的时间并点击“保存”
-4. 也可以直接点击扩展图标，自动跳转到这个设置页面
-5. 如需启用 new-api 签到，勾选“启用每日 new-api 签到”，按需添加一个或多个站点并填写凭据后保存
-6. 设置页会显示最近一次自动打开和最近一次 new-api 签到的执行状态
+加载完成后，可以在扩展列表里打开“扩展程序选项”，也可以点击扩展图标进入设置页。
 
-默认时间是 `09:00`。
+设置页分为三个视图：
 
-new-api 签到配置对应原 Python 脚本里的环境变量：
+- `账号管理`：添加、编辑、删除账号，支持站点类型下拉选择和自动识别。
+- `自动签到`：配置每日签到时间窗口、立即签到、失败重试，并查看逐账号结果。
+- `基础设置`：保留原来的每日自动打开 Linux.do / AnyRouter 控制台功能。
 
-- `NEW_API_CHECKIN_BASE_URL` -> 每个站点的站点地址，例如 `https://网站域名`
-- `NEW_API_CHECKIN_ACCESS_TOKEN` -> 每个站点的 Access Token
-- `NEW_API_CHECKIN_USER_ID` -> 每个站点的用户 ID
-- `NEW_API_CHECKIN_TURNSTILE_TOKEN` -> Turnstile Token（可选）
-- `NEW_API_CHECKIN_COOKIE` -> Cookie（可选）
+## 账号管理
 
-每个站点的配置会保存在本地浏览器扩展存储中。当前版本已关闭自动获取凭据，需要手动填写 Access Token 和用户 ID。
+新增或编辑账号时，站点类型通过下拉选择：
+
+- `New API`
+- `AnyRouter`
+
+表单会按照站点类型和认证方式联动：
+
+- New API 默认使用 `Access Token` 认证，可填写用户 ID、Access Token、Turnstile Token 和 Cookie。
+- AnyRouter 默认使用 `Cookie` 认证，自动签到会请求 `/api/user/sign_in`，不是只打开控制台页面。
+- 输入 `https://anyrouter.top/...` 时会自动预选 `AnyRouter` 和 `Cookie`。
+
+点击“自动识别”前，请先在浏览器中登录目标站点并保持目标站点标签页打开。自动识别会尽量读取：
+
+- 用户名
+- 用户 ID
+- Access Token
+- Cookie
+
+不同 new-api 魔改站点的字段可能不完全一致，如果自动识别失败，可以手动填写后保存。
+
+## 自动签到
+
+自动签到现在按账号执行，而不是按旧版 new-api 站点配置执行。
+
+支持：
+
+- 每日自动签到开关
+- 签到时间窗口
+- 立即签到全部账号
+- 单账号重试
+- 只重试失败账号
+- 逐账号结果表格
+
+当前 provider：
+
+- New API：沿用 `/api/user/self`、`/api/user/checkin` 流程。
+- AnyRouter：按参考实现使用 Cookie 认证，请求 `POST /api/user/sign_in`。
+
+旧版 `newApiCheckinConfig.sites` 会在升级后自动迁移为账号列表。
+
+## Linux.do / AnyRouter 自动打开
+
+Linux.do 自动打开功能仍然保留。
+
+在“基础设置”中设置每天打开时间后，扩展会在该时间后的 30 分钟内随机打开：
+
+- `https://linux.do/?tl=en`
+- `https://anyrouter.top/console`
+
+这部分只是辅助打开页面，和自动签到结果分开展示。AnyRouter 的真实签到由自动签到 provider 执行。
 
 ## 补开逻辑
 
-- 如果浏览器在设定时间处于运行状态，扩展会在该时间后的 30 分钟内随机打开网页，并尝试执行 new-api 签到。
-- 如果设定时间到达时浏览器完全关闭，扩展会在当天下一次启动浏览器时补开并补执行签到一次，但前提是当天还没有打开过。
-- 扩展同一天只会自动打开一次；new-api 接口会判断当天是否已经签到，避免重复领取。
+- 如果浏览器在基础设置的打开时间处于运行状态，扩展会在该时间后的 30 分钟内随机打开 Linux.do 和 AnyRouter 控制台。
+- 如果设定时间到达时浏览器完全关闭，扩展会在当天下一次启动浏览器时补开一次，但前提是当天还没有打开过。
 - 补开前会检查当前浏览器中是否已经存在 Linux.do 或 AnyRouter 控制台标签页，避免 Edge 会话恢复时重复打开。
+- 自动签到有独立的每日时间窗口和失败重试调度，不依赖自动打开页面。
 
 ## 注意事项
 
-- 扩展需要 `<all_urls>` 主机权限，才能请求你在设置页填写的任意 new-api 站点。
-- 浏览器不允许扩展手动设置 `Cookie` 请求头；这里会把设置页填写的 Cookie 尽量写入 Chrome Cookie 存储，再由请求自动携带。
-- 如果站点启用了实时 Cloudflare、WAF 或 Turnstile 校验，Cookie 或 Turnstile Token 过期后需要重新填写。
+- 扩展需要 `<all_urls>` 主机权限，才能在目标站点执行自动识别并请求你配置的站点接口。
+- AnyRouter 使用 Cookie 认证，Cookie 必须来自当前登录账号；同站点多账号 Cookie 认证存在天然限制。
+- 浏览器不允许普通 fetch 随意手动设置 `Cookie` 请求头；扩展会尽量把填写或识别到的 Cookie 写入浏览器 Cookie 存储，再由请求自动携带。
+- 如果站点启用了实时 Cloudflare、WAF 或 Turnstile 校验，Cookie 或 Turnstile Token 过期后需要重新识别或手动更新。
