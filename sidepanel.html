@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>账号自动识别</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <main class="panel">
+    <header class="panel-header">
+      <div>
+        <h1>账号自动识别</h1>
+        <p>在目标站点登录后，从这里识别并保存账号。</p>
+      </div>
+      <button id="open-options" type="button" class="icon-button" title="打开完整设置">设置</button>
+    </header>
+
+    <section class="current-site">
+      <span>当前站点</span>
+      <strong id="current-site-url">正在读取...</strong>
+    </section>
+
+    <form id="sidepanel-form" class="form">
+      <label>
+        <span>站点地址</span>
+        <input id="base-url" type="url" placeholder="https://example.com" required>
+      </label>
+
+      <div class="two-col">
+        <label>
+          <span>站点类型</span>
+          <select id="site-type">
+            <option value="new-api">New API</option>
+            <option value="anyrouter">AnyRouter</option>
+          </select>
+        </label>
+        <label>
+          <span>认证方式</span>
+          <select id="auth-type">
+            <option value="access-token">Access Token</option>
+            <option value="cookie">Cookie</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        <span>站点名称</span>
+        <input id="name" type="text" placeholder="主站">
+      </label>
+      <label>
+        <span>用户名</span>
+        <input id="username" type="text" autocomplete="off">
+      </label>
+      <label>
+        <span>用户 ID</span>
+        <input id="user-id" type="text" autocomplete="off" required>
+      </label>
+      <label id="access-token-field">
+        <span>Access Token</span>
+        <input id="access-token" type="password" autocomplete="off">
+      </label>
+      <label id="cookie-field">
+        <span>Cookie</span>
+        <textarea id="cookie" rows="3" spellcheck="false"></textarea>
+      </label>
+      <label id="turnstile-field">
+        <span>Turnstile Token（可选）</span>
+        <input id="turnstile-token" type="password" autocomplete="off">
+      </label>
+
+      <div class="switches">
+        <label><input id="enabled" type="checkbox" checked> 启用账号</label>
+        <label><input id="auto-checkin-enabled" type="checkbox" checked> 参与自动签到</label>
+      </div>
+
+      <div class="actions">
+        <button id="detect-button" type="button" class="secondary-button">自动识别当前站点</button>
+        <button type="submit">保存账号</button>
+      </div>
+    </form>
+
+    <p id="status" class="status" aria-live="polite"></p>
+  </main>
+
+  <script src="shared.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

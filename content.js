@@ -1,4 +1,9 @@
 (function initMyAutoSignContent() {
+  if (globalThis.__MY_AUTOSIGN_CONTENT_READY__) {
+    return;
+  }
+  globalThis.__MY_AUTOSIGN_CONTENT_READY__ = true;
+
   const MESSAGE_TYPE = "myautosign-detect-site";
 
   function safeJsonParse(value) {

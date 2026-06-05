@@ -1101,21 +1101,45 @@ async function detectFromContentScript(baseUrl) {
     return { data: {}, unavailable: false };
   }
 
+  const request = {
+    type: AUTO_DETECT_MESSAGE_TYPE,
+    baseUrl
+  };
+
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      type: AUTO_DETECT_MESSAGE_TYPE,
-      baseUrl
-    });
+    const response = await chrome.tabs.sendMessage(tab.id, request);
     return {
       data: response?.data || {},
       unavailable: false,
       apiStatus: response?.apiStatus
     };
   } catch (error) {
+    const initialError = error;
+    if (chrome.scripting?.executeScript) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["content.js"]
+        });
+        const response = await chrome.tabs.sendMessage(tab.id, request);
+        return {
+          data: response?.data || {},
+          unavailable: false,
+          apiStatus: response?.apiStatus
+        };
+      } catch (retryError) {
+        return {
+          data: {},
+          unavailable: true,
+          error: retryError?.message || initialError?.message || String(retryError || initialError)
+        };
+      }
+    }
+
     return {
       data: {},
       unavailable: true,
-      error: error?.message || String(error)
+      error: initialError?.message || String(initialError)
     };
   }
 }
@@ -1291,8 +1315,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-chrome.action.onClicked.addListener(async () => {
-  await chrome.runtime.openOptionsPage();
+async function openSidePanelFromAction(tab) {
+  if (!chrome.sidePanel?.open) {
+    return false;
+  }
+
+  const options = tab?.windowId ? { windowId: tab.windowId } : {};
+  await chrome.sidePanel.open(options);
+  return true;
+}
+
+chrome.action.onClicked.addListener((tab) => {
+  (async () => {
+    try {
+      if (await openSidePanelFromAction(tab)) {
+        return;
+      }
+    } catch (error) {
+      console.warn("Failed to open side panel, falling back to options page.", error);
+    }
+
+    await chrome.runtime.openOptionsPage();
+  })();
 });
 
 chrome.storage.onChanged.addListener(async (changes, areaName) => {

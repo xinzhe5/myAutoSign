@@ -7,6 +7,8 @@
     "alarms",
     "cookies",
     "declarativeNetRequest",
+    "scripting",
+    "sidePanel",
     "storage",
     "tabs"
   ],
@@ -36,6 +38,9 @@
     }
   ],
   "options_page": "options.html",
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "action": {
     "default_title": "每日自动签到与账号管理",
     "default_icon": {
