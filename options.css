@@ -167,7 +167,11 @@ button:disabled {
 .page-header,
 .section-title,
 .account-main,
+.model-main,
+.bookmark-main,
 .account-actions,
+.model-actions,
+.bookmark-actions,
 .header-actions,
 .switch-row,
 .action-row,
@@ -405,17 +409,23 @@ textarea:focus {
   gap: 12px;
 }
 
-.account-card {
+.account-card,
+.model-card,
+.bookmark-card {
   display: grid;
   gap: 12px;
   padding: 16px;
 }
 
-.account-main {
+.account-main,
+.model-main,
+.bookmark-main {
   justify-content: space-between;
 }
 
-.account-card p {
+.account-card p,
+.model-card p,
+.bookmark-card p {
   margin: 5px 0 0;
   color: var(--muted);
   word-break: break-all;
@@ -461,7 +471,9 @@ textarea:focus {
   background: var(--neutral-bg);
 }
 
-.account-meta {
+.account-meta,
+.model-meta,
+.bookmark-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -469,8 +481,61 @@ textarea:focus {
   font-size: 0.88rem;
 }
 
-.account-actions {
+.account-actions,
+.model-actions,
+.bookmark-actions {
   flex-wrap: wrap;
+}
+
+.model-list,
+.bookmark-list {
+  display: grid;
+  gap: 12px;
+}
+
+.model-card,
+.bookmark-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.model-card h3,
+.bookmark-card h3 {
+  margin: 0;
+}
+
+.model-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.model-detail {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.model-detail span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.model-detail strong {
+  overflow: hidden;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .status-grid {
@@ -594,7 +659,7 @@ td small {
   }
 
   .nav-tabs {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
     overflow: visible;
   }
 
@@ -603,7 +668,9 @@ td small {
   }
 
   .page-header,
-  .account-main {
+  .account-main,
+  .model-main,
+  .bookmark-main {
     align-items: stretch;
     flex-direction: column;
   }
@@ -611,7 +678,8 @@ td small {
   .form-grid,
   .settings-grid,
   .compact-grid,
-  .status-grid {
+  .status-grid,
+  .model-detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -628,6 +696,8 @@ td small {
   .header-actions,
   .action-row,
   .account-actions,
+  .model-actions,
+  .bookmark-actions,
   .toolbar {
     align-items: stretch;
     flex-direction: column;

@@ -9,6 +9,7 @@ const {
   detectSiteType,
   getDefaultAuthType,
   normalizeAccount,
+  normalizeBookmark,
   normalizeSettings,
   statusIsSuccess
 } = globalThis.MyAutoSignShared;
@@ -22,12 +23,16 @@ const TRIGGER_TEXT_MAP = {
 
 let appState = {
   accounts: [],
+  bookmarks: [],
+  modelCache: {},
   autoCheckinSettings: normalizeSettings(),
   autoCheckinStatus: null,
   lastOpenResult: null,
   scheduleTime: DEFAULTS.scheduleTime
 };
 let editingAccountId = null;
+let editingBookmarkId = null;
+let modelRefreshInFlight = false;
 let siteTypeTouched = false;
 let authTypeTouched = false;
 
@@ -65,6 +70,38 @@ const elements = {
   accountSearch: $("#account-search"),
   accountTypeFilter: $("#account-type-filter"),
   accountEnabledFilter: $("#account-enabled-filter"),
+  modelAccountFilter: $("#model-account-filter"),
+  modelSearch: $("#model-search"),
+  modelProviderFilter: $("#model-provider-filter"),
+  modelSort: $("#model-sort"),
+  refreshSelectedModelsButton: $("#refresh-selected-models"),
+  refreshAllModelsButton: $("#refresh-all-models"),
+  copyVisibleModelsButton: $("#copy-visible-models"),
+  modelStatus: $("#model-status"),
+  modelMetricAccounts: $("#model-metric-accounts"),
+  modelMetricCached: $("#model-metric-cached"),
+  modelMetricCount: $("#model-metric-count"),
+  modelMetricUpdated: $("#model-metric-updated"),
+  modelList: $("#model-list"),
+  modelEmpty: $("#model-empty"),
+  newBookmarkButton: $("#new-bookmark-button"),
+  bookmarkEditor: $("#bookmark-editor"),
+  bookmarkEditorTitle: $("#bookmark-editor-title"),
+  bookmarkForm: $("#bookmark-form"),
+  bookmarkId: $("#bookmark-id"),
+  bookmarkName: $("#bookmark-name"),
+  bookmarkUrl: $("#bookmark-url"),
+  bookmarkTags: $("#bookmark-tags"),
+  bookmarkNotes: $("#bookmark-notes"),
+  bookmarkPinned: $("#bookmark-pinned"),
+  bookmarkCurrentTab: $("#bookmark-current-tab"),
+  bookmarkFormStatus: $("#bookmark-form-status"),
+  cancelBookmarkEdit: $("#cancel-bookmark-edit"),
+  bookmarkSearch: $("#bookmark-search"),
+  bookmarkTagFilter: $("#bookmark-tag-filter"),
+  bookmarkStatus: $("#bookmark-status"),
+  bookmarkList: $("#bookmark-list"),
+  bookmarkEmpty: $("#bookmark-empty"),
   autoForm: $("#auto-checkin-settings-form"),
   autoEnabled: $("#auto-checkin-enabled"),
   autoWindowStart: $("#auto-window-start"),
@@ -214,6 +251,8 @@ async function loadState() {
 function renderAll() {
   renderAccountFormAuthFields();
   renderAccounts();
+  renderModels();
+  renderBookmarks();
   renderAutoCheckinSettings();
   renderAutoCheckinStatus();
   renderOpenSettings();
@@ -309,6 +348,295 @@ function renderAccounts() {
     `;
 
     elements.accountList.appendChild(item);
+  }
+}
+
+function getAccountLabel(account) {
+  return account?.name || account?.username || account?.baseUrl || "未命名账号";
+}
+
+function renderModelAccountOptions() {
+  const currentValue = elements.modelAccountFilter.value || "all";
+  elements.modelAccountFilter.replaceChildren();
+
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = "全部账号";
+  elements.modelAccountFilter.appendChild(allOption);
+
+  for (const account of appState.accounts) {
+    const option = document.createElement("option");
+    option.value = account.id;
+    option.textContent = getAccountLabel(account);
+    elements.modelAccountFilter.appendChild(option);
+  }
+
+  const hasCurrentValue = currentValue === "all" || appState.accounts.some((account) => account.id === currentValue);
+  elements.modelAccountFilter.value = hasCurrentValue ? currentValue : "all";
+}
+
+function getModelCacheEntries() {
+  const accountIds = new Set(appState.accounts.map((account) => account.id));
+  return Object.values(appState.modelCache || {})
+    .filter((entry) => entry && accountIds.has(entry.accountId));
+}
+
+function inferModelProvider(modelName) {
+  const name = String(modelName || "").toLowerCase();
+  if (name.includes("claude")) return "anthropic";
+  if (name.includes("gemini") || name.includes("palm")) return "google";
+  if (name.includes("deepseek")) return "deepseek";
+  if (name.includes("qwen") || name.includes("qwq")) return "qwen";
+  if (name.includes("llama") || name.includes("meta-")) return "meta";
+  if (name.includes("gpt") || name.includes("o1") || name.includes("o3") || name.includes("o4")) return "openai";
+  return "other";
+}
+
+function getProviderLabel(provider) {
+  const labels = {
+    openai: "OpenAI",
+    anthropic: "Anthropic",
+    google: "Google",
+    deepseek: "DeepSeek",
+    qwen: "Qwen",
+    meta: "Meta",
+    other: "其他"
+  };
+  return labels[provider] || provider || "其他";
+}
+
+function getModelSourceLabel(source) {
+  if (source === "pricing") {
+    return "定价接口";
+  }
+  if (source === "openai-compatible") {
+    return "模型接口";
+  }
+  return "缓存";
+}
+
+function getFilteredModelRows() {
+  const selectedAccountId = elements.modelAccountFilter.value;
+  const keyword = elements.modelSearch.value.trim().toLowerCase();
+  const providerFilter = elements.modelProviderFilter.value;
+  const rows = [];
+
+  for (const entry of getModelCacheEntries()) {
+    if (selectedAccountId !== "all" && entry.accountId !== selectedAccountId) {
+      continue;
+    }
+
+    const account = appState.accounts.find((item) => item.id === entry.accountId);
+    for (const model of entry.models || []) {
+      const provider = inferModelProvider(model.name);
+      if (providerFilter !== "all" && provider !== providerFilter) {
+        continue;
+      }
+
+      const searchText = [
+        model.name,
+        model.description,
+        entry.accountName,
+        entry.baseUrl,
+        provider,
+        ...(model.enableGroups || []),
+        ...(model.endpointTypes || [])
+      ].join(" ").toLowerCase();
+
+      if (keyword && !searchText.includes(keyword)) {
+        continue;
+      }
+
+      rows.push({ entry, account, model, provider });
+    }
+  }
+
+  const sortMode = elements.modelSort.value;
+  rows.sort((a, b) => {
+    if (sortMode === "account") {
+      return String(a.entry.accountName || "").localeCompare(String(b.entry.accountName || ""), "zh-CN");
+    }
+    if (sortMode === "provider") {
+      const providerCompare = getProviderLabel(a.provider).localeCompare(getProviderLabel(b.provider), "zh-CN");
+      if (providerCompare !== 0) return providerCompare;
+    }
+    return String(a.model.name || "").localeCompare(String(b.model.name || ""), "zh-CN");
+  });
+
+  return rows;
+}
+
+function renderModels() {
+  renderModelAccountOptions();
+
+  const entries = getModelCacheEntries();
+  const rows = getFilteredModelRows();
+  const canRefreshSelected = appState.accounts.length > 0 && elements.modelAccountFilter.value !== "all";
+  const latestFetchedAt = entries
+    .map((entry) => entry.fetchedAt)
+    .filter(Boolean)
+    .sort()
+    .pop();
+
+  elements.refreshSelectedModelsButton.disabled = modelRefreshInFlight || !canRefreshSelected;
+  elements.refreshAllModelsButton.disabled = modelRefreshInFlight || appState.accounts.length === 0;
+  elements.modelMetricAccounts.textContent = String(appState.accounts.length);
+  elements.modelMetricCached.textContent = String(entries.filter((entry) => (entry.models || []).length > 0).length);
+  elements.modelMetricCount.textContent = String(rows.length);
+  elements.modelMetricUpdated.textContent = latestFetchedAt ? formatDateTime(latestFetchedAt) : "暂无";
+
+  const errors = entries.filter((entry) => entry.error);
+  if (errors.length && !elements.modelStatus.textContent) {
+    elements.modelStatus.textContent = `${errors.length} 个账号最近刷新失败，可重新刷新查看详情。`;
+    elements.modelStatus.className = "status error";
+  }
+
+  elements.modelList.replaceChildren();
+  elements.modelEmpty.hidden = rows.length > 0;
+  elements.modelEmpty.textContent = appState.accounts.length
+    ? "还没有模型数据。请点击“刷新当前账号”或“刷新全部账号”。"
+    : "还没有账号。请先在账号管理页添加账号。";
+
+  for (const row of rows) {
+    const card = document.createElement("article");
+    card.className = "model-card";
+    card.dataset.modelName = row.model.name;
+    card.dataset.accountId = row.entry.accountId;
+    const groups = (row.model.enableGroups || []).length ? row.model.enableGroups.join(", ") : "-";
+    const endpoints = (row.model.endpointTypes || []).length ? row.model.endpointTypes.join(", ") : "-";
+    const ratio = row.model.modelRatio === "" ? "-" : `${row.model.modelRatio}x`;
+    const completionRatio = row.model.completionRatio === "" ? "-" : `${row.model.completionRatio}x`;
+    const price = row.model.modelPrice || "-";
+
+    card.innerHTML = `
+      <div class="model-main">
+        <div>
+          <h3 title="${escapeHtml(row.model.name)}">${escapeHtml(row.model.name)}</h3>
+          <p>${escapeHtml(row.entry.accountName || getAccountLabel(row.account))} · ${escapeHtml(row.entry.baseUrl || "")}</p>
+        </div>
+        <div class="badge-row">
+          <span class="badge">${escapeHtml(getProviderLabel(row.provider))}</span>
+          <span class="badge">${escapeHtml(row.model.quotaType || "按量")}</span>
+          <span class="badge neutral">${escapeHtml(getModelSourceLabel(row.entry.source))}</span>
+        </div>
+      </div>
+      <div class="model-detail-grid">
+        <div class="model-detail"><span>倍率</span><strong title="${escapeHtml(ratio)}">${escapeHtml(ratio)}</strong></div>
+        <div class="model-detail"><span>补全倍率</span><strong title="${escapeHtml(completionRatio)}">${escapeHtml(completionRatio)}</strong></div>
+        <div class="model-detail"><span>价格</span><strong title="${escapeHtml(price)}">${escapeHtml(price)}</strong></div>
+        <div class="model-detail"><span>分组</span><strong title="${escapeHtml(groups)}">${escapeHtml(groups)}</strong></div>
+      </div>
+      <div class="model-meta">
+        <span>端点：${escapeHtml(endpoints)}</span>
+        <span>刷新：${escapeHtml(formatDateTime(row.entry.fetchedAt))}</span>
+      </div>
+      <div class="model-actions">
+        <button type="button" class="secondary-button" data-model-action="copy">复制模型名</button>
+        <button type="button" class="secondary-button" data-model-action="open">打开站点</button>
+      </div>
+    `;
+
+    elements.modelList.appendChild(card);
+  }
+}
+
+function splitTags(value) {
+  return Array.from(new Set(String(value || "")
+    .split(/[,\n，]/)
+    .map((tag) => tag.trim())
+    .filter(Boolean)));
+}
+
+function bookmarkMatchesFilters(bookmark) {
+  const keyword = elements.bookmarkSearch.value.trim().toLowerCase();
+  const tagFilter = elements.bookmarkTagFilter.value;
+
+  if (tagFilter !== "all" && !(bookmark.tags || []).includes(tagFilter)) {
+    return false;
+  }
+
+  if (!keyword) {
+    return true;
+  }
+
+  return [
+    bookmark.name,
+    bookmark.url,
+    bookmark.notes,
+    ...(bookmark.tags || [])
+  ].some((value) => String(value || "").toLowerCase().includes(keyword));
+}
+
+function renderBookmarkTagOptions() {
+  const currentValue = elements.bookmarkTagFilter.value || "all";
+  const tags = Array.from(new Set((appState.bookmarks || []).flatMap((bookmark) => bookmark.tags || [])))
+    .sort((a, b) => a.localeCompare(b, "zh-CN"));
+
+  elements.bookmarkTagFilter.replaceChildren();
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = "全部";
+  elements.bookmarkTagFilter.appendChild(allOption);
+
+  for (const tag of tags) {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    elements.bookmarkTagFilter.appendChild(option);
+  }
+
+  elements.bookmarkTagFilter.value = tags.includes(currentValue) ? currentValue : "all";
+}
+
+function getSortedBookmarks() {
+  return [...(appState.bookmarks || [])].sort((a, b) => {
+    if (a.pinned !== b.pinned) {
+      return a.pinned ? -1 : 1;
+    }
+    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+  });
+}
+
+function renderBookmarks() {
+  renderBookmarkTagOptions();
+
+  const bookmarks = getSortedBookmarks().filter(bookmarkMatchesFilters);
+  elements.bookmarkList.replaceChildren();
+  elements.bookmarkEmpty.hidden = bookmarks.length > 0;
+  elements.bookmarkEmpty.textContent = appState.bookmarks.length
+    ? "没有匹配的书签。"
+    : "还没有书签。添加书签后可在这里快速打开常用入口。";
+
+  for (const bookmark of bookmarks) {
+    const card = document.createElement("article");
+    card.className = "bookmark-card";
+    card.dataset.bookmarkId = bookmark.id;
+    const tagsHtml = (bookmark.tags || [])
+      .map((tag) => `<span class="badge neutral">${escapeHtml(tag)}</span>`)
+      .join("");
+
+    card.innerHTML = `
+      <div class="bookmark-main">
+        <div>
+          <h3 title="${escapeHtml(bookmark.name)}">${escapeHtml(bookmark.name)}</h3>
+          <p title="${escapeHtml(bookmark.url)}">${escapeHtml(bookmark.url)}</p>
+        </div>
+        <div class="badge-row">
+          ${bookmark.pinned ? '<span class="badge success">置顶</span>' : ""}
+          ${tagsHtml}
+        </div>
+      </div>
+      ${bookmark.notes ? `<div class="bookmark-meta"><span>${escapeHtml(bookmark.notes)}</span></div>` : ""}
+      <div class="bookmark-actions">
+        <button type="button" class="secondary-button" data-bookmark-action="open">打开</button>
+        <button type="button" class="secondary-button" data-bookmark-action="copy">复制链接</button>
+        <button type="button" class="secondary-button" data-bookmark-action="pin">${bookmark.pinned ? "取消置顶" : "置顶"}</button>
+        <button type="button" class="secondary-button" data-bookmark-action="edit">编辑</button>
+        <button type="button" class="danger-button" data-bookmark-action="delete">删除</button>
+      </div>
+    `;
+
+    elements.bookmarkList.appendChild(card);
   }
 }
 
@@ -486,6 +814,195 @@ function validateAccount(account) {
   return "";
 }
 
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+function getSelectedModelAccountId() {
+  const selected = elements.modelAccountFilter.value;
+  if (selected !== "all") {
+    return selected;
+  }
+  return "";
+}
+
+async function refreshModels(scope) {
+  const isAll = scope === "all";
+  const button = isAll ? elements.refreshAllModelsButton : elements.refreshSelectedModelsButton;
+  const accountId = getSelectedModelAccountId();
+
+  if (!isAll && !accountId) {
+    elements.modelStatus.textContent = appState.accounts.length ? "请先在数据源中选择一个具体账号，或刷新全部账号。" : "请先添加账号。";
+    elements.modelStatus.className = "status error";
+    return;
+  }
+
+  modelRefreshInFlight = true;
+  renderModels();
+  button.disabled = true;
+  elements.modelStatus.textContent = isAll ? "正在刷新全部账号模型..." : "正在刷新当前账号模型...";
+  elements.modelStatus.className = "status";
+
+  try {
+    if (isAll) {
+      const response = await sendMessage("refresh-all-models");
+      const failed = (response.data?.results || []).filter((item) => !item.ok);
+      await loadState();
+      elements.modelStatus.textContent = failed.length
+        ? `模型刷新完成，${failed.length} 个账号失败。`
+        : "模型刷新完成。";
+      elements.modelStatus.className = failed.length ? "status error" : "status success";
+      return;
+    }
+
+    await sendMessage("refresh-account-models", { accountId });
+    await loadState();
+    elements.modelStatus.textContent = "当前账号模型已刷新。";
+    elements.modelStatus.className = "status success";
+  } catch (error) {
+    elements.modelStatus.textContent = `模型刷新失败：${error.message}`;
+    elements.modelStatus.className = "status error";
+    await loadState();
+  } finally {
+    modelRefreshInFlight = false;
+    renderModels();
+  }
+}
+
+async function copyVisibleModelNames() {
+  const names = Array.from(new Set(getFilteredModelRows().map((row) => row.model.name)));
+  if (!names.length) {
+    elements.modelStatus.textContent = "当前没有可复制的模型。";
+    elements.modelStatus.className = "status error";
+    return;
+  }
+
+  await copyText(names.join("\n"));
+  elements.modelStatus.textContent = `已复制 ${names.length} 个模型名。`;
+  elements.modelStatus.className = "status success";
+}
+
+function getEmptyBookmark() {
+  return normalizeBookmark({
+    name: "",
+    url: "",
+    tags: [],
+    notes: "",
+    pinned: false
+  });
+}
+
+function fillBookmarkForm(bookmark) {
+  editingBookmarkId = bookmark?.id || null;
+  const draft = bookmark || getEmptyBookmark();
+  elements.bookmarkEditorTitle.textContent = editingBookmarkId ? "编辑书签" : "添加书签";
+  elements.bookmarkId.value = draft.id || "";
+  elements.bookmarkName.value = draft.name || "";
+  elements.bookmarkUrl.value = draft.url || "";
+  elements.bookmarkTags.value = (draft.tags || []).join(", ");
+  elements.bookmarkNotes.value = draft.notes || "";
+  elements.bookmarkPinned.checked = draft.pinned === true;
+  elements.bookmarkFormStatus.textContent = "";
+  elements.bookmarkEditor.hidden = false;
+  elements.bookmarkName.focus();
+}
+
+function readBookmarkForm() {
+  return normalizeBookmark({
+    id: elements.bookmarkId.value || undefined,
+    name: elements.bookmarkName.value,
+    url: elements.bookmarkUrl.value,
+    tags: splitTags(elements.bookmarkTags.value),
+    notes: elements.bookmarkNotes.value,
+    pinned: elements.bookmarkPinned.checked,
+    createdAt: appState.bookmarks.find((bookmark) => bookmark.id === elements.bookmarkId.value)?.createdAt
+  });
+}
+
+function validateBookmark(bookmark) {
+  if (!bookmark.name.trim()) {
+    return "请填写书签名称。";
+  }
+  if (!bookmark.url.trim()) {
+    return "请填写书签链接。";
+  }
+  try {
+    const parsed = new URL(bookmark.url);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return "书签链接只支持 http 或 https 地址。";
+    }
+  } catch (error) {
+    return "请填写有效的书签链接。";
+  }
+  return "";
+}
+
+async function saveBookmarkFromForm(event) {
+  event.preventDefault();
+  const bookmark = readBookmarkForm();
+  const validationError = validateBookmark(bookmark);
+  if (validationError) {
+    elements.bookmarkFormStatus.textContent = validationError;
+    elements.bookmarkFormStatus.className = "status error";
+    return;
+  }
+
+  elements.bookmarkFormStatus.textContent = "正在保存书签...";
+  elements.bookmarkFormStatus.className = "status";
+
+  try {
+    await sendMessage("save-bookmark", { bookmark });
+    elements.bookmarkFormStatus.textContent = "书签已保存。";
+    elements.bookmarkFormStatus.className = "status success";
+    elements.bookmarkEditor.hidden = true;
+    editingBookmarkId = null;
+    await loadState();
+  } catch (error) {
+    elements.bookmarkFormStatus.textContent = `保存失败：${error.message}`;
+    elements.bookmarkFormStatus.className = "status error";
+  }
+}
+
+async function fillBookmarkFromCurrentTab() {
+  elements.bookmarkCurrentTab.disabled = true;
+  elements.bookmarkFormStatus.textContent = "正在读取当前标签页...";
+  elements.bookmarkFormStatus.className = "status";
+
+  try {
+    const response = await sendMessage("get-active-tab-info");
+    const tab = response.tab || {};
+    const parsed = new URL(tab.url || "");
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("当前标签页不是 http 或 https 页面。");
+    }
+
+    elements.bookmarkUrl.value = parsed.toString();
+    if (!elements.bookmarkName.value.trim()) {
+      elements.bookmarkName.value = tab.title || parsed.hostname;
+    }
+    elements.bookmarkFormStatus.textContent = "已填入当前标签页。";
+    elements.bookmarkFormStatus.className = "status success";
+  } catch (error) {
+    elements.bookmarkFormStatus.textContent = `读取失败：${error.message}`;
+    elements.bookmarkFormStatus.className = "status error";
+  } finally {
+    elements.bookmarkCurrentTab.disabled = false;
+  }
+}
+
 function applyUrlDefaults() {
   const baseUrl = normalizeBaseUrl(elements.accountBaseUrl.value);
   if (!baseUrl) {
@@ -629,6 +1146,78 @@ function bindEvents() {
   elements.accountSearch.addEventListener("input", renderAccounts);
   elements.accountTypeFilter.addEventListener("change", renderAccounts);
   elements.accountEnabledFilter.addEventListener("change", renderAccounts);
+  elements.modelAccountFilter.addEventListener("change", renderModels);
+  elements.modelSearch.addEventListener("input", renderModels);
+  elements.modelProviderFilter.addEventListener("change", renderModels);
+  elements.modelSort.addEventListener("change", renderModels);
+  elements.refreshSelectedModelsButton.addEventListener("click", () => void refreshModels("selected"));
+  elements.refreshAllModelsButton.addEventListener("click", () => void refreshModels("all"));
+  elements.copyVisibleModelsButton.addEventListener("click", () => void copyVisibleModelNames());
+  elements.modelList.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-model-action]");
+    if (!button) return;
+    const card = button.closest(".model-card");
+    const modelName = card?.dataset.modelName || "";
+    const account = appState.accounts.find((item) => item.id === card?.dataset.accountId);
+
+    if (button.dataset.modelAction === "copy") {
+      await copyText(modelName);
+      elements.modelStatus.textContent = `已复制模型名：${modelName}`;
+      elements.modelStatus.className = "status success";
+      return;
+    }
+
+    if (button.dataset.modelAction === "open" && account) {
+      await sendMessage("open-account-site", { url: account.baseUrl });
+    }
+  });
+
+  elements.newBookmarkButton.addEventListener("click", () => fillBookmarkForm(null));
+  elements.cancelBookmarkEdit.addEventListener("click", () => {
+    elements.bookmarkEditor.hidden = true;
+    editingBookmarkId = null;
+  });
+  elements.bookmarkForm.addEventListener("submit", saveBookmarkFromForm);
+  elements.bookmarkCurrentTab.addEventListener("click", () => void fillBookmarkFromCurrentTab());
+  elements.bookmarkSearch.addEventListener("input", renderBookmarks);
+  elements.bookmarkTagFilter.addEventListener("change", renderBookmarks);
+  elements.bookmarkList.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-bookmark-action]");
+    if (!button) return;
+    const card = button.closest(".bookmark-card");
+    const bookmark = appState.bookmarks.find((item) => item.id === card?.dataset.bookmarkId);
+    if (!bookmark) return;
+
+    if (button.dataset.bookmarkAction === "open") {
+      await sendMessage("open-account-site", { url: bookmark.url });
+      return;
+    }
+    if (button.dataset.bookmarkAction === "copy") {
+      await copyText(bookmark.url);
+      elements.bookmarkStatus.textContent = `已复制书签链接：${bookmark.name}`;
+      elements.bookmarkStatus.className = "status success";
+      return;
+    }
+    if (button.dataset.bookmarkAction === "pin") {
+      await sendMessage("save-bookmark", { bookmark: { ...bookmark, pinned: !bookmark.pinned } });
+      await loadState();
+      elements.bookmarkStatus.textContent = bookmark.pinned ? "已取消置顶。" : "书签已置顶。";
+      elements.bookmarkStatus.className = "status success";
+      return;
+    }
+    if (button.dataset.bookmarkAction === "edit") {
+      fillBookmarkForm(bookmark);
+      return;
+    }
+    if (button.dataset.bookmarkAction === "delete") {
+      if (confirm(`确定删除书签「${bookmark.name}」吗？`)) {
+        await sendMessage("delete-bookmark", { bookmarkId: bookmark.id });
+        await loadState();
+        elements.bookmarkStatus.textContent = "书签已删除。";
+        elements.bookmarkStatus.className = "status success";
+      }
+    }
+  });
 
   elements.accountList.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action]");
@@ -721,6 +1310,8 @@ function bindEvents() {
     if (
       (areaName === "local" && (
         changes[STORAGE_KEYS.ACCOUNTS] ||
+        changes[STORAGE_KEYS.BOOKMARKS] ||
+        changes[STORAGE_KEYS.MODEL_CACHE] ||
         changes[STORAGE_KEYS.AUTO_CHECKIN_STATUS] ||
         changes[STORAGE_KEYS.LAST_OPEN_RESULT]
       )) ||

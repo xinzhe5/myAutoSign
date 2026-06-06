@@ -38,6 +38,8 @@
     LAST_OPENED_DATE: "lastOpenedDate",
     LAST_OPEN_RESULT: "lastOpenResult",
     ACCOUNTS: "accounts",
+    BOOKMARKS: "bookmarks",
+    MODEL_CACHE: "modelListCache",
     AUTO_CHECKIN_SETTINGS: "autoCheckinSettings",
     AUTO_CHECKIN_STATUS: "autoCheckinStatus",
     LAST_AUTO_CHECKIN_DAILY_RUN_DAY: "lastAutoCheckinDailyRunDay",
@@ -147,6 +149,43 @@
       .filter((account) => account.baseUrl);
   }
 
+  function normalizeTags(tags) {
+    const values = Array.isArray(tags)
+      ? tags
+      : toStringValue(tags)
+        .split(/[,\n，]/);
+
+    return Array.from(new Set(values
+      .map((tag) => toStringValue(tag).trim())
+      .filter(Boolean)));
+  }
+
+  function normalizeBookmark(bookmark = {}, index = 0) {
+    const nowIso = new Date().toISOString();
+    const url = toStringValue(bookmark.url || bookmark.href).trim();
+    const name = toStringValue(bookmark.name || bookmark.title || url).trim();
+
+    return {
+      id: toStringValue(bookmark.id || createId(`bookmark-${index + 1}`)),
+      name,
+      url,
+      tags: normalizeTags(bookmark.tags || bookmark.tagNames || bookmark.tagIds),
+      notes: toStringValue(bookmark.notes || ""),
+      pinned: bookmark.pinned === true,
+      createdAt: toStringValue(bookmark.createdAt || bookmark.created_at || nowIso),
+      updatedAt: toStringValue(bookmark.updatedAt || bookmark.updated_at || nowIso)
+    };
+  }
+
+  function normalizeBookmarks(bookmarks) {
+    if (!Array.isArray(bookmarks)) {
+      return [];
+    }
+    return bookmarks
+      .map((bookmark, index) => normalizeBookmark(bookmark, index))
+      .filter((bookmark) => bookmark.name && bookmark.url);
+  }
+
   function normalizeSettings(settings = {}, legacyScheduleTime) {
     const fallbackTime = legacyScheduleTime || DEFAULTS.scheduleTime;
     return {
@@ -247,6 +286,8 @@
     isKnownAuthType,
     normalizeAccount,
     normalizeAccounts,
+    normalizeBookmark,
+    normalizeBookmarks,
     normalizeSettings,
     parseTimeMinutes,
     formatMinutesAsTime,

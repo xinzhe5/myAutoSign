@@ -13,13 +13,16 @@ const {
   isKnownAuthType,
   normalizeAccount,
   normalizeAccounts,
+  normalizeBookmark,
+  normalizeBookmarks,
   normalizeSettings,
   parseTimeMinutes,
   getTodayKey,
   statusIsSuccess,
   getRunResult,
   summarizeResults,
-  createId
+  createId,
+  toStringValue
 } = globalThis.MyAutoSignShared;
 
 const OPEN_ALARM_NAME = "open-target-pages-daily";
@@ -34,6 +37,8 @@ const DEFAULT_USD_EXCHANGE_RATE = 1;
 const DEFAULT_CUSTOM_CURRENCY_SYMBOL = "¤";
 const DEFAULT_CUSTOM_CURRENCY_EXCHANGE_RATE = 1;
 const AUTO_DETECT_MESSAGE_TYPE = "myautosign-detect-site";
+const MODEL_SOURCE_PRICING = "pricing";
+const MODEL_SOURCE_OPENAI = "openai-compatible";
 
 const TARGET_URLS = [
   "https://linux.do/?tl=en",
@@ -267,7 +272,7 @@ async function configureNewApiHeaderRule(baseUrl) {
         ]
       },
       condition: {
-        urlFilter: `${host}/api/user/`,
+        urlFilter: `${host}/api/`,
         resourceTypes: ["xmlhttprequest"]
       }
     }]
@@ -744,6 +749,12 @@ async function deleteAccount(accountId) {
   const accounts = await getAccounts();
   await saveAccounts(accounts.filter((account) => account.id !== accountId));
 
+  const modelCache = await getModelCache();
+  if (modelCache[accountId]) {
+    delete modelCache[accountId];
+    await saveModelCache(modelCache);
+  }
+
   const status = await getAutoCheckinStatus();
   if (status?.perAccount?.[accountId]) {
     const nextPerAccount = { ...status.perAccount };
@@ -754,6 +765,306 @@ async function deleteAccount(accountId) {
       summary: summarizeResults(Object.values(nextPerAccount))
     });
   }
+}
+
+async function getBookmarks() {
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.BOOKMARKS);
+  const raw = stored[STORAGE_KEYS.BOOKMARKS];
+  const bookmarks = normalizeBookmarks(raw);
+  if (bookmarks.length !== (Array.isArray(raw) ? raw.length : 0)) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.BOOKMARKS]: bookmarks });
+  }
+  return bookmarks;
+}
+
+async function saveBookmarks(bookmarks) {
+  const normalized = normalizeBookmarks(bookmarks);
+  await chrome.storage.local.set({ [STORAGE_KEYS.BOOKMARKS]: normalized });
+  return normalized;
+}
+
+function assertHttpUrl(url, label = "链接") {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (error) {
+    throw new Error(`请填写有效的${label}。`);
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error(`${label}只支持 http 或 https 地址。`);
+  }
+
+  return parsed.toString();
+}
+
+async function upsertBookmark(input) {
+  const bookmarks = await getBookmarks();
+  const nowIso = new Date().toISOString();
+  const normalized = normalizeBookmark({
+    ...input,
+    id: input.id || createId("bookmark"),
+    url: assertHttpUrl(toStringValue(input.url).trim()),
+    createdAt: input.createdAt || nowIso,
+    updatedAt: nowIso
+  });
+  const existingIndex = bookmarks.findIndex((bookmark) => bookmark.id === normalized.id);
+
+  if (existingIndex >= 0) {
+    bookmarks.splice(existingIndex, 1, {
+      ...bookmarks[existingIndex],
+      ...normalized,
+      createdAt: bookmarks[existingIndex].createdAt || normalized.createdAt,
+      updatedAt: nowIso
+    });
+  } else {
+    bookmarks.push(normalized);
+  }
+
+  await saveBookmarks(bookmarks);
+  return normalized;
+}
+
+async function deleteBookmark(bookmarkId) {
+  const bookmarks = await getBookmarks();
+  await saveBookmarks(bookmarks.filter((bookmark) => bookmark.id !== bookmarkId));
+}
+
+async function getActiveTabInfo() {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const allTabs = await chrome.tabs.query({});
+  const seen = new Set();
+  const candidates = [activeTab, ...allTabs]
+    .filter((tab) => {
+      if (!tab?.id || seen.has(tab.id)) {
+        return false;
+      }
+      seen.add(tab.id);
+      try {
+        return ["http:", "https:"].includes(new URL(tab.url || "").protocol);
+      } catch (error) {
+        return false;
+      }
+    })
+    .sort((a, b) => Number(b.active === true) - Number(a.active === true) || Number(b.lastAccessed || 0) - Number(a.lastAccessed || 0));
+  const tab = candidates[0] || null;
+  return {
+    title: tab?.title || "",
+    url: tab?.url || ""
+  };
+}
+
+async function getModelCache() {
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.MODEL_CACHE);
+  const cache = stored[STORAGE_KEYS.MODEL_CACHE];
+  return cache && typeof cache === "object" && !Array.isArray(cache) ? cache : {};
+}
+
+async function saveModelCache(cache) {
+  await chrome.storage.local.set({ [STORAGE_KEYS.MODEL_CACHE]: cache });
+  return cache;
+}
+
+function buildModelRequestHeaders(account) {
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Pragma: "no-cache",
+    ...buildCompatUserIdHeaders(account.userId)
+  };
+
+  if (account.authType === AUTH_TYPES.ACCESS_TOKEN && account.accessToken) {
+    headers.Authorization = `Bearer ${account.accessToken}`;
+  }
+
+  if (account.userId) {
+    headers["New-Api-User"] = account.userId;
+  }
+
+  return headers;
+}
+
+function normalizeModelPrice(value) {
+  if (value === undefined || value === null || value === "") {
+    return "";
+  }
+  if (typeof value !== "object") {
+    return String(value);
+  }
+
+  return Object.entries(value)
+    .filter(([, itemValue]) => itemValue !== undefined && itemValue !== null && itemValue !== "")
+    .map(([key, itemValue]) => `${key}: ${itemValue}`)
+    .join(" / ");
+}
+
+function normalizeModelEntry(raw, source) {
+  const name = toStringValue(
+    raw?.model_name ||
+    raw?.modelName ||
+    raw?.id ||
+    raw?.name
+  ).trim();
+
+  if (!name) {
+    return null;
+  }
+
+  return {
+    id: name,
+    name,
+    description: toStringValue(raw?.model_description || raw?.description || ""),
+    quotaType: Number(raw?.quota_type) === 1 ? "按次" : "按量",
+    modelRatio: raw?.model_ratio ?? "",
+    completionRatio: raw?.completion_ratio ?? "",
+    modelPrice: normalizeModelPrice(raw?.model_price),
+    enableGroups: Array.isArray(raw?.enable_groups) ? raw.enable_groups.map(String).filter(Boolean) : [],
+    endpointTypes: Array.isArray(raw?.supported_endpoint_types) ? raw.supported_endpoint_types.map(String).filter(Boolean) : [],
+    source
+  };
+}
+
+function extractModelArray(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+  if (Array.isArray(payload?.models)) {
+    return payload.models;
+  }
+  if (Array.isArray(payload?.data?.models)) {
+    return payload.data.models;
+  }
+  return [];
+}
+
+async function fetchPricingModelList(account, headers) {
+  const { statusCode, data } = await requestJson("GET", `${account.baseUrl}/api/pricing`, headers);
+  if (statusCode < 200 || statusCode >= 300) {
+    throw new Error(`模型定价接口返回 HTTP ${statusCode}`);
+  }
+  const models = extractModelArray(data)
+    .map((item) => normalizeModelEntry(item, MODEL_SOURCE_PRICING))
+    .filter(Boolean);
+  if (!models.length) {
+    throw new Error("模型定价接口没有返回模型列表");
+  }
+  return {
+    source: MODEL_SOURCE_PRICING,
+    groupRatio: data?.group_ratio || {},
+    models
+  };
+}
+
+async function fetchOpenAiCompatibleModelList(account, headers) {
+  const { statusCode, data } = await requestJson("GET", `${account.baseUrl}/v1/models`, headers);
+  if (statusCode < 200 || statusCode >= 300) {
+    throw new Error(`OpenAI 兼容模型接口返回 HTTP ${statusCode}`);
+  }
+  const models = extractModelArray(data)
+    .map((item) => normalizeModelEntry(item, MODEL_SOURCE_OPENAI))
+    .filter(Boolean);
+  if (!models.length) {
+    throw new Error("OpenAI 兼容模型接口没有返回模型列表");
+  }
+  return {
+    source: MODEL_SOURCE_OPENAI,
+    groupRatio: {},
+    models
+  };
+}
+
+async function fetchAccountModels(account) {
+  if (!account?.baseUrl) {
+    throw new Error("账号缺少站点地址");
+  }
+  if (account.authType === AUTH_TYPES.ACCESS_TOKEN && !account.accessToken) {
+    throw new Error("账号缺少 Access Token");
+  }
+  if (account.authType === AUTH_TYPES.COOKIE && !account.cookie) {
+    throw new Error("账号缺少 Cookie");
+  }
+
+  const headers = buildModelRequestHeaders(account);
+  await applyConfiguredCookies(account.baseUrl, account.cookie);
+  await configureNewApiHeaderRule(account.baseUrl);
+
+  try {
+    try {
+      return await fetchPricingModelList(account, headers);
+    } catch (pricingError) {
+      try {
+        return await fetchOpenAiCompatibleModelList(account, headers);
+      } catch (modelsError) {
+        throw new Error(`获取模型列表失败：${pricingError.message}；${modelsError.message}`);
+      }
+    }
+  } finally {
+    await clearNewApiHeaderRule();
+  }
+}
+
+async function refreshAccountModels(accountId) {
+  const accounts = await getAccounts();
+  const account = accounts.find((item) => item.id === accountId);
+  if (!account) {
+    throw new Error("未找到账号");
+  }
+
+  const cache = await getModelCache();
+  const fetchedAt = new Date().toISOString();
+
+  try {
+    const result = await fetchAccountModels(account);
+    cache[account.id] = {
+      accountId: account.id,
+      accountName: account.name || account.username || account.baseUrl,
+      baseUrl: account.baseUrl,
+      siteType: account.siteType,
+      fetchedAt,
+      source: result.source,
+      groupRatio: result.groupRatio,
+      models: result.models,
+      error: ""
+    };
+  } catch (error) {
+    cache[account.id] = {
+      accountId: account.id,
+      accountName: account.name || account.username || account.baseUrl,
+      baseUrl: account.baseUrl,
+      siteType: account.siteType,
+      fetchedAt,
+      source: "",
+      groupRatio: {},
+      models: cache[account.id]?.models || [],
+      error: error?.message || String(error)
+    };
+    await saveModelCache(cache);
+    throw error;
+  }
+
+  await saveModelCache(cache);
+  return cache[account.id];
+}
+
+async function refreshAllModels() {
+  const accounts = await getAccounts();
+  const results = [];
+
+  for (const account of accounts) {
+    try {
+      results.push({ accountId: account.id, ok: true, data: await refreshAccountModels(account.id) });
+    } catch (error) {
+      results.push({ accountId: account.id, ok: false, error: error?.message || String(error) });
+    }
+  }
+
+  return {
+    results,
+    cache: await getModelCache()
+  };
 }
 
 async function getAutoCheckinSettings() {
@@ -1417,8 +1728,10 @@ async function detectAccount(input = {}) {
 
 async function getState() {
   await migrateLegacyData();
-  const [accounts, settings, status, local, sync] = await Promise.all([
+  const [accounts, bookmarks, modelCache, settings, status, local, sync] = await Promise.all([
     getAccounts(),
+    getBookmarks(),
+    getModelCache(),
     getAutoCheckinSettings(),
     getAutoCheckinStatus(),
     chrome.storage.local.get(STORAGE_KEYS.LAST_OPEN_RESULT),
@@ -1427,6 +1740,8 @@ async function getState() {
 
   return {
     accounts,
+    bookmarks,
+    modelCache,
     autoCheckinSettings: settings,
     autoCheckinStatus: status,
     lastOpenResult: local[STORAGE_KEYS.LAST_OPEN_RESULT] || null,
@@ -1489,6 +1804,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     "get-state",
     "save-account",
     "delete-account",
+    "save-bookmark",
+    "delete-bookmark",
+    "get-active-tab-info",
+    "refresh-account-models",
+    "refresh-all-models",
     "save-auto-checkin-settings",
     "save-open-settings",
     "run-auto-checkin",
@@ -1515,6 +1835,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "delete-account":
         await deleteAccount(message.accountId);
         return { ok: true };
+      case "save-bookmark":
+        return { ok: true, bookmark: await upsertBookmark(message.bookmark || {}) };
+      case "delete-bookmark":
+        await deleteBookmark(message.bookmarkId);
+        return { ok: true };
+      case "get-active-tab-info":
+        return { ok: true, tab: await getActiveTabInfo() };
+      case "refresh-account-models":
+        return { ok: true, cache: await refreshAccountModels(message.accountId) };
+      case "refresh-all-models":
+        return { ok: true, data: await refreshAllModels() };
       case "save-auto-checkin-settings":
         return { ok: true, settings: await saveAutoCheckinSettings(message.settings || {}) };
       case "save-open-settings":

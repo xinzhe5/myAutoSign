@@ -18,6 +18,8 @@
       </div>
       <nav class="nav-tabs">
         <a href="#accounts" data-route="accounts">账号管理</a>
+        <a href="#models" data-route="models">模型列表</a>
+        <a href="#bookmarks" data-route="bookmarks">书签管理</a>
         <a href="#auto-checkin" data-route="auto-checkin">自动签到</a>
         <a href="#basic" data-route="basic">基础设置</a>
       </nav>
@@ -146,6 +148,129 @@
 
         <div id="account-list" class="account-list"></div>
         <p id="account-empty" class="empty-state" hidden>还没有账号。添加账号后即可在自动签到页运行任务。</p>
+      </section>
+
+      <section id="models-page" class="page" data-page="models" hidden>
+        <div class="page-header">
+          <div>
+            <h2>模型列表</h2>
+            <p>从已保存账号读取模型目录，支持按账号、提供商和关键词筛选。</p>
+          </div>
+          <div class="header-actions">
+            <button id="refresh-selected-models" type="button" class="secondary-button">刷新当前账号</button>
+            <button id="refresh-all-models" type="button">刷新全部账号</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <label class="field compact">
+            <span>数据源</span>
+            <select id="model-account-filter">
+              <option value="all">全部账号</option>
+            </select>
+          </label>
+          <label class="field compact">
+            <span>搜索</span>
+            <input id="model-search" type="search" placeholder="模型名、账号、站点">
+          </label>
+          <label class="field compact">
+            <span>提供商</span>
+            <select id="model-provider-filter">
+              <option value="all">全部</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="google">Google</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="qwen">Qwen</option>
+              <option value="meta">Meta</option>
+              <option value="other">其他</option>
+            </select>
+          </label>
+          <label class="field compact">
+            <span>排序</span>
+            <select id="model-sort">
+              <option value="name">模型名</option>
+              <option value="account">账号</option>
+              <option value="provider">提供商</option>
+            </select>
+          </label>
+          <button id="copy-visible-models" type="button" class="secondary-button">复制当前模型名</button>
+        </div>
+
+        <p id="model-status" class="status" aria-live="polite"></p>
+
+        <div class="status-grid">
+          <article class="metric"><span>账号数</span><strong id="model-metric-accounts">0</strong></article>
+          <article class="metric"><span>已缓存账号</span><strong id="model-metric-cached">0</strong></article>
+          <article class="metric"><span>当前模型</span><strong id="model-metric-count">0</strong></article>
+          <article class="metric"><span>最近刷新</span><strong id="model-metric-updated">暂无</strong></article>
+        </div>
+
+        <div id="model-list" class="model-list"></div>
+        <p id="model-empty" class="empty-state" hidden>还没有模型数据。请先保存账号，然后点击“刷新当前账号”或“刷新全部账号”。</p>
+      </section>
+
+      <section id="bookmarks-page" class="page" data-page="bookmarks" hidden>
+        <div class="page-header">
+          <div>
+            <h2>书签管理</h2>
+            <p>保存控制台、文档、充值页、兑换页等常用入口。</p>
+          </div>
+          <button id="new-bookmark-button" type="button">添加书签</button>
+        </div>
+
+        <div class="toolbar">
+          <label class="field compact">
+            <span>搜索</span>
+            <input id="bookmark-search" type="search" placeholder="名称、链接、备注、标签">
+          </label>
+          <label class="field compact">
+            <span>标签</span>
+            <select id="bookmark-tag-filter">
+              <option value="all">全部</option>
+            </select>
+          </label>
+        </div>
+
+        <p id="bookmark-status" class="status" aria-live="polite"></p>
+
+        <section id="bookmark-editor" class="editor" hidden>
+          <div class="section-title">
+            <h3 id="bookmark-editor-title">添加书签</h3>
+            <button id="cancel-bookmark-edit" type="button" class="ghost-button">取消</button>
+          </div>
+
+          <form id="bookmark-form" class="form-grid">
+            <input id="bookmark-id" type="hidden">
+            <label class="field">
+              <span>名称</span>
+              <input id="bookmark-name" type="text" required>
+            </label>
+            <label class="field field-wide">
+              <span>链接</span>
+              <input id="bookmark-url" type="url" placeholder="https://example.com/console" required>
+            </label>
+            <label class="field">
+              <span>标签</span>
+              <input id="bookmark-tags" type="text" placeholder="控制台, 文档">
+            </label>
+            <label class="field field-wide">
+              <span>备注</span>
+              <textarea id="bookmark-notes" rows="2"></textarea>
+            </label>
+            <div class="switch-row">
+              <label><input id="bookmark-pinned" type="checkbox"> 置顶</label>
+            </div>
+            <div class="action-row">
+              <button id="bookmark-current-tab" type="button" class="secondary-button">使用当前标签页</button>
+              <button type="submit">保存书签</button>
+            </div>
+          </form>
+          <p id="bookmark-form-status" class="status" aria-live="polite"></p>
+        </section>
+
+        <div id="bookmark-list" class="bookmark-list"></div>
+        <p id="bookmark-empty" class="empty-state" hidden>还没有书签。添加书签后可在这里快速打开常用入口。</p>
       </section>
 
       <section id="auto-checkin-page" class="page" data-page="auto-checkin" hidden>
