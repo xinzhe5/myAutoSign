@@ -21,7 +21,37 @@
       <strong id="current-site-url">正在读取...</strong>
     </section>
 
-    <form id="sidepanel-form" class="form">
+    <section id="sidepanel-home" class="home-view">
+      <div class="section-title">
+        <h2>账号信息</h2>
+        <button id="add-account-button" type="button">新增账号</button>
+      </div>
+      <div id="sidepanel-account-list" class="account-list"></div>
+      <p id="sidepanel-account-empty" class="empty-state" hidden>还没有保存账号。点击“新增账号”后可自动识别或手动添加。</p>
+    </section>
+
+    <section id="add-mode-panel" class="mode-panel" hidden>
+      <div class="section-title">
+        <h2>新增账号</h2>
+        <button id="cancel-add-mode" type="button" class="secondary-button">返回</button>
+      </div>
+      <div class="mode-actions">
+        <button id="auto-add-button" type="button" class="mode-button primary-mode">
+          <strong>自动添加</strong>
+          <small>请先在目标站点登录，插件会自动识别并补全账号信息。</small>
+        </button>
+        <button id="manual-add-button" type="button" class="mode-button">
+          <strong>手动添加</strong>
+          <small>手动填写账号信息，适合自动识别失败或需要自行维护令牌的站点。</small>
+        </button>
+      </div>
+    </section>
+
+    <form id="sidepanel-form" class="form" hidden>
+      <div class="form-title">
+        <h2 id="form-title">新增账号</h2>
+        <button id="back-to-home" type="button" class="secondary-button">返回</button>
+      </div>
       <label>
         <span>站点地址</span>
         <input id="base-url" type="url" placeholder="https://example.com" required>

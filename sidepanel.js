@@ -1,6 +1,8 @@
 const {
   SITE_TYPES,
+  SITE_TYPE_LABELS,
   AUTH_TYPES,
+  STORAGE_KEYS,
   normalizeBaseUrl,
   detectSiteType,
   getDefaultAuthType,
@@ -11,7 +13,17 @@ const $ = (selector) => document.querySelector(selector);
 
 const elements = {
   currentSiteUrl: $("#current-site-url"),
+  home: $("#sidepanel-home"),
+  addModePanel: $("#add-mode-panel"),
+  accountList: $("#sidepanel-account-list"),
+  accountEmpty: $("#sidepanel-account-empty"),
+  addAccountButton: $("#add-account-button"),
+  autoAddButton: $("#auto-add-button"),
+  manualAddButton: $("#manual-add-button"),
+  cancelAddMode: $("#cancel-add-mode"),
   form: $("#sidepanel-form"),
+  formTitle: $("#form-title"),
+  backToHomeButton: $("#back-to-home"),
   baseUrl: $("#base-url"),
   siteType: $("#site-type"),
   authType: $("#auth-type"),
@@ -31,6 +43,9 @@ const elements = {
   status: $("#status")
 };
 
+let appState = {
+  accounts: []
+};
 let currentAccountId = "";
 let lastActiveBaseUrl = "";
 let siteTypeTouched = false;
@@ -105,7 +120,145 @@ function setStatus(message, type = "") {
 
 function setBusy(isBusy) {
   elements.detectButton.disabled = isBusy;
+  elements.autoAddButton.disabled = isBusy;
+  elements.manualAddButton.disabled = isBusy;
   elements.form.querySelector("button[type='submit']").disabled = isBusy;
+}
+
+function setView(view) {
+  elements.home.hidden = view !== "home";
+  elements.addModePanel.hidden = view !== "add-mode";
+  elements.form.hidden = view !== "form";
+}
+
+async function loadState() {
+  const response = await sendMessage("get-state");
+  appState = response.state || { accounts: [] };
+  renderAccountList();
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getCurrentBaseUrl() {
+  const value = lastActiveBaseUrl || elements.currentSiteUrl.title || elements.currentSiteUrl.textContent;
+  return isHttpUrl(value) ? normalizeBaseUrl(value) : "";
+}
+
+function accountMatchesCurrentSite(account) {
+  const currentBaseUrl = getCurrentBaseUrl();
+  return Boolean(currentBaseUrl && normalizeBaseUrl(account.baseUrl) === currentBaseUrl);
+}
+
+function renderAccountList() {
+  const accounts = [...(appState.accounts || [])].sort((a, b) => {
+    const aMatches = accountMatchesCurrentSite(a);
+    const bMatches = accountMatchesCurrentSite(b);
+    if (aMatches !== bMatches) {
+      return aMatches ? -1 : 1;
+    }
+    return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+  });
+
+  elements.accountList.replaceChildren();
+  elements.accountEmpty.hidden = accounts.length > 0;
+
+  for (const account of accounts) {
+    const card = document.createElement("article");
+    card.className = "account-card";
+    card.dataset.accountId = account.id;
+
+    const authLabel = account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token";
+    const siteLabel = SITE_TYPE_LABELS[account.siteType] || account.siteType || "-";
+    const currentBadge = accountMatchesCurrentSite(account)
+      ? `<span class="badge success">当前站点</span>`
+      : "";
+
+    card.innerHTML = `
+      <div>
+        <h3>${escapeHtml(account.name || account.username || account.baseUrl)}</h3>
+        <p>${escapeHtml(account.baseUrl || "-")}</p>
+      </div>
+      <div class="badge-row">
+        ${currentBadge}
+        <span class="badge">${escapeHtml(siteLabel)}</span>
+        <span class="badge">${escapeHtml(authLabel)}</span>
+        <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "已启用" : "已停用"}</span>
+      </div>
+      <div class="account-meta">
+        <span>用户名：${escapeHtml(account.username || "-")}</span>
+        <span>用户 ID：${escapeHtml(account.userId || "-")}</span>
+      </div>
+      <div class="account-actions">
+        <button type="button" class="secondary-button" data-action="edit">编辑</button>
+        <button type="button" class="secondary-button" data-action="open">打开</button>
+      </div>
+    `;
+
+    elements.accountList.appendChild(card);
+  }
+}
+
+function resetAccountForm() {
+  const baseUrl = getCurrentBaseUrl();
+  currentAccountId = "";
+  siteTypeTouched = false;
+  authTypeTouched = false;
+
+  elements.baseUrl.value = baseUrl;
+  elements.siteType.value = detectSiteType(baseUrl, SITE_TYPES.NEW_API);
+  elements.authType.value = getDefaultAuthType(elements.siteType.value, baseUrl);
+  elements.name.value = "";
+  elements.username.value = "";
+  elements.userId.value = "";
+  elements.accessToken.value = "";
+  elements.cookie.value = "";
+  elements.turnstileToken.value = "";
+  elements.enabled.checked = true;
+  elements.autoCheckinEnabled.checked = true;
+  applyUrlDefaults();
+}
+
+function fillAccountForm(account) {
+  currentAccountId = account.id || "";
+  siteTypeTouched = true;
+  authTypeTouched = true;
+
+  elements.formTitle.textContent = "编辑账号";
+  elements.baseUrl.value = account.baseUrl || "";
+  elements.siteType.value = account.siteType || SITE_TYPES.NEW_API;
+  elements.authType.value = account.authType || getDefaultAuthType(account.siteType, account.baseUrl);
+  elements.name.value = account.name || "";
+  elements.username.value = account.username || "";
+  elements.userId.value = account.userId || "";
+  elements.accessToken.value = account.accessToken || "";
+  elements.cookie.value = account.cookie || "";
+  elements.turnstileToken.value = account.turnstileToken || "";
+  elements.enabled.checked = account.enabled !== false;
+  elements.autoCheckinEnabled.checked = account.autoCheckinEnabled !== false;
+  renderAuthFields();
+  setView("form");
+  elements.baseUrl.focus();
+}
+
+function startManualAdd() {
+  resetAccountForm();
+  elements.formTitle.textContent = "手动添加";
+  setView("form");
+  setStatus("");
+  elements.baseUrl.focus();
+}
+
+async function startAutoAdd() {
+  resetAccountForm();
+  elements.formTitle.textContent = "自动添加";
+  setView("form");
+  await autoDetectCurrentSite();
 }
 
 function isHttpUrl(value) {
@@ -137,6 +290,9 @@ async function refreshCurrentSite({ force = false } = {}) {
 
   if (!isHttpUrl(tabUrl)) {
     elements.currentSiteUrl.textContent = tabUrl ? "当前页面不支持自动识别" : "未找到当前活动标签页";
+    elements.currentSiteUrl.title = tabUrl;
+    lastActiveBaseUrl = "";
+    renderAccountList();
     return;
   }
 
@@ -151,6 +307,7 @@ async function refreshCurrentSite({ force = false } = {}) {
   }
 
   lastActiveBaseUrl = baseUrl;
+  renderAccountList();
 }
 
 function renderAuthFields() {
@@ -280,6 +437,8 @@ async function saveAccount(event) {
       return;
     }
     currentAccountId = response.account?.id || account.id || currentAccountId;
+    await loadState();
+    setView("home");
     setStatus("账号已保存。", "success");
   } catch (error) {
     setStatus(`保存失败：${error.message}`, "error");
@@ -289,6 +448,44 @@ async function saveAccount(event) {
 }
 
 function bindEvents() {
+  elements.addAccountButton.addEventListener("click", () => {
+    setStatus("");
+    setView("add-mode");
+  });
+
+  elements.cancelAddMode.addEventListener("click", () => {
+    setView("home");
+  });
+
+  elements.backToHomeButton.addEventListener("click", () => {
+    setView("home");
+  });
+
+  elements.manualAddButton.addEventListener("click", startManualAdd);
+  elements.autoAddButton.addEventListener("click", () => {
+    void startAutoAdd();
+  });
+
+  elements.accountList.addEventListener("click", async (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const button = target?.closest("button[data-action]");
+    if (!button) return;
+
+    const card = button.closest(".account-card");
+    const account = appState.accounts.find((item) => item.id === card?.dataset.accountId);
+    if (!account) return;
+
+    if (button.dataset.action === "edit") {
+      setStatus("");
+      fillAccountForm(account);
+      return;
+    }
+
+    if (button.dataset.action === "open") {
+      await sendMessage("open-account-site", { url: account.baseUrl });
+    }
+  });
+
   elements.baseUrl.addEventListener("input", () => {
     applyUrlDefaults();
   });
@@ -335,6 +532,12 @@ function bindEvents() {
       void refreshCurrentSite();
     }
   });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local" && changes[STORAGE_KEYS.ACCOUNTS]) {
+      void loadState();
+    }
+  });
 }
 
 async function init() {
@@ -342,6 +545,8 @@ async function init() {
   bindSecretVisibilityToggles();
   bindEvents();
   await refreshCurrentSite({ force: true });
+  await loadState();
+  setView("home");
 }
 
 void init().catch((error) => {
