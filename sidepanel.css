@@ -167,9 +167,9 @@ label span {
 
 .account-card-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(88px, 104px);
+  grid-template-columns: minmax(0, 1fr) 50px minmax(86px, 102px);
   gap: 8px;
-  align-items: start;
+  align-items: center;
 }
 
 .account-info {
@@ -195,6 +195,13 @@ label span {
 
 .account-stats {
   display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.account-controls {
+  display: grid;
+  justify-items: center;
   gap: 4px;
   min-width: 0;
 }
@@ -229,8 +236,13 @@ label span {
 .badge-row,
 .account-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+.account-actions {
+  flex-wrap: nowrap;
 }
 
 .badge {
@@ -257,10 +269,10 @@ label span {
 
 .account-actions button {
   display: grid;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  min-height: 28px;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
   padding: 0;
   place-items: center;
   font-size: 0;
@@ -268,7 +280,7 @@ label span {
 
 .icon-action::before {
   color: currentColor;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
 }
 

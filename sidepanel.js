@@ -1,6 +1,5 @@
 const {
   SITE_TYPES,
-  SITE_TYPE_LABELS,
   AUTH_TYPES,
   STORAGE_KEYS,
   normalizeBaseUrl,
@@ -229,8 +228,6 @@ function renderAccountList() {
     card.className = "account-card";
     card.dataset.accountId = account.id;
 
-    const authLabel = account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token";
-    const siteLabel = SITE_TYPE_LABELS[account.siteType] || account.siteType || "-";
     const stats = getAccountStats(account);
     const currentBadge = accountMatchesCurrentSite(account)
       ? `<span class="badge success">当前站点</span>`
@@ -244,20 +241,20 @@ function renderAccountList() {
           <p>${escapeHtml(userLine)}</p>
           <div class="badge-row">
             ${currentBadge}
-            <span class="badge">${escapeHtml(siteLabel)}</span>
-            <span class="badge">${escapeHtml(authLabel)}</span>
-            <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "启用" : "停用"}</span>
           </div>
+        </div>
+        <div class="account-controls">
+          <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "启用" : "停用"}</span>
+          <span class="account-actions">
+            <button type="button" class="secondary-button icon-action" data-action="edit" aria-label="编辑账号" title="编辑账号"></button>
+            <button type="button" class="secondary-button icon-action" data-action="open" aria-label="打开站点" title="打开站点"></button>
+          </span>
         </div>
         <div class="account-stats" aria-label="账号统计">
           <div class="stat"><span>余额</span><strong>${escapeHtml(stats.balance)}</strong></div>
           <div class="stat"><span>今日消费</span><strong>${escapeHtml(stats.todayConsumption)}</strong></div>
           <div class="stat"><span>今日收入</span><strong>${escapeHtml(stats.todayIncome)}</strong></div>
         </div>
-      </div>
-      <div class="account-actions">
-        <button type="button" class="secondary-button icon-action" data-action="edit" aria-label="编辑账号" title="编辑账号"></button>
-        <button type="button" class="secondary-button icon-action" data-action="open" aria-label="打开站点" title="打开站点"></button>
       </div>
     `;
 
