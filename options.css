@@ -433,7 +433,6 @@ textarea:focus {
 .account-list {
   display: grid;
   gap: 12px;
-  justify-items: center;
 }
 
 .account-card,
@@ -442,10 +441,6 @@ textarea:focus {
   display: grid;
   gap: 12px;
   padding: 16px;
-}
-
-.account-card {
-  width: min(100%, 760px);
 }
 
 .bookmark-card {
@@ -477,9 +472,8 @@ textarea:focus {
 .account-info {
   display: grid;
   min-width: 0;
+  align-content: center;
   gap: 6px;
-  justify-items: center;
-  text-align: center;
 }
 
 .account-info h3,
@@ -497,7 +491,7 @@ textarea:focus {
 }
 
 .account-badges {
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .account-icon-actions {
