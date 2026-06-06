@@ -288,6 +288,50 @@ function getAccountLastResult(accountId) {
   return appState.autoCheckinStatus?.perAccount?.[accountId] || null;
 }
 
+function firstPresent(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return "";
+}
+
+function formatStatValue(value, prefix = "") {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return "-";
+  }
+  if (!prefix || /^[+\-~]/.test(text)) {
+    return text;
+  }
+  return `${prefix}${text}`;
+}
+
+function getAccountStats(account) {
+  const result = getAccountLastResult(account.id) || {};
+  return {
+    balance: formatStatValue(firstPresent(
+      account.balance,
+      account.quota,
+      account.currentQuota,
+      result.currentQuota
+    )),
+    todayConsumption: formatStatValue(firstPresent(
+      account.todayConsumption,
+      account.todayQuotaConsumption,
+      account.today_quota_consumption,
+      result.todayConsumption
+    ), "-"),
+    todayIncome: formatStatValue(firstPresent(
+      account.todayIncome,
+      account.today_income,
+      result.todayIncome,
+      result.rewardToday
+    ), "+")
+  };
+}
+
 function accountMatchesFilters(account) {
   const keyword = elements.accountSearch.value.trim().toLowerCase();
   const typeFilter = elements.accountTypeFilter.value;
@@ -328,6 +372,7 @@ function renderAccounts() {
     const item = document.createElement("article");
     item.className = "account-card";
     item.dataset.accountId = account.id;
+    const stats = getAccountStats(account);
 
     const statusHtml = result
       ? `<span class="badge ${getStatusClass(result.status)}">${getStatusLabel(result.status)}</span>`
@@ -335,28 +380,30 @@ function renderAccounts() {
 
     item.innerHTML = `
       <div class="account-main">
-        <div>
-          <h3>${escapeHtml(account.name || account.username || account.baseUrl)}</h3>
-          <p>${escapeHtml(account.baseUrl)}</p>
+        <div class="account-info">
+          <h3>${escapeHtml(account.name || account.username || "未命名账号")}</h3>
+          <span class="account-username">${escapeHtml(account.username || "-")}</span>
+          <div class="badge-row account-badges">
+            <span class="badge">${escapeHtml(SITE_TYPE_LABELS[account.siteType] || account.siteType)}</span>
+            <span class="badge">${account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token"}</span>
+            <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "已启用" : "已停用"}</span>
+            <span class="badge ${account.autoCheckinEnabled !== false ? "success" : "neutral"}">${account.autoCheckinEnabled !== false ? "自动签到" : "不签到"}</span>
+            ${statusHtml}
+          </div>
         </div>
-        <div class="badge-row">
-          <span class="badge">${escapeHtml(SITE_TYPE_LABELS[account.siteType] || account.siteType)}</span>
-          <span class="badge">${account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token"}</span>
-          <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "已启用" : "已停用"}</span>
-          <span class="badge ${account.autoCheckinEnabled !== false ? "success" : "neutral"}">${account.autoCheckinEnabled !== false ? "自动签到" : "不签到"}</span>
-          ${statusHtml}
+        <div class="account-actions account-icon-actions">
+          <button type="button" class="secondary-button account-icon-action" data-action="run" aria-label="签到" title="签到"></button>
+          <button type="button" class="secondary-button account-icon-action" data-action="open" aria-label="打开站点" title="打开站点"></button>
+          <button type="button" class="secondary-button account-icon-action" data-action="edit" aria-label="编辑账号" title="编辑账号"></button>
+          <button type="button" class="danger-button account-icon-action" data-action="delete" aria-label="删除账号" title="删除账号"></button>
         </div>
-      </div>
-      <div class="account-meta">
-        <span>用户：${escapeHtml(account.username || "-")}</span>
-        <span>ID：${escapeHtml(account.userId || "-")}</span>
-        <span>最近：${escapeHtml(result ? formatTimestamp(result.timestamp) : "暂无")}</span>
-      </div>
-      <div class="account-actions">
-        <button type="button" class="secondary-button" data-action="run">签到</button>
-        <button type="button" class="secondary-button" data-action="open">打开</button>
-        <button type="button" class="secondary-button" data-action="edit">编辑</button>
-        <button type="button" class="danger-button" data-action="delete">删除</button>
+        <div class="account-stats" aria-label="账号统计">
+          <strong class="stat-balance" title="余额" aria-label="余额 ${escapeHtml(stats.balance)}">${escapeHtml(stats.balance)}</strong>
+          <div class="stat-cashflow" aria-label="今日消费和今日收入">
+            <span class="stat-consumption" title="今日消费" aria-label="今日消费 ${escapeHtml(stats.todayConsumption)}">${escapeHtml(stats.todayConsumption)}</span>
+            <span class="stat-income" title="今日收入" aria-label="今日收入 ${escapeHtml(stats.todayIncome)}">${escapeHtml(stats.todayIncome)}</span>
+          </div>
+        </div>
       </div>
     `;
 

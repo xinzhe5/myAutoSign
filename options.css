@@ -462,6 +462,125 @@ textarea:focus {
   justify-content: space-between;
 }
 
+.account-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(116px, 148px);
+  gap: 12px;
+  align-items: center;
+}
+
+.account-info {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.account-info h3,
+.account-username {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-username {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.account-badges {
+  justify-content: flex-start;
+}
+
+.account-icon-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 6px;
+}
+
+.account-icon-action {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  font-size: 0;
+}
+
+.account-icon-action::before {
+  color: currentColor;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.account-icon-action[data-action="run"]::before {
+  content: "✓";
+}
+
+.account-icon-action[data-action="open"]::before {
+  content: "↗";
+}
+
+.account-icon-action[data-action="edit"]::before {
+  content: "✎";
+}
+
+.account-icon-action[data-action="delete"]::before {
+  content: "×";
+}
+
+.account-stats {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  overflow: hidden;
+  text-align: right;
+}
+
+.stat-balance {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 780;
+  line-height: 1.2;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-cashflow {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.stat-cashflow span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-consumption {
+  color: var(--success);
+}
+
+.stat-income {
+  color: var(--primary);
+}
+
 .bookmark-main {
   min-width: 0;
   align-items: stretch;
@@ -544,7 +663,6 @@ textarea:focus {
   background: var(--neutral-bg);
 }
 
-.account-meta,
 .model-meta {
   display: flex;
   flex-wrap: wrap;
@@ -980,10 +1098,31 @@ td small {
   }
 
   .page-header,
-  .account-main,
   .model-main {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .account-main {
+    grid-template-columns: 1fr;
+  }
+
+  .account-icon-actions {
+    grid-template-columns: repeat(4, 28px);
+    justify-content: flex-start;
+  }
+
+  .account-stats {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .stat-balance {
+    text-align: left;
+  }
+
+  .stat-cashflow {
+    justify-content: flex-start;
   }
 
   .form-grid,
@@ -1032,5 +1171,9 @@ td small {
 
   button {
     width: 100%;
+  }
+
+  .account-icon-action {
+    width: 28px;
   }
 }
