@@ -1082,8 +1082,13 @@ function extractAccessToken(data) {
   ).trim();
 }
 
-async function fetchNewApiAccessToken(baseUrl, accessToken) {
-  const headers = { Accept: "application/json" };
+async function fetchNewApiAccessToken(baseUrl, accessToken, userId) {
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Pragma: "no-cache",
+    ...buildCompatUserIdHeaders(userId)
+  };
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -1100,8 +1105,11 @@ async function fetchNewApiAccessToken(baseUrl, accessToken) {
   return "";
 }
 
-async function detectViaDirectApi(baseUrl, accessToken, siteType) {
-  const headers = { Accept: "application/json" };
+async function detectViaDirectApi(baseUrl, accessToken, siteType, userIdHint) {
+  const headers = {
+    Accept: "application/json",
+    ...buildCompatUserIdHeaders(userIdHint)
+  };
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -1111,7 +1119,7 @@ async function detectViaDirectApi(baseUrl, accessToken, siteType) {
     if (statusCode >= 200 && statusCode < 300) {
       const user = extractUser(data);
       if (!user.accessToken && siteType === SITE_TYPES.NEW_API) {
-        user.accessToken = await fetchNewApiAccessToken(baseUrl, accessToken);
+        user.accessToken = await fetchNewApiAccessToken(baseUrl, accessToken, user.userId || userIdHint);
       }
       return user;
     }
@@ -1123,22 +1131,33 @@ async function detectViaDirectApi(baseUrl, accessToken, siteType) {
 }
 
 async function getActiveTabForUrl(baseUrl) {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const activeTab = tabs[0];
-  if (!activeTab?.id || !activeTab.url) {
-    return null;
-  }
-
+  const [activeTabs, allTabs] = await Promise.all([
+    chrome.tabs.query({ active: true, currentWindow: true }),
+    chrome.tabs.query({})
+  ]);
+  const seen = new Set();
+  const candidates = [...activeTabs, ...allTabs].filter((tab) => {
+    if (!tab?.id || seen.has(tab.id)) {
+      return false;
+    }
+    seen.add(tab.id);
+    return Boolean(tab.url);
+  });
   try {
-    const activeOrigin = new URL(activeTab.url).origin;
     const targetOrigin = new URL(baseUrl).origin;
-    return activeOrigin === targetOrigin ? activeTab : null;
+    return candidates.find((tab) => {
+      try {
+        return new URL(tab.url).origin === targetOrigin;
+      } catch (error) {
+        return false;
+      }
+    }) || null;
   } catch (error) {
     return null;
   }
 }
 
-async function detectFromContentScript(baseUrl) {
+async function detectFromContentScript(baseUrl, siteType) {
   const tab = await getActiveTabForUrl(baseUrl);
   if (!tab?.id) {
     return { data: {}, unavailable: false };
@@ -1146,7 +1165,8 @@ async function detectFromContentScript(baseUrl) {
 
   const request = {
     type: AUTO_DETECT_MESSAGE_TYPE,
-    baseUrl
+    baseUrl,
+    siteType
   };
 
   try {
@@ -1198,8 +1218,16 @@ async function detectAccount(input = {}) {
   const siteType = isKnownSiteType(input.siteType)
     ? input.siteType
     : detectSiteType(baseUrl, SITE_TYPES.NEW_API);
-  const contentResult = await detectFromContentScript(baseUrl);
-  const directUser = await detectViaDirectApi(baseUrl, contentResult.data.accessToken, siteType);
+  const contentResult = await detectFromContentScript(baseUrl, siteType);
+  const directAccessToken = siteType === SITE_TYPES.NEW_API
+    ? ""
+    : contentResult.data.accessToken;
+  const directUser = await detectViaDirectApi(
+    baseUrl,
+    directAccessToken,
+    siteType,
+    contentResult.data.userId
+  );
   const cookie = await getCookieHeader(baseUrl);
   const merged = {
     userId: directUser.userId !== undefined && directUser.userId !== null && String(directUser.userId) !== ""

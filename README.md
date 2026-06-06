@@ -11,7 +11,11 @@
 
 ## 版本更新
 
-- 当前版本：`2.0.0`
+- 当前版本：`2.0.1`
+- `2.0.1`（2026-06-06）：
+  - 修复在完整设置页执行自动识别时，只检查当前扩展页而无法命中目标站点标签页的问题
+  - New API 自动识别改为参考插件流程：使用目标站点 Cookie 登录态读取 `/api/user/self`，必要时再调用 `/api/user/token` 获取系统访问令牌
+  - 自动识别会优先在已打开的同源目标站点标签页中执行请求，减少后台跨站请求因 Cookie 上下文不一致导致的令牌获取失败
 - `2.0.0`（2026-06-05）：
   - 新增账号管理页面，与自动签到页面分离
   - 新增站点类型下拉选择，第一版支持 New API 和 AnyRouter
@@ -58,8 +62,8 @@
 
 - `manifest.json`：Chrome Manifest V3 配置文件
 - `shared.js`：站点类型、认证方式、状态枚举、账号归一化和时间工具
-- `content.js`：在目标站点内执行自动识别，读取登录态、用户信息、候选访问令牌和 Sub2API/AnyRouter 类 JWT 登录态
-- `background.js`：负责账号迁移、自动打开、自动签到调度、失败重试、provider 请求和访问令牌兜底获取
+- `content.js`：在目标站点内执行自动识别，读取登录态、用户信息，并按参考流程使用 Cookie 获取 New API 系统访问令牌
+- `background.js`：负责账号迁移、自动打开、自动签到调度、失败重试、provider 请求和自动识别调度
 - `sidepanel.html`、`sidepanel.css`、`sidepanel.js`：侧边栏账号自动识别入口
 - `options.html`、`options.css`、`options.js`：设置页面，包含账号管理、自动签到和基础设置三个视图
 - `DEVELOPMENT_PLAN.md`：本轮升级计划、实现进度和验证记录
@@ -97,7 +101,7 @@
 推荐流程：
 
 1. 在目标站点登录账号。
-2. 保持目标站点标签页为当前活动标签页。
+2. 保持目标站点标签页已打开并处于登录状态。
 3. 点击扩展图标打开侧边栏。
 4. 点击“自动识别当前站点”，确认识别结果后保存账号。
 
@@ -105,15 +109,15 @@
 
 - 用户名
 - 用户 ID
-- Access Token
+- 系统访问令牌 / Access Token
 - Cookie
 
 访问令牌识别会按以下路径尝试：
 
-- 从目标站点页面存储读取常见字段，如 `auth_token`、`access_token`、`accessToken`、`token`、`jwt_token`。
+- 对 New API 类站点，优先在目标站点标签页内用 Cookie 登录态请求 `/api/user/self` 读取用户信息；如果响应里没有系统访问令牌，会再请求 `/api/user/token` 获取。
 - 对 AnyRouter / Sub2API 类控制台，读取 `auth_user` 和 `auth_token`；如果存在 `refresh_token` 和 `token_expires_at`，会在令牌临近过期时尝试刷新。
-- 对 New API 类站点，先调用 `/api/user/self` 读取用户信息；如果响应里没有访问令牌，会再尝试调用 `/api/user/token` 获取。
-- 后台合并识别结果时不会用空访问令牌覆盖页面存储中已经识别到的有效令牌。
+- 对其他兼容站点，会读取目标站点页面存储中的常见登录态字段，如 `auth_token`、`access_token`、`accessToken`、`token`、`jwt_token`。
+- 后台会从所有已打开标签页中查找同源目标站点页，优先在目标站点上下文内完成识别。
 
 不同 new-api 魔改站点的字段可能不完全一致，如果自动识别失败，可以手动填写后保存。
 

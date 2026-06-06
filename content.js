@@ -229,6 +229,27 @@
     };
   }
 
+  function buildCompatUserIdHeaders(userId) {
+    if (!userId) {
+      return {};
+    }
+
+    const value = String(userId);
+    return {
+      "New-API-User": value,
+      "Veloera-User": value,
+      "X-Api-User": value,
+      "voapi-user": value,
+      "User-id": value,
+      "Rix-Api-User": value,
+      "neo-api-user": value
+    };
+  }
+
+  function shouldFetchSystemAccessToken(siteType) {
+    return siteType === "new-api";
+  }
+
   async function fetchSelf(baseUrl, accessToken) {
     const headers = {
       Accept: "application/json"
@@ -251,6 +272,33 @@
     };
   }
 
+  async function fetchSystemAccessToken(baseUrl, accessToken, userId) {
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Pragma: "no-cache",
+      ...buildCompatUserIdHeaders(userId)
+    };
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    const response = await fetch(`${baseUrl}/api/user/token`, {
+      method: "GET",
+      headers,
+      credentials: "include",
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      return "";
+    }
+
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : {};
+    const value = data?.data !== undefined ? data.data : data;
+    return typeof value === "string" ? value.trim() : pickToken(value);
+  }
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type !== MESSAGE_TYPE) {
       return false;
@@ -258,12 +306,16 @@
 
     (async () => {
       const baseUrl = String(message.baseUrl || location.origin).replace(/\/+$/, "");
+      const useSystemAccessTokenFlow = shouldFetchSystemAccessToken(message.siteType);
       const localIdentity = await readLocalIdentity(baseUrl);
       let apiIdentity = {};
       let apiStatus = null;
 
       try {
-        const self = await fetchSelf(baseUrl, localIdentity.accessToken);
+        const self = await fetchSelf(
+          baseUrl,
+          useSystemAccessTokenFlow ? "" : localIdentity.accessToken
+        );
         apiStatus = self.status;
         if (self.ok && self.data) {
           apiIdentity = pickUser(self.data.data || self.data);
@@ -275,8 +327,24 @@
       const merged = {
         userId: String(apiIdentity.id ?? localIdentity.userId ?? ""),
         username: String(apiIdentity.username || localIdentity.username || ""),
-        accessToken: String(apiIdentity.accessToken || localIdentity.accessToken || "")
+        accessToken: String(
+          apiIdentity.accessToken ||
+          (useSystemAccessTokenFlow ? "" : localIdentity.accessToken) ||
+          ""
+        )
       };
+
+      if (!merged.accessToken && useSystemAccessTokenFlow) {
+        try {
+          merged.accessToken = await fetchSystemAccessToken(
+            baseUrl,
+            "",
+            merged.userId
+          );
+        } catch (error) {
+          // Keep the user identity result even if the optional token endpoint fails.
+        }
+      }
 
       sendResponse({
         ok: Boolean(merged.userId || merged.username || merged.accessToken),
