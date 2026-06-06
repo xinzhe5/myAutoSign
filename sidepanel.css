@@ -256,9 +256,28 @@ label span {
 }
 
 .account-actions button {
-  min-height: 30px;
-  padding: 5px 8px;
-  font-size: 0.78rem;
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  font-size: 0;
+}
+
+.icon-action::before {
+  color: currentColor;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.icon-action[data-action="edit"]::before {
+  content: "✎";
+}
+
+.icon-action[data-action="open"]::before {
+  content: "↗";
 }
 
 .mode-actions {

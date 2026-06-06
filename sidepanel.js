@@ -256,8 +256,8 @@ function renderAccountList() {
         </div>
       </div>
       <div class="account-actions">
-        <button type="button" class="secondary-button" data-action="edit">编辑</button>
-        <button type="button" class="secondary-button" data-action="open">打开</button>
+        <button type="button" class="secondary-button icon-action" data-action="edit" aria-label="编辑账号" title="编辑账号"></button>
+        <button type="button" class="secondary-button icon-action" data-action="open" aria-label="打开站点" title="打开站点"></button>
       </div>
     `;
 
