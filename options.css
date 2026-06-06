@@ -92,6 +92,13 @@ button:disabled {
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  align-self: start;
+  flex-direction: column;
+  overflow: hidden;
   padding: 24px 18px;
   background: #111827;
   color: #fff;
@@ -129,6 +136,8 @@ button:disabled {
 .nav-tabs {
   display: grid;
   gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .nav-tabs a {
@@ -574,6 +583,9 @@ td small {
     position: sticky;
     top: 0;
     z-index: 2;
+    height: auto;
+    align-self: stretch;
+    overflow: visible;
     padding: 14px;
   }
 
@@ -583,6 +595,7 @@ td small {
 
   .nav-tabs {
     grid-template-columns: repeat(3, 1fr);
+    overflow: visible;
   }
 
   .content {
