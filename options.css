@@ -420,12 +420,13 @@ textarea:focus {
   gap: 8px;
   width: 120px;
   padding: 8px 6px;
+  color: var(--bookmark-fg, var(--text));
   cursor: pointer;
 }
 
 .bookmark-card:hover {
-  border-color: rgba(37, 99, 235, 0.35);
-  background: #f8fbff;
+  border-color: var(--bookmark-fg, rgba(37, 99, 235, 0.35));
+  background: var(--bookmark-bg, #f8fbff);
 }
 
 .account-main,
@@ -469,6 +470,7 @@ textarea:focus {
 }
 
 .bookmark-card p {
+  color: color-mix(in srgb, var(--bookmark-fg, var(--muted)) 72%, var(--muted));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -601,6 +603,73 @@ textarea:focus {
   white-space: nowrap;
 }
 
+.bookmark-layout {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.bookmark-tag-sidebar {
+  position: sticky;
+  top: 24px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.bookmark-tag-sidebar-title {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.bookmark-tag-filter {
+  display: grid;
+  gap: 6px;
+}
+
+.bookmark-tag-filter-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 650;
+}
+
+.bookmark-tag-filter-button span {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-tag-filter-button strong {
+  flex: 0 0 auto;
+  color: inherit;
+  font-size: 0.76rem;
+}
+
+.bookmark-tag-filter-button:hover,
+.bookmark-tag-filter-button.active {
+  color: var(--tag-fg, var(--primary));
+  border-color: var(--tag-border, rgba(37, 99, 235, 0.28));
+  background: var(--tag-bg, #edf4ff);
+}
+
+.bookmark-results {
+  min-width: 0;
+}
+
 .bookmark-context-menu {
   position: fixed;
   z-index: 1000;
@@ -651,11 +720,16 @@ textarea:focus {
   align-items: start;
 }
 
-.model-card,
-.bookmark-card {
+.model-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.bookmark-card {
+  border: 1px solid var(--bookmark-border, var(--line));
+  border-radius: 8px;
+  background: var(--bookmark-bg, var(--surface));
 }
 
 .model-card h3,
@@ -890,8 +964,24 @@ td small {
   .compact-grid,
   .status-grid,
   .import-export-grid,
+  .bookmark-layout,
   .model-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .bookmark-tag-sidebar {
+    position: static;
+  }
+
+  .bookmark-tag-filter {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .bookmark-tag-filter-button {
+    min-width: 92px;
   }
 
   .badge-row {

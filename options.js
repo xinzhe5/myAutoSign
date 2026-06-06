@@ -560,7 +560,7 @@ function splitTags(value) {
 
 function bookmarkMatchesFilters(bookmark) {
   const keyword = elements.bookmarkSearch.value.trim().toLowerCase();
-  const tagFilter = elements.bookmarkTagFilter.value;
+  const tagFilter = getSelectedBookmarkTag();
 
   if (tagFilter !== "all" && !(bookmark.tags || []).includes(tagFilter)) {
     return false;
@@ -577,24 +577,69 @@ function bookmarkMatchesFilters(bookmark) {
   ].some((value) => String(value || "").toLowerCase().includes(keyword));
 }
 
+function getSelectedBookmarkTag() {
+  return elements.bookmarkTagFilter.dataset.value || "all";
+}
+
 function renderBookmarkTagOptions() {
-  const currentValue = elements.bookmarkTagFilter.value || "all";
+  const currentValue = getSelectedBookmarkTag();
   const tags = getAllBookmarkTags();
+  const tagCounts = new Map();
+  const tagColors = getBookmarkTagColorMap();
+  const selectedValue = currentValue === "all" || tags.includes(currentValue) ? currentValue : "all";
 
   elements.bookmarkTagFilter.replaceChildren();
-  const allOption = document.createElement("option");
-  allOption.value = "all";
-  allOption.textContent = "全部";
-  elements.bookmarkTagFilter.appendChild(allOption);
+  elements.bookmarkTagFilter.dataset.value = selectedValue;
+
+  (appState.bookmarks || []).forEach((bookmark) => {
+    (bookmark.tags || []).forEach((tag) => {
+      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+    });
+  });
+
+  const allButton = createBookmarkTagFilterButton({
+    value: "all",
+    label: "全部",
+    count: appState.bookmarks.length,
+    selected: selectedValue === "all"
+  });
+  elements.bookmarkTagFilter.appendChild(allButton);
 
   for (const tag of tags) {
-    const option = document.createElement("option");
-    option.value = tag;
-    option.textContent = tag;
-    elements.bookmarkTagFilter.appendChild(option);
+    const button = createBookmarkTagFilterButton({
+      value: tag,
+      label: tag,
+      count: tagCounts.get(tag) || 0,
+      selected: selectedValue === tag,
+      color: tagColors.get(tag)
+    });
+    elements.bookmarkTagFilter.appendChild(button);
+  }
+}
+
+function createBookmarkTagFilterButton({ value, label, count, selected, color }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "bookmark-tag-filter-button";
+  button.dataset.bookmarkTag = value;
+  button.setAttribute("aria-pressed", String(selected));
+
+  if (selected) {
+    button.classList.add("active");
+  }
+  if (color) {
+    button.style.setProperty("--tag-bg", color.bg);
+    button.style.setProperty("--tag-fg", color.fg);
+    button.style.setProperty("--tag-border", color.border);
   }
 
-  elements.bookmarkTagFilter.value = tags.includes(currentValue) ? currentValue : "all";
+  const labelElement = document.createElement("span");
+  labelElement.textContent = label;
+  const countElement = document.createElement("strong");
+  countElement.textContent = String(count);
+  button.append(labelElement, countElement);
+
+  return button;
 }
 
 function getSortedBookmarks() {
@@ -667,6 +712,13 @@ function renderBookmarks() {
     const card = document.createElement("article");
     card.className = "bookmark-card";
     card.dataset.bookmarkId = bookmark.id;
+    const primaryTag = (bookmark.tags || [])[0] || "";
+    const primaryColor = primaryTag ? tagColors.get(primaryTag) : null;
+    if (primaryColor) {
+      card.style.setProperty("--bookmark-bg", primaryColor.bg);
+      card.style.setProperty("--bookmark-fg", primaryColor.fg);
+      card.style.setProperty("--bookmark-border", primaryColor.border);
+    }
     const tagsHtml = (bookmark.tags || [])
       .map((tag) => {
         const color = tagColors.get(tag);
@@ -1659,7 +1711,14 @@ function bindEvents() {
   elements.bookmarkForm.addEventListener("submit", saveBookmarkFromForm);
   elements.bookmarkCurrentTab.addEventListener("click", () => void fillBookmarkFromCurrentTab());
   elements.bookmarkSearch.addEventListener("input", renderBookmarks);
-  elements.bookmarkTagFilter.addEventListener("change", renderBookmarks);
+  elements.bookmarkTagFilter.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-bookmark-tag]");
+    if (!button) return;
+
+    elements.bookmarkTagFilter.dataset.value = button.dataset.bookmarkTag || "all";
+    hideBookmarkContextMenu();
+    renderBookmarks();
+  });
   elements.bookmarkList.addEventListener("click", async (event) => {
     const card = event.target.closest(".bookmark-card");
     const bookmark = getBookmarkByCard(card);

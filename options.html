@@ -225,12 +225,6 @@
             <span>搜索</span>
             <input id="bookmark-search" type="search" placeholder="名称、链接、标签">
           </label>
-          <label class="field compact">
-            <span>标签</span>
-            <select id="bookmark-tag-filter">
-              <option value="all">全部</option>
-            </select>
-          </label>
         </div>
 
         <p id="bookmark-status" class="status" aria-live="polite"></p>
@@ -266,9 +260,17 @@
           <p id="bookmark-form-status" class="status" aria-live="polite"></p>
         </section>
 
-        <div id="bookmark-list" class="bookmark-list"></div>
-        <div id="bookmark-context-menu" class="bookmark-context-menu" role="menu" hidden></div>
-        <p id="bookmark-empty" class="empty-state" hidden>还没有书签。添加书签后可在这里快速打开常用入口。</p>
+        <div class="bookmark-layout">
+          <aside class="bookmark-tag-sidebar" aria-label="标签筛选">
+            <div class="bookmark-tag-sidebar-title">标签</div>
+            <div id="bookmark-tag-filter" class="bookmark-tag-filter" data-value="all"></div>
+          </aside>
+          <div class="bookmark-results">
+            <div id="bookmark-list" class="bookmark-list"></div>
+            <div id="bookmark-context-menu" class="bookmark-context-menu" role="menu" hidden></div>
+            <p id="bookmark-empty" class="empty-state" hidden>还没有书签。添加书签后可在这里快速打开常用入口。</p>
+          </div>
+        </div>
       </section>
 
       <section id="import-export-page" class="page" data-page="import-export" hidden>
