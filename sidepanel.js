@@ -5,7 +5,8 @@ const {
   normalizeBaseUrl,
   detectSiteType,
   getDefaultAuthType,
-  normalizeAccount
+  normalizeAccount,
+  normalizeBookmark
 } = globalThis.MyAutoSignShared;
 
 const $ = (selector) => document.querySelector(selector);
@@ -17,6 +18,7 @@ const elements = {
   accountList: $("#sidepanel-account-list"),
   accountEmpty: $("#sidepanel-account-empty"),
   addAccountButton: $("#add-account-button"),
+  addBookmarkButton: $("#add-bookmark-button"),
   autoAddButton: $("#auto-add-button"),
   manualAddButton: $("#manual-add-button"),
   cancelAddMode: $("#cancel-add-mode"),
@@ -38,12 +40,20 @@ const elements = {
   cookieField: $("#cookie-field"),
   turnstileField: $("#turnstile-field"),
   detectButton: $("#detect-button"),
+  bookmarkForm: $("#sidepanel-bookmark-form"),
+  bookmarkBackToHome: $("#bookmark-back-to-home"),
+  bookmarkName: $("#bookmark-name"),
+  bookmarkUrl: $("#bookmark-url"),
+  bookmarkTags: $("#bookmark-tags"),
+  bookmarkTagOptions: $("#bookmark-tag-options"),
+  bookmarkCurrentTab: $("#bookmark-current-tab"),
   openOptionsButton: $("#open-options"),
   status: $("#status")
 };
 
 let appState = {
-  accounts: []
+  accounts: [],
+  bookmarks: []
 };
 let currentAccountId = "";
 let lastActiveBaseUrl = "";
@@ -128,12 +138,14 @@ function setView(view) {
   elements.home.hidden = view !== "home";
   elements.addModePanel.hidden = view !== "add-mode";
   elements.form.hidden = view !== "form";
+  elements.bookmarkForm.hidden = view !== "bookmark-form";
 }
 
 async function loadState() {
   const response = await sendMessage("get-state");
-  appState = response.state || { accounts: [] };
+  appState = response.state || { accounts: [], bookmarks: [] };
   renderAccountList();
+  renderBookmarkTagOptions();
 }
 
 function escapeHtml(value) {
@@ -142,6 +154,53 @@ function escapeHtml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function splitTags(value) {
+  return Array.from(new Set(String(value || "")
+    .split(/[,\n，]/)
+    .map((tag) => tag.trim())
+    .filter(Boolean)));
+}
+
+function getAllBookmarkTags() {
+  return Array.from(new Set((appState.bookmarks || []).flatMap((bookmark) => bookmark.tags || [])))
+    .sort((a, b) => a.localeCompare(b, "zh-CN"));
+}
+
+function getBookmarkFormTags() {
+  return splitTags(elements.bookmarkTags.value);
+}
+
+function setBookmarkFormTags(tags) {
+  elements.bookmarkTags.value = Array.from(new Set(tags)).join(", ");
+  renderBookmarkTagOptions();
+}
+
+function renderBookmarkTagOptions() {
+  const tags = getAllBookmarkTags();
+  const selectedTags = new Set(getBookmarkFormTags());
+  elements.bookmarkTagOptions.replaceChildren();
+  elements.bookmarkTagOptions.hidden = tags.length === 0;
+
+  for (const tag of tags) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "bookmark-tag-option";
+    button.dataset.bookmarkTag = tag;
+    button.textContent = tag;
+    button.setAttribute("aria-pressed", String(selectedTags.has(tag)));
+    button.classList.toggle("active", selectedTags.has(tag));
+    elements.bookmarkTagOptions.appendChild(button);
+  }
+}
+
+function toggleBookmarkTag(tag) {
+  const tags = getBookmarkFormTags();
+  const nextTags = tags.includes(tag)
+    ? tags.filter((item) => item !== tag)
+    : [...tags, tag];
+  setBookmarkFormTags(nextTags);
 }
 
 function getCurrentBaseUrl() {
@@ -514,10 +573,107 @@ async function saveAccount(event) {
   }
 }
 
+function resetBookmarkForm() {
+  elements.bookmarkName.value = "";
+  elements.bookmarkUrl.value = "";
+  elements.bookmarkTags.value = "";
+  renderBookmarkTagOptions();
+}
+
+async function fillBookmarkFromCurrentTab() {
+  elements.bookmarkCurrentTab.disabled = true;
+  setStatus("正在读取当前标签页...");
+
+  try {
+    const tab = await getActiveTab();
+    const tabUrl = tab?.url || "";
+    if (!isHttpUrl(tabUrl)) {
+      throw new Error("当前页面不支持保存为书签。");
+    }
+
+    const parsed = new URL(tabUrl);
+    elements.bookmarkUrl.value = parsed.toString();
+    if (!elements.bookmarkName.value.trim()) {
+      elements.bookmarkName.value = tab.title || parsed.hostname;
+    }
+    setStatus("已填入当前标签页。", "success");
+  } catch (error) {
+    setStatus(`读取失败：${error.message}`, "error");
+  } finally {
+    elements.bookmarkCurrentTab.disabled = false;
+  }
+}
+
+async function startBookmarkAdd() {
+  resetBookmarkForm();
+  setView("bookmark-form");
+  await fillBookmarkFromCurrentTab();
+  elements.bookmarkName.focus();
+}
+
+function readBookmarkForm() {
+  return normalizeBookmark({
+    name: elements.bookmarkName.value,
+    url: elements.bookmarkUrl.value,
+    tags: splitTags(elements.bookmarkTags.value),
+    notes: "",
+    pinned: false
+  });
+}
+
+function validateBookmark(bookmark) {
+  if (!bookmark.name.trim()) {
+    return "请填写书签名称。";
+  }
+  if (!bookmark.url.trim()) {
+    return "请填写书签链接。";
+  }
+
+  try {
+    const parsed = new URL(bookmark.url);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return "书签链接只支持 http 或 https 地址。";
+    }
+  } catch (error) {
+    return "请填写有效的书签链接。";
+  }
+
+  return "";
+}
+
+async function saveBookmark(event) {
+  event.preventDefault();
+
+  const bookmark = readBookmarkForm();
+  const validationError = validateBookmark(bookmark);
+  if (validationError) {
+    setStatus(validationError, "error");
+    return;
+  }
+
+  const submitButton = elements.bookmarkForm.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  setStatus("正在保存书签...");
+
+  try {
+    await sendMessage("save-bookmark", { bookmark });
+    await loadState();
+    setView("home");
+    setStatus("书签已保存。", "success");
+  } catch (error) {
+    setStatus(`保存失败：${error.message}`, "error");
+  } finally {
+    submitButton.disabled = false;
+  }
+}
+
 function bindEvents() {
   elements.addAccountButton.addEventListener("click", () => {
     setStatus("");
     setView("add-mode");
+  });
+  elements.addBookmarkButton.addEventListener("click", () => {
+    void startBookmarkAdd();
   });
 
   elements.cancelAddMode.addEventListener("click", () => {
@@ -525,6 +681,9 @@ function bindEvents() {
   });
 
   elements.backToHomeButton.addEventListener("click", () => {
+    setView("home");
+  });
+  elements.bookmarkBackToHome.addEventListener("click", () => {
     setView("home");
   });
 
@@ -587,6 +746,18 @@ function bindEvents() {
   elements.form.addEventListener("submit", (event) => {
     void saveAccount(event);
   });
+  elements.bookmarkForm.addEventListener("submit", (event) => {
+    void saveBookmark(event);
+  });
+  elements.bookmarkCurrentTab.addEventListener("click", () => {
+    void fillBookmarkFromCurrentTab();
+  });
+  elements.bookmarkTags.addEventListener("input", renderBookmarkTagOptions);
+  elements.bookmarkTagOptions.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-bookmark-tag]");
+    if (!button) return;
+    toggleBookmarkTag(button.dataset.bookmarkTag || "");
+  });
 
   chrome.tabs.onActivated.addListener(() => {
     void refreshCurrentSite();
@@ -601,6 +772,7 @@ function bindEvents() {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "local" && (
       changes[STORAGE_KEYS.ACCOUNTS] ||
+      changes[STORAGE_KEYS.BOOKMARKS] ||
       changes[STORAGE_KEYS.AUTO_CHECKIN_STATUS]
     )) {
       void loadState();

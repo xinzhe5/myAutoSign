@@ -93,6 +93,7 @@ const elements = {
   bookmarkName: $("#bookmark-name"),
   bookmarkUrl: $("#bookmark-url"),
   bookmarkTags: $("#bookmark-tags"),
+  bookmarkTagOptions: $("#bookmark-tag-options"),
   bookmarkPinned: $("#bookmark-pinned"),
   bookmarkCurrentTab: $("#bookmark-current-tab"),
   bookmarkFormStatus: $("#bookmark-form-status"),
@@ -263,6 +264,7 @@ function renderAll() {
   renderAccounts();
   renderModels();
   renderBookmarks();
+  renderBookmarkFormTagOptions();
   renderImportValidation();
   renderAutoCheckinSettings();
   renderAutoCheckinStatus();
@@ -700,6 +702,48 @@ function getBookmarkTagStyle(color) {
     `--tag-fg: ${color.fg}`,
     `--tag-border: ${color.border}`
   ].join("; ");
+}
+
+function getBookmarkFormTags() {
+  return splitTags(elements.bookmarkTags.value);
+}
+
+function setBookmarkFormTags(tags) {
+  elements.bookmarkTags.value = Array.from(new Set(tags)).join(", ");
+  renderBookmarkFormTagOptions();
+}
+
+function renderBookmarkFormTagOptions() {
+  const tags = getAllBookmarkTags();
+  const selectedTags = new Set(getBookmarkFormTags());
+  const tagColors = getBookmarkTagColorMap();
+  elements.bookmarkTagOptions.replaceChildren();
+  elements.bookmarkTagOptions.hidden = tags.length === 0;
+
+  for (const tag of tags) {
+    const color = tagColors.get(tag);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "bookmark-tag-option";
+    button.dataset.bookmarkFormTag = tag;
+    button.textContent = tag;
+    button.setAttribute("aria-pressed", String(selectedTags.has(tag)));
+    button.classList.toggle("active", selectedTags.has(tag));
+    if (color) {
+      button.style.setProperty("--tag-bg", color.bg);
+      button.style.setProperty("--tag-fg", color.fg);
+      button.style.setProperty("--tag-border", color.border);
+    }
+    elements.bookmarkTagOptions.appendChild(button);
+  }
+}
+
+function toggleBookmarkFormTag(tag) {
+  const tags = getBookmarkFormTags();
+  const nextTags = tags.includes(tag)
+    ? tags.filter((item) => item !== tag)
+    : [...tags, tag];
+  setBookmarkFormTags(nextTags);
 }
 
 function renderBookmarks() {
@@ -1394,6 +1438,7 @@ function fillBookmarkForm(bookmark) {
   elements.bookmarkName.value = draft.name || "";
   elements.bookmarkUrl.value = draft.url || "";
   elements.bookmarkTags.value = (draft.tags || []).join(", ");
+  renderBookmarkFormTagOptions();
   elements.bookmarkPinned.checked = draft.pinned === true;
   elements.bookmarkFormStatus.textContent = "";
   elements.bookmarkEditor.hidden = false;
@@ -1717,6 +1762,12 @@ function bindEvents() {
   });
   elements.bookmarkForm.addEventListener("submit", saveBookmarkFromForm);
   elements.bookmarkCurrentTab.addEventListener("click", () => void fillBookmarkFromCurrentTab());
+  elements.bookmarkTags.addEventListener("input", renderBookmarkFormTagOptions);
+  elements.bookmarkTagOptions.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-bookmark-form-tag]");
+    if (!button) return;
+    toggleBookmarkFormTag(button.dataset.bookmarkFormTag || "");
+  });
   elements.bookmarkSearch.addEventListener("input", renderBookmarks);
   elements.bookmarkTagFilter.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-bookmark-tag]");
