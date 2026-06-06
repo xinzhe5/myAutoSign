@@ -194,9 +194,13 @@ label span {
 }
 
 .account-stats {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   min-width: 0;
+  overflow: hidden;
+  text-align: right;
 }
 
 .account-controls {
@@ -206,31 +210,44 @@ label span {
   min-width: 0;
 }
 
-.stat {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  min-width: 0;
-}
-
-.stat span {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.1;
-}
-
-.stat strong {
+.stat-balance {
+  display: block;
+  width: 100%;
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 750;
-  line-height: 1.15;
+  line-height: 1.2;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.stat-cashflow {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.stat-cashflow span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-consumption {
+  color: var(--success);
+}
+
+.stat-income {
+  color: var(--primary);
 }
 
 .badge-row,

@@ -232,7 +232,7 @@ function renderAccountList() {
     const currentBadge = accountMatchesCurrentSite(account)
       ? `<span class="badge success">当前站点</span>`
       : "";
-    const userLine = `${account.username || "-"} · ID ${account.userId || "-"}`;
+    const userLine = account.username || "-";
 
     card.innerHTML = `
       <div class="account-card-body">
@@ -251,9 +251,11 @@ function renderAccountList() {
           </span>
         </div>
         <div class="account-stats" aria-label="账号统计">
-          <div class="stat"><span>余额</span><strong>${escapeHtml(stats.balance)}</strong></div>
-          <div class="stat"><span>今日消费</span><strong>${escapeHtml(stats.todayConsumption)}</strong></div>
-          <div class="stat"><span>今日收入</span><strong>${escapeHtml(stats.todayIncome)}</strong></div>
+          <strong class="stat-balance" title="余额" aria-label="余额 ${escapeHtml(stats.balance)}">${escapeHtml(stats.balance)}</strong>
+          <div class="stat-cashflow" aria-label="今日消费和今日收入">
+            <span class="stat-consumption" title="今日消费" aria-label="今日消费 ${escapeHtml(stats.todayConsumption)}">${escapeHtml(stats.todayConsumption)}</span>
+            <span class="stat-income" title="今日收入" aria-label="今日收入 ${escapeHtml(stats.todayIncome)}">${escapeHtml(stats.todayIncome)}</span>
+          </div>
         </div>
       </div>
     `;
