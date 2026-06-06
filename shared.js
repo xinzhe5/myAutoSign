@@ -112,31 +112,37 @@
   }
 
   function normalizeAccount(account = {}, index = 0) {
+    const accountInfo = account.account_info && typeof account.account_info === "object"
+      ? account.account_info
+      : {};
     const baseUrl = normalizeBaseUrl(account.baseUrl || account.site_url || account.url);
     const siteType = isKnownSiteType(account.siteType)
       ? account.siteType
-      : detectSiteType(baseUrl, SITE_TYPES.NEW_API);
+      : isKnownSiteType(account.site_type)
+        ? account.site_type
+        : detectSiteType(baseUrl, SITE_TYPES.NEW_API);
     const authType = isKnownAuthType(account.authType)
       ? account.authType
       : getDefaultAuthType(siteType, baseUrl);
     const nowIso = new Date().toISOString();
+    const disabled = account.disabled === true;
 
     return {
       id: toStringValue(account.id || createId(`account-${index + 1}`)),
-      enabled: account.enabled !== false,
-      name: toStringValue(account.name || account.siteName || ""),
+      enabled: account.enabled !== false && !disabled,
+      name: toStringValue(account.name || account.siteName || account.site_name || ""),
       siteType,
       baseUrl,
       authType,
-      username: toStringValue(account.username || ""),
-      userId: toStringValue(account.userId || account.user_id || ""),
-      accessToken: toStringValue(account.accessToken || account.access_token || "").trim(),
-      cookie: toStringValue(account.cookie || account.cookieAuthSessionCookie || "").trim(),
+      username: toStringValue(account.username || accountInfo.username || ""),
+      userId: toStringValue(account.userId || account.user_id || accountInfo.id || ""),
+      accessToken: toStringValue(account.accessToken || account.access_token || accountInfo.access_token || "").trim(),
+      cookie: toStringValue(account.cookie || account.cookieAuthSessionCookie || account.cookieAuth?.sessionCookie || "").trim(),
       turnstileToken: toStringValue(account.turnstileToken || "").trim(),
-      autoCheckinEnabled: account.autoCheckinEnabled !== false,
+      autoCheckinEnabled: account.autoCheckinEnabled !== false && !disabled,
       notes: toStringValue(account.notes || ""),
-      createdAt: toStringValue(account.createdAt || nowIso),
-      updatedAt: toStringValue(account.updatedAt || nowIso)
+      createdAt: toStringValue(account.createdAt || account.created_at || nowIso),
+      updatedAt: toStringValue(account.updatedAt || account.updated_at || nowIso)
     };
   }
 

@@ -20,6 +20,7 @@
         <a href="#accounts" data-route="accounts">账号管理</a>
         <a href="#models" data-route="models">模型列表</a>
         <a href="#bookmarks" data-route="bookmarks">书签管理</a>
+        <a href="#import-export" data-route="import-export">导入/导出</a>
         <a href="#auto-checkin" data-route="auto-checkin">自动签到</a>
         <a href="#basic" data-route="basic">基础设置</a>
       </nav>
@@ -271,6 +272,57 @@
 
         <div id="bookmark-list" class="bookmark-list"></div>
         <p id="bookmark-empty" class="empty-state" hidden>还没有书签。添加书签后可在这里快速打开常用入口。</p>
+      </section>
+
+      <section id="import-export-page" class="page" data-page="import-export" hidden>
+        <div class="page-header">
+          <div>
+            <h2>导入/导出</h2>
+            <p>备份或迁移账号和书签数据，导入时会自动跳过已存在项目。</p>
+          </div>
+        </div>
+
+        <div class="import-export-grid">
+          <section class="data-panel">
+            <div class="panel-heading">
+              <h3>导出数据</h3>
+              <p>导出文件包含敏感令牌，请妥善保存。</p>
+            </div>
+            <div class="export-actions">
+              <button id="export-all-data" type="button">导出账号和书签</button>
+              <button id="export-accounts-data" type="button" class="secondary-button">仅导出账号</button>
+              <button id="export-bookmarks-data" type="button" class="secondary-button">仅导出书签</button>
+            </div>
+          </section>
+
+          <section class="data-panel">
+            <div class="panel-heading">
+              <h3>导入数据</h3>
+              <p>支持本插件导出的 JSON，也兼容参考脚本的账号备份结构。</p>
+            </div>
+            <label class="field">
+              <span>选择备份文件</span>
+              <input id="import-backup-file" type="file" accept=".json,application/json">
+            </label>
+            <label class="field">
+              <span>数据预览</span>
+              <textarea id="import-data-preview" rows="6" spellcheck="false" placeholder="选择 JSON 文件，或直接粘贴备份内容"></textarea>
+            </label>
+            <div id="import-validation" class="validation-box" hidden></div>
+            <div class="action-row">
+              <button id="clear-import-data" type="button" class="secondary-button">清空</button>
+              <button id="import-data-button" type="button">导入数据</button>
+            </div>
+          </section>
+        </div>
+
+        <p id="import-export-status" class="status" aria-live="polite"></p>
+
+        <section class="feedback">
+          <h3>导入规则</h3>
+          <p>账号按站点地址和用户 ID / 用户名判断是否重复；书签按链接判断是否重复。</p>
+          <p>导入会合并到当前数据，不会删除已有账号或书签。</p>
+        </section>
       </section>
 
       <section id="auto-checkin-page" class="page" data-page="auto-checkin" hidden>

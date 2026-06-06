@@ -11,7 +11,8 @@ const {
   normalizeAccount,
   normalizeBookmark,
   normalizeSettings,
-  statusIsSuccess
+  statusIsSuccess,
+  createId
 } = globalThis.MyAutoSignShared;
 
 const TRIGGER_TEXT_MAP = {
@@ -102,6 +103,15 @@ const elements = {
   bookmarkStatus: $("#bookmark-status"),
   bookmarkList: $("#bookmark-list"),
   bookmarkEmpty: $("#bookmark-empty"),
+  exportAllDataButton: $("#export-all-data"),
+  exportAccountsDataButton: $("#export-accounts-data"),
+  exportBookmarksDataButton: $("#export-bookmarks-data"),
+  importBackupFile: $("#import-backup-file"),
+  importDataPreview: $("#import-data-preview"),
+  importValidation: $("#import-validation"),
+  importDataButton: $("#import-data-button"),
+  clearImportDataButton: $("#clear-import-data"),
+  importExportStatus: $("#import-export-status"),
   autoForm: $("#auto-checkin-settings-form"),
   autoEnabled: $("#auto-checkin-enabled"),
   autoWindowStart: $("#auto-window-start"),
@@ -253,6 +263,7 @@ function renderAll() {
   renderAccounts();
   renderModels();
   renderBookmarks();
+  renderImportValidation();
   renderAutoCheckinSettings();
   renderAutoCheckinStatus();
   renderOpenSettings();
@@ -831,6 +842,342 @@ async function copyText(text) {
   textarea.remove();
 }
 
+function getBackupDateStamp() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json"
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildExportPayload(scope) {
+  const includeAccounts = scope !== "bookmarks";
+  const includeBookmarks = scope !== "accounts";
+  const version = chrome.runtime.getManifest?.().version || "";
+
+  return {
+    version,
+    source: "my-autosign",
+    type: scope,
+    timestamp: Date.now(),
+    accounts: includeAccounts ? appState.accounts : [],
+    bookmarks: includeBookmarks ? appState.bookmarks : []
+  };
+}
+
+function exportBackup(scope) {
+  const filenames = {
+    all: `my-autosign-backup-${getBackupDateStamp()}.json`,
+    accounts: `my-autosign-accounts-${getBackupDateStamp()}.json`,
+    bookmarks: `my-autosign-bookmarks-${getBackupDateStamp()}.json`
+  };
+  const payload = buildExportPayload(scope);
+  downloadJson(payload, filenames[scope] || filenames.all);
+
+  const exportedAccounts = payload.accounts.length;
+  const exportedBookmarks = payload.bookmarks.length;
+  elements.importExportStatus.textContent = `已导出 ${exportedAccounts} 个账号、${exportedBookmarks} 个书签。`;
+  elements.importExportStatus.className = "status success";
+}
+
+function firstArray(...values) {
+  const arrays = values.filter((value) => Array.isArray(value));
+  return arrays.find((value) => value.length > 0) || arrays[0] || [];
+}
+
+function isPlainObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function isAccountLike(item) {
+  return isPlainObject(item) && Boolean(
+    item.baseUrl ||
+    item.site_url ||
+    item.account_info ||
+    item.accessToken ||
+    item.access_token ||
+    item.userId ||
+    item.user_id
+  );
+}
+
+function isBookmarkLike(item) {
+  return isPlainObject(item) && Boolean(item.url || item.href) && !isAccountLike(item);
+}
+
+function extractImportSections(data) {
+  if (Array.isArray(data)) {
+    return {
+      accounts: data.filter(isAccountLike),
+      bookmarks: data.filter(isBookmarkLike)
+    };
+  }
+
+  const accountsContainer = data?.accounts;
+  const legacyAccountsContainer = data?.data?.accounts;
+  const accounts = firstArray(
+    Array.isArray(accountsContainer) ? accountsContainer : accountsContainer?.accounts,
+    Array.isArray(legacyAccountsContainer) ? legacyAccountsContainer : legacyAccountsContainer?.accounts,
+    data?.accountData,
+    data?.accountsData
+  );
+  const bookmarks = firstArray(
+    data?.bookmarks,
+    accountsContainer?.bookmarks,
+    legacyAccountsContainer?.bookmarks,
+    data?.data?.bookmarks,
+    data?.siteBookmarks
+  );
+
+  return { accounts, bookmarks };
+}
+
+function getTagNameMap(data) {
+  const tagStore = data?.tagStore || data?.data?.tagStore;
+  const tagsById = tagStore?.tagsById;
+  const map = new Map();
+  if (!tagsById || typeof tagsById !== "object") {
+    return map;
+  }
+
+  Object.entries(tagsById).forEach(([id, tag]) => {
+    const name = String(tag?.name || "").trim();
+    if (id && name) {
+      map.set(id, name);
+    }
+  });
+  return map;
+}
+
+function withResolvedBookmarkTags(bookmark, tagNameMap) {
+  if (!isPlainObject(bookmark)) {
+    return bookmark || {};
+  }
+
+  if ((bookmark.tags || bookmark.tagNames)?.length || !Array.isArray(bookmark.tagIds)) {
+    return bookmark;
+  }
+
+  return {
+    ...bookmark,
+    tags: bookmark.tagIds.map((tagId) => tagNameMap.get(tagId) || tagId)
+  };
+}
+
+function accountImportKey(account) {
+  const identity = String(account.userId || account.username || "").trim().toLowerCase();
+  return [
+    account.siteType || SITE_TYPES.NEW_API,
+    normalizeBaseUrl(account.baseUrl),
+    identity || "unknown-user"
+  ].join("|");
+}
+
+function bookmarkImportKey(bookmark) {
+  try {
+    return new URL(bookmark.url).toString().toLowerCase();
+  } catch (error) {
+    return String(bookmark.url || "").trim().toLowerCase();
+  }
+}
+
+function cloneWithUniqueId(item, prefix, usedIds) {
+  if (!usedIds.has(item.id)) {
+    usedIds.add(item.id);
+    return item;
+  }
+
+  let id = createId(prefix);
+  while (usedIds.has(id)) {
+    id = createId(prefix);
+  }
+  usedIds.add(id);
+  return { ...item, id };
+}
+
+function isValidImportedBookmark(bookmark) {
+  try {
+    const parsed = new URL(bookmark.url);
+    return ["http:", "https:"].includes(parsed.protocol);
+  } catch (error) {
+    return false;
+  }
+}
+
+function parseImportPreview() {
+  const rawText = elements.importDataPreview.value.trim();
+  if (!rawText) {
+    return {
+      valid: false,
+      empty: true,
+      message: "请选择备份文件或粘贴 JSON 数据。"
+    };
+  }
+
+  try {
+    const data = JSON.parse(rawText);
+    const sections = extractImportSections(data);
+    const normalizedAccounts = sections.accounts
+      .map((account, index) => normalizeAccount(account, index))
+      .filter((account) => account.baseUrl && (account.userId || account.username));
+    const tagNameMap = getTagNameMap(data);
+    const normalizedBookmarks = sections.bookmarks
+      .map((bookmark, index) => normalizeBookmark(withResolvedBookmarkTags(bookmark, tagNameMap), index))
+      .filter((bookmark) => bookmark.name && isValidImportedBookmark(bookmark));
+
+    if (!normalizedAccounts.length && !normalizedBookmarks.length) {
+      return {
+        valid: false,
+        message: "没有找到可导入的账号或书签数据。"
+      };
+    }
+
+    return {
+      valid: true,
+      data,
+      accountCount: normalizedAccounts.length,
+      bookmarkCount: normalizedBookmarks.length,
+      message: `格式正确：包含 ${normalizedAccounts.length} 个账号、${normalizedBookmarks.length} 个书签。`
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      message: "JSON 格式不正确，请检查备份内容。"
+    };
+  }
+}
+
+function renderImportValidation() {
+  const preview = parseImportPreview();
+  elements.importDataButton.disabled = !preview.valid;
+  elements.importValidation.hidden = preview.empty;
+  elements.importValidation.textContent = preview.message;
+  elements.importValidation.className = `validation-box ${preview.valid ? "success" : "error"}`;
+  return preview;
+}
+
+async function importBackupData() {
+  const preview = renderImportValidation();
+  if (!preview.valid) {
+    elements.importExportStatus.textContent = preview.message;
+    elements.importExportStatus.className = "status error";
+    return;
+  }
+
+  const sections = extractImportSections(preview.data);
+  const tagNameMap = getTagNameMap(preview.data);
+  const existingAccountKeys = new Set(appState.accounts.map(accountImportKey));
+  const existingBookmarkKeys = new Set(appState.bookmarks.map(bookmarkImportKey));
+  const usedAccountIds = new Set(appState.accounts.map((account) => account.id));
+  const usedBookmarkIds = new Set(appState.bookmarks.map((bookmark) => bookmark.id));
+  const nextAccounts = [...appState.accounts];
+  const nextBookmarks = [...appState.bookmarks];
+  const result = {
+    accountsAdded: 0,
+    accountsSkipped: 0,
+    accountsInvalid: 0,
+    bookmarksAdded: 0,
+    bookmarksSkipped: 0,
+    bookmarksInvalid: 0
+  };
+
+  sections.accounts.forEach((rawAccount, index) => {
+    const normalized = normalizeAccount(rawAccount, index);
+    if (!normalized.baseUrl || (!normalized.userId && !normalized.username)) {
+      result.accountsInvalid += 1;
+      return;
+    }
+
+    const key = accountImportKey(normalized);
+    if (existingAccountKeys.has(key)) {
+      result.accountsSkipped += 1;
+      return;
+    }
+
+    const account = cloneWithUniqueId(normalized, "account", usedAccountIds);
+    nextAccounts.push(account);
+    existingAccountKeys.add(key);
+    result.accountsAdded += 1;
+  });
+
+  sections.bookmarks.forEach((rawBookmark, index) => {
+    const normalized = normalizeBookmark(withResolvedBookmarkTags(rawBookmark, tagNameMap), index);
+    if (!normalized.name || !isValidImportedBookmark(normalized)) {
+      result.bookmarksInvalid += 1;
+      return;
+    }
+
+    const key = bookmarkImportKey(normalized);
+    if (existingBookmarkKeys.has(key)) {
+      result.bookmarksSkipped += 1;
+      return;
+    }
+
+    const bookmark = cloneWithUniqueId(normalized, "bookmark", usedBookmarkIds);
+    nextBookmarks.push(bookmark);
+    existingBookmarkKeys.add(key);
+    result.bookmarksAdded += 1;
+  });
+
+  if (!result.accountsAdded && !result.bookmarksAdded) {
+    elements.importExportStatus.textContent = "没有新增数据：导入内容都已存在，或字段不完整。";
+    elements.importExportStatus.className = "status error";
+    return;
+  }
+
+  elements.importDataButton.disabled = true;
+  elements.importExportStatus.textContent = "正在导入数据...";
+  elements.importExportStatus.className = "status";
+
+  try {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.ACCOUNTS]: nextAccounts,
+      [STORAGE_KEYS.BOOKMARKS]: nextBookmarks
+    });
+    await loadState();
+    renderImportValidation();
+
+    elements.importExportStatus.textContent = [
+      `导入完成：新增 ${result.accountsAdded} 个账号、${result.bookmarksAdded} 个书签`,
+      `跳过 ${result.accountsSkipped} 个重复账号、${result.bookmarksSkipped} 个重复书签`,
+      `忽略 ${result.accountsInvalid} 个无效账号、${result.bookmarksInvalid} 个无效书签`
+    ].join("；");
+    elements.importExportStatus.className = "status success";
+  } catch (error) {
+    elements.importExportStatus.textContent = `导入失败：${error.message}`;
+    elements.importExportStatus.className = "status error";
+  } finally {
+    elements.importDataButton.disabled = false;
+  }
+}
+
+async function readImportFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  try {
+    elements.importDataPreview.value = await file.text();
+    elements.importExportStatus.textContent = `已读取文件：${file.name}`;
+    elements.importExportStatus.className = "status";
+  } catch (error) {
+    elements.importExportStatus.textContent = `读取文件失败：${error.message}`;
+    elements.importExportStatus.className = "status error";
+  }
+  renderImportValidation();
+}
+
 function getSelectedModelAccountId() {
   const selected = elements.modelAccountFilter.value;
   if (selected !== "all") {
@@ -1217,6 +1564,19 @@ function bindEvents() {
         elements.bookmarkStatus.className = "status success";
       }
     }
+  });
+
+  elements.exportAllDataButton.addEventListener("click", () => exportBackup("all"));
+  elements.exportAccountsDataButton.addEventListener("click", () => exportBackup("accounts"));
+  elements.exportBookmarksDataButton.addEventListener("click", () => exportBackup("bookmarks"));
+  elements.importBackupFile.addEventListener("change", (event) => void readImportFile(event));
+  elements.importDataPreview.addEventListener("input", renderImportValidation);
+  elements.importDataButton.addEventListener("click", () => void importBackupData());
+  elements.clearImportDataButton.addEventListener("click", () => {
+    elements.importBackupFile.value = "";
+    elements.importDataPreview.value = "";
+    elements.importExportStatus.textContent = "";
+    renderImportValidation();
   });
 
   elements.accountList.addEventListener("click", async (event) => {
