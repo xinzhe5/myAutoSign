@@ -915,6 +915,39 @@ function isBookmarkLike(item) {
   return isPlainObject(item) && Boolean(item.url || item.href) && !isAccountLike(item);
 }
 
+function extractItabBookmarks(data) {
+  const groups = Array.isArray(data?.navConfig) ? data.navConfig : [];
+  const bookmarks = [];
+
+  groups.forEach((group) => {
+    const groupName = String(group?.name || "").trim();
+    const children = Array.isArray(group?.children) ? group.children : [];
+
+    children.forEach((item) => {
+      const rawUrl = String(item?.url || "").trim();
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(rawUrl);
+      } catch (error) {
+        return;
+      }
+
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return;
+      }
+
+      bookmarks.push({
+        id: item?.id ? `itab-${item.id}` : undefined,
+        name: String(item?.name || item?.title || parsedUrl.hostname).trim(),
+        url: parsedUrl.toString(),
+        tags: groupName ? [groupName] : ["iTab"]
+      });
+    });
+  });
+
+  return bookmarks;
+}
+
 function extractImportSections(data) {
   if (Array.isArray(data)) {
     return {
@@ -936,7 +969,8 @@ function extractImportSections(data) {
     accountsContainer?.bookmarks,
     legacyAccountsContainer?.bookmarks,
     data?.data?.bookmarks,
-    data?.siteBookmarks
+    data?.siteBookmarks,
+    extractItabBookmarks(data)
   );
 
   return { accounts, bookmarks };

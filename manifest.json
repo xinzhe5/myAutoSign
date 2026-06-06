@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "每日自动签到与账号管理",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "管理 new-api 与 AnyRouter 账号，支持自动识别账号信息、每日自动签到和辅助打开常用页面。",
   "permissions": [
     "alarms",
