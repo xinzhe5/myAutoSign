@@ -493,6 +493,11 @@ textarea:focus {
   gap: 12px;
 }
 
+.bookmark-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
 .model-card,
 .bookmark-card {
   border: 1px solid var(--line);
@@ -733,6 +738,7 @@ td small {
   .compact-grid,
   .status-grid,
   .import-export-grid,
+  .bookmark-list,
   .model-detail-grid {
     grid-template-columns: 1fr;
   }
