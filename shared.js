@@ -176,7 +176,7 @@
       name,
       url,
       tags: normalizeTags(bookmark.tags || bookmark.tagNames || bookmark.tagIds),
-      notes: toStringValue(bookmark.notes || ""),
+      notes: "",
       pinned: bookmark.pinned === true,
       createdAt: toStringValue(bookmark.createdAt || bookmark.created_at || nowIso),
       updatedAt: toStringValue(bookmark.updatedAt || bookmark.updated_at || nowIso)

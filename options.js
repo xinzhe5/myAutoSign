@@ -93,7 +93,6 @@ const elements = {
   bookmarkName: $("#bookmark-name"),
   bookmarkUrl: $("#bookmark-url"),
   bookmarkTags: $("#bookmark-tags"),
-  bookmarkNotes: $("#bookmark-notes"),
   bookmarkPinned: $("#bookmark-pinned"),
   bookmarkCurrentTab: $("#bookmark-current-tab"),
   bookmarkFormStatus: $("#bookmark-form-status"),
@@ -573,15 +572,13 @@ function bookmarkMatchesFilters(bookmark) {
   return [
     bookmark.name,
     bookmark.url,
-    bookmark.notes,
     ...(bookmark.tags || [])
   ].some((value) => String(value || "").toLowerCase().includes(keyword));
 }
 
 function renderBookmarkTagOptions() {
   const currentValue = elements.bookmarkTagFilter.value || "all";
-  const tags = Array.from(new Set((appState.bookmarks || []).flatMap((bookmark) => bookmark.tags || [])))
-    .sort((a, b) => a.localeCompare(b, "zh-CN"));
+  const tags = getAllBookmarkTags();
 
   elements.bookmarkTagFilter.replaceChildren();
   const allOption = document.createElement("option");
@@ -608,10 +605,57 @@ function getSortedBookmarks() {
   });
 }
 
+function getAllBookmarkTags() {
+  return Array.from(new Set((appState.bookmarks || []).flatMap((bookmark) => bookmark.tags || [])))
+    .sort((a, b) => a.localeCompare(b, "zh-CN"));
+}
+
+function getBookmarkTagColorMap() {
+  const tags = getAllBookmarkTags();
+  const colors = new Map();
+  const usedColorKeys = new Set();
+
+  tags.forEach((tag, index) => {
+    let attempt = 0;
+    let candidateIndex = index;
+    let hueKey = "";
+    let bgSaturation = 82;
+    let bgLightness = 94;
+    let colorKey = "";
+
+    do {
+      candidateIndex = index + attempt * tags.length;
+      hueKey = ((candidateIndex * 137.508) % 360).toFixed(1);
+      bgSaturation = 82 - (Math.floor(candidateIndex / 3600) % 4) * 5;
+      bgLightness = 94 - (Math.floor(candidateIndex / 14400) % 4) * 3;
+      colorKey = `${hueKey}|${bgSaturation}|${bgLightness}`;
+      attempt += 1;
+    } while (usedColorKeys.has(colorKey));
+
+    usedColorKeys.add(colorKey);
+    colors.set(tag, {
+      bg: `hsl(${hueKey} ${bgSaturation}% ${bgLightness}%)`,
+      fg: `hsl(${hueKey} 58% 31%)`,
+      border: `hsl(${hueKey} 62% 80%)`
+    });
+  });
+
+  return colors;
+}
+
+function getBookmarkTagStyle(color) {
+  return [
+    `--tag-bg: ${color.bg}`,
+    `--tag-fg: ${color.fg}`,
+    `--tag-border: ${color.border}`
+  ].join("; ");
+}
+
 function renderBookmarks() {
   renderBookmarkTagOptions();
 
   const bookmarks = getSortedBookmarks().filter(bookmarkMatchesFilters);
+  const tagColors = getBookmarkTagColorMap();
   elements.bookmarkList.replaceChildren();
   elements.bookmarkEmpty.hidden = bookmarks.length > 0;
   elements.bookmarkEmpty.textContent = appState.bookmarks.length
@@ -623,18 +667,22 @@ function renderBookmarks() {
     card.className = "bookmark-card";
     card.dataset.bookmarkId = bookmark.id;
     const tagsHtml = (bookmark.tags || [])
-      .map((tag) => `<span class="badge neutral">${escapeHtml(tag)}</span>`)
+      .map((tag) => {
+        const color = tagColors.get(tag);
+        const style = color ? ` style="${escapeHtml(getBookmarkTagStyle(color))}"` : "";
+        return `<span class="bookmark-tag"${style}>${escapeHtml(tag)}</span>`;
+      })
       .join("");
 
     card.innerHTML = `
       <div class="bookmark-main">
         <div class="bookmark-info">
           <div class="bookmark-title-row">
+            ${tagsHtml ? `<div class="bookmark-tags">${tagsHtml}</div>` : ""}
             <h3 title="${escapeHtml(bookmark.name)}">${escapeHtml(bookmark.name)}</h3>
             ${bookmark.pinned ? '<span class="bookmark-pin-indicator" title="已置顶" aria-label="已置顶"></span>' : ""}
           </div>
           <p title="${escapeHtml(bookmark.url)}">${escapeHtml(bookmark.url)}</p>
-          ${tagsHtml ? `<div class="bookmark-tags">${tagsHtml}</div>` : ""}
         </div>
         <div class="bookmark-actions" aria-label="书签操作">
           <button type="button" class="bookmark-icon-button" data-bookmark-action="open" aria-label="打开" title="打开"></button>
@@ -644,7 +692,6 @@ function renderBookmarks() {
           <button type="button" class="bookmark-icon-button danger" data-bookmark-action="delete" aria-label="删除" title="删除"></button>
         </div>
       </div>
-      ${bookmark.notes ? `<div class="bookmark-meta"><span>${escapeHtml(bookmark.notes)}</span></div>` : ""}
     `;
 
     elements.bookmarkList.appendChild(card);
@@ -1294,7 +1341,6 @@ function fillBookmarkForm(bookmark) {
   elements.bookmarkName.value = draft.name || "";
   elements.bookmarkUrl.value = draft.url || "";
   elements.bookmarkTags.value = (draft.tags || []).join(", ");
-  elements.bookmarkNotes.value = draft.notes || "";
   elements.bookmarkPinned.checked = draft.pinned === true;
   elements.bookmarkFormStatus.textContent = "";
   elements.bookmarkEditor.hidden = false;
@@ -1307,7 +1353,7 @@ function readBookmarkForm() {
     name: elements.bookmarkName.value,
     url: elements.bookmarkUrl.value,
     tags: splitTags(elements.bookmarkTags.value),
-    notes: elements.bookmarkNotes.value,
+    notes: "",
     pinned: elements.bookmarkPinned.checked,
     createdAt: appState.bookmarks.find((bookmark) => bookmark.id === elements.bookmarkId.value)?.createdAt
   });

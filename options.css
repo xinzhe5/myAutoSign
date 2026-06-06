@@ -445,8 +445,9 @@ textarea:focus {
 }
 
 .bookmark-title-row h3 {
+  width: 120px;
+  flex: 0 0 120px;
   overflow: hidden;
-  min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -507,8 +508,7 @@ textarea:focus {
 }
 
 .account-meta,
-.model-meta,
-.bookmark-meta {
+.model-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -672,20 +672,26 @@ textarea:focus {
 
 .bookmark-tags {
   display: flex;
-  flex-wrap: wrap;
+  overflow: hidden;
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
   gap: 4px;
-  margin-top: 6px;
+  min-width: 0;
 }
 
-.bookmark-tags .badge {
+.bookmark-tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 92px;
   min-height: 20px;
   padding: 2px 6px;
-  font-size: 0.72rem;
-}
-
-.bookmark-card .bookmark-meta {
   overflow: hidden;
-  display: block;
+  border: 1px solid var(--tag-border);
+  border-radius: 999px;
+  color: var(--tag-fg);
+  background: var(--tag-bg);
+  font-size: 0.72rem;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
