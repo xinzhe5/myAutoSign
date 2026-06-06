@@ -96,7 +96,18 @@
             </label>
             <label id="account-access-token-field" class="field field-wide">
               <span>Access Token</span>
-              <input id="account-access-token" type="password" autocomplete="off">
+              <div class="secret-input">
+                <input id="account-access-token" type="password" autocomplete="off">
+                <button
+                  type="button"
+                  class="secret-toggle"
+                  data-secret-toggle="#account-access-token"
+                  data-secret-label="Access Token"
+                  aria-label="显示 Access Token"
+                  aria-pressed="false"
+                  title="显示 Access Token"
+                ></button>
+              </div>
             </label>
             <label id="account-cookie-field" class="field field-wide">
               <span>Cookie</span>
@@ -104,7 +115,18 @@
             </label>
             <label id="account-turnstile-field" class="field field-wide">
               <span>Turnstile Token（可选）</span>
-              <input id="account-turnstile-token" type="password" autocomplete="off">
+              <div class="secret-input">
+                <input id="account-turnstile-token" type="password" autocomplete="off">
+                <button
+                  type="button"
+                  class="secret-toggle"
+                  data-secret-toggle="#account-turnstile-token"
+                  data-secret-label="Turnstile Token"
+                  aria-label="显示 Turnstile Token"
+                  aria-pressed="false"
+                  title="显示 Turnstile Token"
+                ></button>
+              </div>
             </label>
             <label class="field field-wide">
               <span>备注</span>

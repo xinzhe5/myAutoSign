@@ -567,7 +567,64 @@ async function saveAccounts(accounts) {
   return normalized;
 }
 
-async function upsertAccount(input) {
+function normalizeAccountIdentity(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function findDuplicateAccount(accounts, candidate) {
+  const sameSiteAccounts = accounts.filter((account) => (
+    account.id !== candidate.id &&
+    account.siteType === candidate.siteType &&
+    normalizeBaseUrl(account.baseUrl) === normalizeBaseUrl(candidate.baseUrl)
+  ));
+
+  if (!sameSiteAccounts.length) {
+    return null;
+  }
+
+  const candidateUserId = normalizeAccountIdentity(candidate.userId);
+  const candidateUsername = normalizeAccountIdentity(candidate.username);
+  const exactMatch = candidateUserId
+    ? sameSiteAccounts.find((account) => normalizeAccountIdentity(account.userId) === candidateUserId)
+    : candidateUsername
+      ? sameSiteAccounts.find((account) => normalizeAccountIdentity(account.username) === candidateUsername)
+      : null;
+
+  if (exactMatch) {
+    const existingUserId = exactMatch.userId || candidate.userId;
+    const existingUsername = exactMatch.username || candidate.username;
+    const usernameText = existingUsername ? `（${existingUsername}）` : "";
+
+    return {
+      type: "exact",
+      siteUrl: candidate.baseUrl,
+      existingAccountsCount: sameSiteAccounts.length,
+      existingUserId,
+      existingUsername,
+      message: existingUserId
+        ? `在 ${candidate.baseUrl} 上，用户 ID ${existingUserId} 的账号已在列表中${usernameText}。继续添加可能会造成重复，是否继续？`
+        : `在 ${candidate.baseUrl} 上，用户名 ${existingUsername} 的账号已在列表中。继续添加可能会造成重复，是否继续？`
+    };
+  }
+
+  return {
+    type: "site",
+    siteUrl: candidate.baseUrl,
+    existingAccountsCount: sameSiteAccounts.length,
+    existingUserId: "",
+    existingUsername: "",
+    message: `你已在 ${candidate.baseUrl} 添加了 ${sameSiteAccounts.length} 个账号。继续添加可能会造成重复，是否继续？`
+  };
+}
+
+function createDuplicateAccountError(duplicate) {
+  const error = new Error(duplicate.message);
+  error.code = "duplicate-account";
+  error.duplicate = duplicate;
+  return error;
+}
+
+async function upsertAccount(input, options = {}) {
   const accounts = await getAccounts();
   const nowIso = new Date().toISOString();
   const normalized = normalizeAccount({
@@ -586,6 +643,13 @@ async function upsertAccount(input) {
       updatedAt: nowIso
     });
   } else {
+    const duplicate = options.allowDuplicate === true
+      ? null
+      : findDuplicateAccount(accounts, normalized);
+    if (duplicate) {
+      throw createDuplicateAccountError(duplicate);
+    }
+
     accounts.push(normalized);
   }
 
@@ -1359,7 +1423,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "get-state":
         return { ok: true, state: await getState() };
       case "save-account":
-        return { ok: true, account: await upsertAccount(message.account || {}) };
+        return {
+          ok: true,
+          account: await upsertAccount(message.account || {}, {
+            allowDuplicate: message.allowDuplicate === true
+          })
+        };
       case "delete-account":
         await deleteAccount(message.accountId);
         return { ok: true };
@@ -1385,10 +1454,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse(response);
     })
     .catch((error) => {
-      sendResponse({
+      const response = {
         ok: false,
         error: error?.message || String(error)
-      });
+      };
+      if (error?.code) {
+        response.code = error.code;
+      }
+      if (error?.duplicate) {
+        response.duplicate = error.duplicate;
+      }
+      sendResponse(response);
     });
 
   return true;

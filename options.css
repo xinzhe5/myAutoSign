@@ -242,6 +242,67 @@ textarea {
   background: #fff;
 }
 
+.secret-input {
+  position: relative;
+  display: block;
+}
+
+.secret-input input {
+  padding-right: 44px;
+}
+
+.secret-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  width: 34px;
+  min-width: 34px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.secret-toggle:hover {
+  color: var(--primary);
+  background: #edf4ff;
+}
+
+.secret-toggle:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.22);
+}
+
+.secret-toggle::before {
+  content: "";
+  width: 16px;
+  height: 10px;
+  border: 1.7px solid currentColor;
+  border-radius: 999px / 700px;
+  transform: rotate(-8deg);
+}
+
+.secret-toggle::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.secret-toggle[aria-pressed="true"]::after {
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  transform: rotate(-45deg);
+}
+
 textarea {
   min-height: 72px;
   resize: vertical;

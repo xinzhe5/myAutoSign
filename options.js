@@ -92,10 +92,63 @@ const elements = {
 function sendMessage(type, payload = {}) {
   return chrome.runtime.sendMessage({ type, ...payload }).then((response) => {
     if (!response?.ok) {
-      throw new Error(response?.error || "后台未返回成功结果");
+      const error = new Error(response?.error || "后台未返回成功结果");
+      if (response?.code) {
+        error.code = response.code;
+      }
+      if (response?.duplicate) {
+        error.duplicate = response.duplicate;
+      }
+      throw error;
     }
     return response;
   });
+}
+
+function setSecretInputVisibility(input, button, isVisible) {
+  input.type = isVisible ? "text" : "password";
+  button.setAttribute("aria-pressed", String(isVisible));
+
+  const label = button.dataset.secretLabel || "令牌";
+  const action = isVisible ? "隐藏" : "显示";
+  button.setAttribute("aria-label", `${action} ${label}`);
+  button.title = `${action} ${label}`;
+}
+
+function bindSecretVisibilityToggles() {
+  document.querySelectorAll("[data-secret-toggle]").forEach((button) => {
+    const selector = button.dataset.secretToggle;
+    if (!selector) {
+      return;
+    }
+
+    const input = document.querySelector(selector);
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+
+    setSecretInputVisibility(input, button, input.type === "text");
+    button.addEventListener("click", () => {
+      setSecretInputVisibility(input, button, input.type !== "text");
+      input.focus();
+    });
+  });
+}
+
+async function saveAccountWithDuplicateConfirmation(account) {
+  try {
+    return await sendMessage("save-account", { account });
+  } catch (error) {
+    if (error.code !== "duplicate-account") {
+      throw error;
+    }
+
+    if (!confirm(error.message)) {
+      return null;
+    }
+
+    return sendMessage("save-account", { account, allowDuplicate: true });
+  }
 }
 
 function formatDateTime(value) {
@@ -470,7 +523,12 @@ async function saveAccountFromForm(event) {
   elements.accountFormStatus.className = "status";
 
   try {
-    await sendMessage("save-account", { account });
+    const response = await saveAccountWithDuplicateConfirmation(account);
+    if (!response) {
+      elements.accountFormStatus.textContent = "已取消保存，未添加重复账号。";
+      elements.accountFormStatus.className = "status";
+      return;
+    }
     elements.accountFormStatus.textContent = "账号已保存。";
     elements.accountFormStatus.className = "status success";
     elements.accountEditor.hidden = true;
@@ -681,6 +739,7 @@ async function init() {
     location.hash = "#accounts";
   }
   routeTo(location.hash);
+  bindSecretVisibilityToggles();
   bindEvents();
   await loadState();
 }

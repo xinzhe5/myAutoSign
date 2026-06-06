@@ -11,7 +11,10 @@
 
 ## 版本更新
 
-- 当前版本：`2.0.1`
+- 当前版本：`2.0.2`
+- `2.0.2`（2026-06-06）：
+  - Access Token 和 Turnstile Token 输入框新增小眼睛按钮，可手动显示或隐藏令牌内容
+  - 新增重复账号提示：新增账号时，如果同站点同用户账号已在列表中，会先提示确认，避免误重复添加
 - `2.0.1`（2026-06-06）：
   - 修复在完整设置页执行自动识别时，只检查当前扩展页而无法命中目标站点标签页的问题
   - New API 自动识别改为参考插件流程：使用目标站点 Cookie 登录态读取 `/api/user/self`，必要时再调用 `/api/user/token` 获取系统访问令牌
@@ -97,6 +100,8 @@
 - New API 默认使用 `Access Token` 认证，可填写用户 ID、Access Token、Turnstile Token 和 Cookie。
 - AnyRouter 默认使用 `Cookie` 认证，自动签到会请求 `/api/user/sign_in`，不是只打开控制台页面。
 - 输入 `https://anyrouter.top/...` 时会自动预选 `AnyRouter` 和 `Cookie`。
+- Access Token 和 Turnstile Token 默认隐藏，可点击输入框右侧的小眼睛按钮显示或再次隐藏。
+- 新增账号保存前会检查同站点账号；如果当前登录账号已在列表中，会提示确认后再决定是否继续添加。
 
 推荐流程：
 
