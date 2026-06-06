@@ -426,7 +426,7 @@ textarea:focus {
 
 .bookmark-card:hover {
   border-color: var(--bookmark-fg, rgba(37, 99, 235, 0.35));
-  background: var(--bookmark-bg, #f8fbff);
+  background: var(--bookmark-bg-hover, var(--bookmark-bg, #f8fbff));
 }
 
 .account-main,
@@ -470,7 +470,7 @@ textarea:focus {
 }
 
 .bookmark-card p {
-  color: color-mix(in srgb, var(--bookmark-fg, var(--muted)) 72%, var(--muted));
+  color: var(--bookmark-muted, color-mix(in srgb, var(--bookmark-fg, var(--muted)) 72%, var(--muted)));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -682,7 +682,12 @@ function getBookmarkTagColorMap() {
     colors.set(tag, {
       bg: `hsl(${hueKey} ${bgSaturation}% ${bgLightness}%)`,
       fg: `hsl(${hueKey} 58% 31%)`,
-      border: `hsl(${hueKey} 62% 80%)`
+      border: `hsl(${hueKey} 62% 80%)`,
+      cardBg: `linear-gradient(135deg, hsl(${hueKey} 76% 89%), hsl(${hueKey} 72% 95%))`,
+      cardHoverBg: `linear-gradient(135deg, hsl(${hueKey} 78% 86%), hsl(${hueKey} 74% 93%))`,
+      cardFg: `hsl(${hueKey} 58% 24%)`,
+      cardMuted: `hsl(${hueKey} 46% 34%)`,
+      cardBorder: `hsl(${hueKey} 62% 70%)`
     });
   });
 
@@ -715,9 +720,11 @@ function renderBookmarks() {
     const primaryTag = (bookmark.tags || [])[0] || "";
     const primaryColor = primaryTag ? tagColors.get(primaryTag) : null;
     if (primaryColor) {
-      card.style.setProperty("--bookmark-bg", primaryColor.bg);
-      card.style.setProperty("--bookmark-fg", primaryColor.fg);
-      card.style.setProperty("--bookmark-border", primaryColor.border);
+      card.style.setProperty("--bookmark-bg", primaryColor.cardBg);
+      card.style.setProperty("--bookmark-bg-hover", primaryColor.cardHoverBg);
+      card.style.setProperty("--bookmark-fg", primaryColor.cardFg);
+      card.style.setProperty("--bookmark-muted", primaryColor.cardMuted);
+      card.style.setProperty("--bookmark-border", primaryColor.cardBorder);
     }
     const tagsHtml = (bookmark.tags || [])
       .map((tag) => {
