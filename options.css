@@ -464,7 +464,7 @@ textarea:focus {
 
 .account-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(116px, 148px);
+  grid-template-columns: minmax(140px, 0.65fr) minmax(0, 1.35fr) minmax(116px, 148px);
   gap: 12px;
   align-items: center;
 }

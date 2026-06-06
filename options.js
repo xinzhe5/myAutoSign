@@ -383,20 +383,20 @@ function renderAccounts() {
         <div class="account-info">
           <h3>${escapeHtml(account.name || account.username || "未命名账号")}</h3>
           <span class="account-username">${escapeHtml(account.username || "-")}</span>
-          <div class="account-controls-row">
-            <div class="badge-row account-badges">
-              <span class="badge">${escapeHtml(SITE_TYPE_LABELS[account.siteType] || account.siteType)}</span>
-              <span class="badge">${account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token"}</span>
-              <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "已启用" : "已停用"}</span>
-              <span class="badge ${account.autoCheckinEnabled !== false ? "success" : "neutral"}">${account.autoCheckinEnabled !== false ? "自动签到" : "不签到"}</span>
-              ${statusHtml}
-            </div>
-            <div class="account-actions account-icon-actions">
-              <button type="button" class="secondary-button account-icon-action" data-action="run" aria-label="签到" title="签到"></button>
-              <button type="button" class="secondary-button account-icon-action" data-action="open" aria-label="打开站点" title="打开站点"></button>
-              <button type="button" class="secondary-button account-icon-action" data-action="edit" aria-label="编辑账号" title="编辑账号"></button>
-              <button type="button" class="danger-button account-icon-action" data-action="delete" aria-label="删除账号" title="删除账号"></button>
-            </div>
+        </div>
+        <div class="account-controls-row">
+          <div class="badge-row account-badges">
+            <span class="badge">${escapeHtml(SITE_TYPE_LABELS[account.siteType] || account.siteType)}</span>
+            <span class="badge">${account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token"}</span>
+            <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "已启用" : "已停用"}</span>
+            <span class="badge ${account.autoCheckinEnabled !== false ? "success" : "neutral"}">${account.autoCheckinEnabled !== false ? "自动签到" : "不签到"}</span>
+            ${statusHtml}
+          </div>
+          <div class="account-actions account-icon-actions">
+            <button type="button" class="secondary-button account-icon-action" data-action="run" aria-label="签到" title="签到"></button>
+            <button type="button" class="secondary-button account-icon-action" data-action="open" aria-label="打开站点" title="打开站点"></button>
+            <button type="button" class="secondary-button account-icon-action" data-action="edit" aria-label="编辑账号" title="编辑账号"></button>
+            <button type="button" class="danger-button account-icon-action" data-action="delete" aria-label="删除账号" title="删除账号"></button>
           </div>
         </div>
         <div class="account-stats" aria-label="账号统计">
