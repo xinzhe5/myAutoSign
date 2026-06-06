@@ -101,6 +101,7 @@ const elements = {
   bookmarkTagFilter: $("#bookmark-tag-filter"),
   bookmarkStatus: $("#bookmark-status"),
   bookmarkList: $("#bookmark-list"),
+  bookmarkContextMenu: $("#bookmark-context-menu"),
   bookmarkEmpty: $("#bookmark-empty"),
   exportAllDataButton: $("#export-all-data"),
   exportAccountsDataButton: $("#export-accounts-data"),
@@ -683,13 +684,6 @@ function renderBookmarks() {
             ${bookmark.pinned ? '<span class="bookmark-pin-indicator" title="已置顶" aria-label="已置顶"></span>' : ""}
           </div>
           <p title="${escapeHtml(bookmark.url)}">${escapeHtml(bookmark.url)}</p>
-        </div>
-        <div class="bookmark-actions" aria-label="书签操作">
-          <button type="button" class="bookmark-icon-button" data-bookmark-action="open" aria-label="打开" title="打开"></button>
-          <button type="button" class="bookmark-icon-button" data-bookmark-action="copy" aria-label="复制链接" title="复制链接"></button>
-          <button type="button" class="bookmark-icon-button ${bookmark.pinned ? "active" : ""}" data-bookmark-action="pin" aria-label="${bookmark.pinned ? "取消置顶" : "置顶"}" title="${bookmark.pinned ? "取消置顶" : "置顶"}"></button>
-          <button type="button" class="bookmark-icon-button" data-bookmark-action="edit" aria-label="编辑" title="编辑"></button>
-          <button type="button" class="bookmark-icon-button danger" data-bookmark-action="delete" aria-label="删除" title="删除"></button>
         </div>
       </div>
     `;
@@ -1377,6 +1371,64 @@ function validateBookmark(bookmark) {
   return "";
 }
 
+function getBookmarkByCard(card) {
+  return appState.bookmarks.find((item) => item.id === card?.dataset.bookmarkId) || null;
+}
+
+function hideBookmarkContextMenu() {
+  elements.bookmarkContextMenu.hidden = true;
+  elements.bookmarkContextMenu.dataset.bookmarkId = "";
+}
+
+function showBookmarkContextMenu(event, bookmark) {
+  event.preventDefault();
+  elements.bookmarkContextMenu.dataset.bookmarkId = bookmark.id;
+  elements.bookmarkContextMenu.innerHTML = `
+    <button type="button" data-bookmark-action="open" role="menuitem">打开</button>
+    <button type="button" data-bookmark-action="copy" role="menuitem">复制链接</button>
+    <button type="button" data-bookmark-action="pin" role="menuitem">${bookmark.pinned ? "取消置顶" : "置顶"}</button>
+    <button type="button" data-bookmark-action="edit" role="menuitem">编辑</button>
+    <button type="button" data-bookmark-action="delete" role="menuitem" class="danger">删除</button>
+  `;
+  elements.bookmarkContextMenu.hidden = false;
+
+  const rect = elements.bookmarkContextMenu.getBoundingClientRect();
+  const left = Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8));
+  const top = Math.max(8, Math.min(event.clientY, window.innerHeight - rect.height - 8));
+  elements.bookmarkContextMenu.style.left = `${left}px`;
+  elements.bookmarkContextMenu.style.top = `${top}px`;
+}
+
+async function handleBookmarkAction(bookmark, action) {
+  if (action === "open") {
+    await sendMessage("open-account-site", { url: bookmark.url });
+    return;
+  }
+  if (action === "copy") {
+    await copyText(bookmark.url);
+    elements.bookmarkStatus.textContent = `已复制书签链接：${bookmark.name}`;
+    elements.bookmarkStatus.className = "status success";
+    return;
+  }
+  if (action === "pin") {
+    await sendMessage("save-bookmark", { bookmark: { ...bookmark, pinned: !bookmark.pinned } });
+    await loadState();
+    elements.bookmarkStatus.textContent = bookmark.pinned ? "已取消置顶。" : "书签已置顶。";
+    elements.bookmarkStatus.className = "status success";
+    return;
+  }
+  if (action === "edit") {
+    fillBookmarkForm(bookmark);
+    return;
+  }
+  if (action === "delete" && confirm(`确定删除书签「${bookmark.name}」吗？`)) {
+    await sendMessage("delete-bookmark", { bookmarkId: bookmark.id });
+    await loadState();
+    elements.bookmarkStatus.textContent = "书签已删除。";
+    elements.bookmarkStatus.className = "status success";
+  }
+}
+
 async function saveBookmarkFromForm(event) {
   event.preventDefault();
   const bookmark = readBookmarkForm();
@@ -1609,40 +1661,37 @@ function bindEvents() {
   elements.bookmarkSearch.addEventListener("input", renderBookmarks);
   elements.bookmarkTagFilter.addEventListener("change", renderBookmarks);
   elements.bookmarkList.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-bookmark-action]");
-    if (!button) return;
-    const card = button.closest(".bookmark-card");
-    const bookmark = appState.bookmarks.find((item) => item.id === card?.dataset.bookmarkId);
+    const card = event.target.closest(".bookmark-card");
+    const bookmark = getBookmarkByCard(card);
     if (!bookmark) return;
 
-    if (button.dataset.bookmarkAction === "open") {
-      await sendMessage("open-account-site", { url: bookmark.url });
-      return;
+    hideBookmarkContextMenu();
+    await handleBookmarkAction(bookmark, "open");
+  });
+  elements.bookmarkList.addEventListener("contextmenu", (event) => {
+    const card = event.target.closest(".bookmark-card");
+    const bookmark = getBookmarkByCard(card);
+    if (!bookmark) return;
+
+    showBookmarkContextMenu(event, bookmark);
+  });
+  elements.bookmarkContextMenu.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-bookmark-action]");
+    const bookmark = appState.bookmarks.find((item) => item.id === elements.bookmarkContextMenu.dataset.bookmarkId);
+    if (!button || !bookmark) return;
+
+    const action = button.dataset.bookmarkAction;
+    hideBookmarkContextMenu();
+    await handleBookmarkAction(bookmark, action);
+  });
+  document.addEventListener("click", (event) => {
+    if (!elements.bookmarkContextMenu.hidden && !elements.bookmarkContextMenu.contains(event.target)) {
+      hideBookmarkContextMenu();
     }
-    if (button.dataset.bookmarkAction === "copy") {
-      await copyText(bookmark.url);
-      elements.bookmarkStatus.textContent = `已复制书签链接：${bookmark.name}`;
-      elements.bookmarkStatus.className = "status success";
-      return;
-    }
-    if (button.dataset.bookmarkAction === "pin") {
-      await sendMessage("save-bookmark", { bookmark: { ...bookmark, pinned: !bookmark.pinned } });
-      await loadState();
-      elements.bookmarkStatus.textContent = bookmark.pinned ? "已取消置顶。" : "书签已置顶。";
-      elements.bookmarkStatus.className = "status success";
-      return;
-    }
-    if (button.dataset.bookmarkAction === "edit") {
-      fillBookmarkForm(bookmark);
-      return;
-    }
-    if (button.dataset.bookmarkAction === "delete") {
-      if (confirm(`确定删除书签「${bookmark.name}」吗？`)) {
-        await sendMessage("delete-bookmark", { bookmarkId: bookmark.id });
-        await loadState();
-        elements.bookmarkStatus.textContent = "书签已删除。";
-        elements.bookmarkStatus.className = "status success";
-      }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      hideBookmarkContextMenu();
     }
   });
 
