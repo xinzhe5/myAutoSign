@@ -69,6 +69,75 @@ function formatDisplayQuota(quota, statusData, digits = 6) {
   return `$${usdAmount.toFixed(digits)}`;
 }
 
+function getTodayTimestampRangeSeconds() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  const start = Math.floor(date.getTime() / 1000);
+  date.setHours(23, 59, 59, 999);
+  const end = Math.floor(date.getTime() / 1000);
+  return { start, end };
+}
+
+function buildTodayLogStatUrl(baseUrl, type) {
+  const { start, end } = getTodayTimestampRangeSeconds();
+  const params = new URLSearchParams({
+    p: "1",
+    page_size: "10",
+    type: String(type),
+    token_name: "",
+    model_name: "",
+    start_timestamp: String(start),
+    end_timestamp: String(end),
+    group: ""
+  });
+  return `${baseUrl}/api/log/self/stat?${params.toString()}`;
+}
+
+function extractQuotaValue(payload) {
+  const value = payload?.data && typeof payload.data === "object" ? payload.data : payload;
+  const quota = Number(value?.quota || 0);
+  return Number.isFinite(quota) ? quota : 0;
+}
+
+async function tryGetTodayQuotaStat(baseUrl, headers, type) {
+  try {
+    const { statusCode, data } = await requestJson("GET", buildTodayLogStatUrl(baseUrl, type), headers);
+    return statusCode >= 200 && statusCode < 300 ? extractQuotaValue(data) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function buildAccountStatsSnapshot(baseUrl, headers, statusData, selfData) {
+  const [todayConsumption, todayTopup, todaySystem] = await Promise.all([
+    tryGetTodayQuotaStat(baseUrl, headers, 2),
+    tryGetTodayQuotaStat(baseUrl, headers, 1),
+    tryGetTodayQuotaStat(baseUrl, headers, 4)
+  ]);
+  const todayIncome = todayTopup === null && todaySystem === null
+    ? null
+    : Number(todayTopup || 0) + Number(todaySystem || 0);
+
+  return {
+    currentQuota: selfData && Object.prototype.hasOwnProperty.call(selfData, "quota")
+      ? formatDisplayQuota(selfData.quota, statusData, 6)
+      : "",
+    todayConsumption: todayConsumption === null ? "" : formatDisplayQuota(todayConsumption, statusData, 6),
+    todayIncome: todayIncome === null ? "" : formatDisplayQuota(todayIncome, statusData, 6),
+    displayType: getDisplayType(statusData)
+  };
+}
+
+async function tryBuildAccountStatsSnapshot(baseUrl, headers) {
+  try {
+    const statusData = await tryGetNewApiStatus(baseUrl, headers);
+    const selfData = await getNewApiSelf(baseUrl, headers);
+    return await buildAccountStatsSnapshot(baseUrl, headers, statusData, selfData);
+  } catch (error) {
+    return {};
+  }
+}
+
 function parseCookiePairs(cookie) {
   return String(cookie || "")
     .split(";")
@@ -323,9 +392,10 @@ async function runNewApiProvider(account) {
     const statusData = await tryGetNewApiStatus(account.baseUrl, headers);
     const displayType = getDisplayType(statusData);
     const selfData = await getNewApiSelf(account.baseUrl, headers);
+    const statsSnapshot = await buildAccountStatsSnapshot(account.baseUrl, headers, statusData, selfData);
     const current = await getNewApiCheckinStatus(account.baseUrl, headers);
     const stats = current.stats || {};
-    const currentQuota = formatDisplayQuota(selfData.quota, statusData, 6);
+    const currentQuota = statsSnapshot.currentQuota || formatDisplayQuota(selfData.quota, statusData, 6);
     const rewardTotal = formatDisplayQuota(stats.total_quota, statusData, 6);
     const totalCheckins = stats.total_checkins || "";
 
@@ -334,6 +404,7 @@ async function runNewApiProvider(account) {
         totalCheckins,
         rewardTotal,
         currentQuota,
+        ...statsSnapshot,
         displayType
       });
     }
@@ -346,12 +417,13 @@ async function runNewApiProvider(account) {
         account,
         turnstileRequired ? CHECKIN_STATUS.TURNSTILE_REQUIRED : CHECKIN_STATUS.FAILED,
         turnstileRequired ? "站点开启了 Turnstile，需要提供 turnstile token" : `签到失败: ${apiMessage}`,
-        { totalCheckins, rewardTotal, currentQuota, displayType }
+        { totalCheckins, rewardTotal, currentQuota, ...statsSnapshot, displayType }
       );
     }
 
     const data = checkinResult.data || {};
     const selfAfter = await getNewApiSelf(account.baseUrl, headers);
+    const statsSnapshotAfter = await buildAccountStatsSnapshot(account.baseUrl, headers, statusData, selfAfter);
     const quotaAwarded = Number(data.quota_awarded || 0);
 
     return buildAccountResult(account, CHECKIN_STATUS.SUCCESS, checkinResult.message || "签到成功", {
@@ -359,7 +431,8 @@ async function runNewApiProvider(account) {
       totalCheckins: String(Number(stats.total_checkins || 0) + 1),
       rewardToday: formatDisplayQuota(quotaAwarded, statusData, 6),
       rewardTotal: formatDisplayQuota(Number(stats.total_quota || 0) + quotaAwarded, statusData, 6),
-      currentQuota: formatDisplayQuota(selfAfter.quota, statusData, 6),
+      ...statsSnapshotAfter,
+      currentQuota: statsSnapshotAfter.currentQuota || formatDisplayQuota(selfAfter.quota, statusData, 6),
       displayType
     });
   } catch (error) {
@@ -407,6 +480,13 @@ async function runAnyRouterProvider(account) {
 
   try {
     await applyConfiguredCookies(account.baseUrl, account.cookie);
+    const statsHeaders = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Pragma: "no-cache",
+      ...buildCompatUserIdHeaders(account.userId)
+    };
+    const statsSnapshot = await tryBuildAccountStatsSnapshot(account.baseUrl, statsHeaders);
 
     const { statusCode, data } = await requestJson(
       "POST",
@@ -422,7 +502,7 @@ async function runAnyRouterProvider(account) {
     );
 
     if (statusCode < 200 || statusCode >= 300) {
-      return buildAccountResult(account, CHECKIN_STATUS.FAILED, `签到失败，HTTP ${statusCode}: ${JSON.stringify(data)}`);
+      return buildAccountResult(account, CHECKIN_STATUS.FAILED, `签到失败，HTTP ${statusCode}: ${JSON.stringify(data)}`, statsSnapshot);
     }
 
     const rawMessage = normalizeCheckinMessage(data.message);
@@ -433,27 +513,30 @@ async function runAnyRouterProvider(account) {
         account,
         isAlreadyCheckedMessage(rawMessage) ? CHECKIN_STATUS.ALREADY_CHECKED : CHECKIN_STATUS.FAILED,
         rawMessage || "签到失败",
-        { rawMessage, data }
+        { rawMessage, data, ...statsSnapshot }
       );
     }
 
     if (lowered.includes("success") || rawMessage.includes("签到成功")) {
       return buildAccountResult(account, CHECKIN_STATUS.SUCCESS, rawMessage || "签到成功", {
         rawMessage,
-        data
+        data,
+        ...statsSnapshot
       });
     }
 
     if (isAlreadyCheckedMessage(rawMessage)) {
       return buildAccountResult(account, CHECKIN_STATUS.ALREADY_CHECKED, rawMessage || "今天已经签到过了", {
         rawMessage,
-        data
+        data,
+        ...statsSnapshot
       });
     }
 
     return buildAccountResult(account, CHECKIN_STATUS.FAILED, rawMessage || "签到失败", {
       rawMessage,
-      data
+      data,
+      ...statsSnapshot
     });
   } catch (error) {
     const message = error?.message || String(error);

@@ -155,6 +155,62 @@ function accountMatchesCurrentSite(account) {
   return Boolean(currentBaseUrl && normalizeBaseUrl(account.baseUrl) === currentBaseUrl);
 }
 
+function getAccountLastResult(account) {
+  return appState.autoCheckinStatus?.perAccount?.[account.id] || {};
+}
+
+function firstPresent(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return "";
+}
+
+function formatStatValue(value, prefix = "") {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return "-";
+  }
+  if (!prefix || /^[+\-~]/.test(text)) {
+    return text;
+  }
+  return `${prefix}${text}`;
+}
+
+function getAccountStats(account) {
+  const result = getAccountLastResult(account);
+  return {
+    balance: formatStatValue(firstPresent(
+      account.balance,
+      account.quota,
+      account.currentQuota,
+      result.currentQuota
+    )),
+    todayConsumption: formatStatValue(firstPresent(
+      account.todayConsumption,
+      account.todayQuotaConsumption,
+      account.today_quota_consumption,
+      result.todayConsumption
+    ), "-"),
+    todayIncome: formatStatValue(firstPresent(
+      account.todayIncome,
+      account.today_income,
+      result.todayIncome,
+      result.rewardToday
+    ), "+")
+  };
+}
+
+function getHostLabel(value) {
+  try {
+    return new URL(normalizeBaseUrl(value)).hostname;
+  } catch (error) {
+    return value || "-";
+  }
+}
+
 function renderAccountList() {
   const accounts = [...(appState.accounts || [])].sort((a, b) => {
     const aMatches = accountMatchesCurrentSite(a);
@@ -175,24 +231,29 @@ function renderAccountList() {
 
     const authLabel = account.authType === AUTH_TYPES.COOKIE ? "Cookie" : "Access Token";
     const siteLabel = SITE_TYPE_LABELS[account.siteType] || account.siteType || "-";
+    const stats = getAccountStats(account);
     const currentBadge = accountMatchesCurrentSite(account)
       ? `<span class="badge success">当前站点</span>`
       : "";
+    const userLine = `${account.username || "-"} · ID ${account.userId || "-"}`;
 
     card.innerHTML = `
-      <div>
-        <h3>${escapeHtml(account.name || account.username || account.baseUrl)}</h3>
-        <p>${escapeHtml(account.baseUrl || "-")}</p>
-      </div>
-      <div class="badge-row">
-        ${currentBadge}
-        <span class="badge">${escapeHtml(siteLabel)}</span>
-        <span class="badge">${escapeHtml(authLabel)}</span>
-        <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "已启用" : "已停用"}</span>
-      </div>
-      <div class="account-meta">
-        <span>用户名：${escapeHtml(account.username || "-")}</span>
-        <span>用户 ID：${escapeHtml(account.userId || "-")}</span>
+      <div class="account-card-body">
+        <div class="account-info">
+          <h3 title="${escapeHtml(account.baseUrl || "")}">${escapeHtml(account.name || getHostLabel(account.baseUrl))}</h3>
+          <p>${escapeHtml(userLine)}</p>
+          <div class="badge-row">
+            ${currentBadge}
+            <span class="badge">${escapeHtml(siteLabel)}</span>
+            <span class="badge">${escapeHtml(authLabel)}</span>
+            <span class="badge ${account.enabled ? "success" : "neutral"}">${account.enabled ? "启用" : "停用"}</span>
+          </div>
+        </div>
+        <div class="account-stats" aria-label="账号统计">
+          <div class="stat"><span>余额</span><strong>${escapeHtml(stats.balance)}</strong></div>
+          <div class="stat"><span>今日消费</span><strong>${escapeHtml(stats.todayConsumption)}</strong></div>
+          <div class="stat"><span>今日收入</span><strong>${escapeHtml(stats.todayIncome)}</strong></div>
+        </div>
       </div>
       <div class="account-actions">
         <button type="button" class="secondary-button" data-action="edit">编辑</button>
@@ -534,7 +595,10 @@ function bindEvents() {
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "local" && changes[STORAGE_KEYS.ACCOUNTS]) {
+    if (areaName === "local" && (
+      changes[STORAGE_KEYS.ACCOUNTS] ||
+      changes[STORAGE_KEYS.AUTO_CHECKIN_STATUS]
+    )) {
       void loadState();
     }
   });
