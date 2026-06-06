@@ -494,7 +494,7 @@ textarea:focus {
 
 .account-icon-actions {
   display: grid;
-  grid-template-columns: repeat(2, 28px);
+  grid-template-columns: repeat(4, 28px);
   gap: 6px;
 }
 
