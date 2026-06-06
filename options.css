@@ -464,7 +464,7 @@ textarea:focus {
 
 .account-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(116px, 148px);
+  grid-template-columns: minmax(0, 1fr) minmax(116px, 148px);
   gap: 12px;
   align-items: center;
 }
@@ -490,12 +490,30 @@ textarea:focus {
   font-size: 0.84rem;
 }
 
+.account-controls-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .account-badges {
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
   justify-content: flex-start;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.account-badges::-webkit-scrollbar {
+  display: none;
 }
 
 .account-icon-actions {
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: repeat(4, 28px);
   gap: 6px;
 }
