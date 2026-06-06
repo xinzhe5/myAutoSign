@@ -314,11 +314,18 @@ function startManualAdd() {
   elements.baseUrl.focus();
 }
 
-async function startAutoAdd() {
+function startAutoAdd() {
   resetAccountForm();
   elements.formTitle.textContent = "自动添加";
+  const currentBaseUrl = getCurrentBaseUrl();
+  if (currentBaseUrl) {
+    elements.baseUrl.value = currentBaseUrl;
+    applyUrlDefaults();
+    setStatus("请点击“自动识别当前站点”开始获取账号信息。");
+  } else {
+    setStatus("请先打开目标站点，或填写站点地址后点击“自动识别当前站点”。");
+  }
   setView("form");
-  await autoDetectCurrentSite();
 }
 
 function isHttpUrl(value) {
@@ -522,9 +529,7 @@ function bindEvents() {
   });
 
   elements.manualAddButton.addEventListener("click", startManualAdd);
-  elements.autoAddButton.addEventListener("click", () => {
-    void startAutoAdd();
-  });
+  elements.autoAddButton.addEventListener("click", startAutoAdd);
 
   elements.accountList.addEventListener("click", async (event) => {
     const target = event.target instanceof Element ? event.target : null;
