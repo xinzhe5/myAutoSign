@@ -628,23 +628,23 @@ function renderBookmarks() {
 
     card.innerHTML = `
       <div class="bookmark-main">
-        <div>
-          <h3 title="${escapeHtml(bookmark.name)}">${escapeHtml(bookmark.name)}</h3>
+        <div class="bookmark-info">
+          <div class="bookmark-title-row">
+            <h3 title="${escapeHtml(bookmark.name)}">${escapeHtml(bookmark.name)}</h3>
+            ${bookmark.pinned ? '<span class="bookmark-pin-indicator" title="已置顶" aria-label="已置顶"></span>' : ""}
+          </div>
           <p title="${escapeHtml(bookmark.url)}">${escapeHtml(bookmark.url)}</p>
+          ${tagsHtml ? `<div class="bookmark-tags">${tagsHtml}</div>` : ""}
         </div>
-        <div class="badge-row">
-          ${bookmark.pinned ? '<span class="badge success">置顶</span>' : ""}
-          ${tagsHtml}
+        <div class="bookmark-actions" aria-label="书签操作">
+          <button type="button" class="bookmark-icon-button" data-bookmark-action="open" aria-label="打开" title="打开"></button>
+          <button type="button" class="bookmark-icon-button" data-bookmark-action="copy" aria-label="复制链接" title="复制链接"></button>
+          <button type="button" class="bookmark-icon-button ${bookmark.pinned ? "active" : ""}" data-bookmark-action="pin" aria-label="${bookmark.pinned ? "取消置顶" : "置顶"}" title="${bookmark.pinned ? "取消置顶" : "置顶"}"></button>
+          <button type="button" class="bookmark-icon-button" data-bookmark-action="edit" aria-label="编辑" title="编辑"></button>
+          <button type="button" class="bookmark-icon-button danger" data-bookmark-action="delete" aria-label="删除" title="删除"></button>
         </div>
       </div>
       ${bookmark.notes ? `<div class="bookmark-meta"><span>${escapeHtml(bookmark.notes)}</span></div>` : ""}
-      <div class="bookmark-actions">
-        <button type="button" class="secondary-button" data-bookmark-action="open">打开</button>
-        <button type="button" class="secondary-button" data-bookmark-action="copy">复制链接</button>
-        <button type="button" class="secondary-button" data-bookmark-action="pin">${bookmark.pinned ? "取消置顶" : "置顶"}</button>
-        <button type="button" class="secondary-button" data-bookmark-action="edit">编辑</button>
-        <button type="button" class="danger-button" data-bookmark-action="delete">删除</button>
-      </div>
     `;
 
     elements.bookmarkList.appendChild(card);

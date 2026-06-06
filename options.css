@@ -417,10 +417,38 @@ textarea:focus {
   padding: 16px;
 }
 
+.bookmark-card {
+  gap: 8px;
+  padding: 10px 12px;
+}
+
 .account-main,
 .model-main,
 .bookmark-main {
   justify-content: space-between;
+}
+
+.bookmark-main {
+  min-width: 0;
+  align-items: center;
+}
+
+.bookmark-info {
+  min-width: 0;
+}
+
+.bookmark-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.bookmark-title-row h3 {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .account-card p,
@@ -429,6 +457,13 @@ textarea:focus {
   margin: 5px 0 0;
   color: var(--muted);
   word-break: break-all;
+}
+
+.bookmark-card p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
 }
 
 .badge-row {
@@ -485,6 +520,174 @@ textarea:focus {
 .model-actions,
 .bookmark-actions {
   flex-wrap: wrap;
+}
+
+.bookmark-actions {
+  display: grid;
+  grid-template-columns: repeat(5, 28px);
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.bookmark-icon-button {
+  position: relative;
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.bookmark-icon-button:hover {
+  color: var(--primary);
+  background: #edf4ff;
+}
+
+.bookmark-icon-button.danger:hover {
+  color: var(--error);
+  background: var(--error-bg);
+}
+
+.bookmark-icon-button::before,
+.bookmark-icon-button::after,
+.bookmark-pin-indicator::before,
+.bookmark-pin-indicator::after {
+  content: "";
+  position: absolute;
+  display: block;
+}
+
+.bookmark-icon-button[data-bookmark-action="open"]::before {
+  width: 9px;
+  height: 9px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: translate(1px, -2px);
+}
+
+.bookmark-icon-button[data-bookmark-action="open"]::after {
+  width: 13px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg) translate(-1px, 1px);
+}
+
+.bookmark-icon-button[data-bookmark-action="copy"]::before,
+.bookmark-icon-button[data-bookmark-action="copy"]::after {
+  width: 10px;
+  height: 10px;
+  border: 1.7px solid currentColor;
+  border-radius: 2px;
+}
+
+.bookmark-icon-button[data-bookmark-action="copy"]::before {
+  transform: translate(-3px, 3px);
+  opacity: 0.6;
+}
+
+.bookmark-icon-button[data-bookmark-action="copy"]::after {
+  transform: translate(3px, -3px);
+}
+
+.bookmark-icon-button[data-bookmark-action="pin"]::before,
+.bookmark-pin-indicator::before {
+  width: 10px;
+  height: 10px;
+  border: 1.8px solid currentColor;
+  border-radius: 2px;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.bookmark-icon-button[data-bookmark-action="pin"]::after,
+.bookmark-pin-indicator::after {
+  width: 2px;
+  height: 9px;
+  background: currentColor;
+  transform: translate(1px, 6px);
+}
+
+.bookmark-icon-button[data-bookmark-action="pin"].active,
+.bookmark-pin-indicator {
+  color: var(--primary);
+}
+
+.bookmark-pin-indicator {
+  position: relative;
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.bookmark-pin-indicator::before {
+  width: 7px;
+  height: 7px;
+  border-width: 1.5px;
+}
+
+.bookmark-pin-indicator::after {
+  height: 7px;
+}
+
+.bookmark-icon-button[data-bookmark-action="edit"]::before {
+  width: 13px;
+  height: 4px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+
+.bookmark-icon-button[data-bookmark-action="edit"]::after {
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 5px solid currentColor;
+  transform: rotate(-45deg) translate(8px, 0);
+}
+
+.bookmark-icon-button[data-bookmark-action="delete"]::before {
+  width: 11px;
+  height: 12px;
+  border: 1.8px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 2px 2px;
+  transform: translateY(3px);
+}
+
+.bookmark-icon-button[data-bookmark-action="delete"]::after {
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: translateY(-6px);
+}
+
+.bookmark-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.bookmark-tags .badge {
+  min-height: 20px;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+}
+
+.bookmark-card .bookmark-meta {
+  overflow: hidden;
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .model-list,
@@ -727,10 +930,14 @@ td small {
 
   .page-header,
   .account-main,
-  .model-main,
-  .bookmark-main {
+  .model-main {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .bookmark-main {
+    align-items: center;
+    flex-direction: row;
   }
 
   .form-grid,
